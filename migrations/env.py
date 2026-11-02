@@ -14,6 +14,10 @@ from app.core.database import Base
 import app.models.user  # noqa: F401 — register models
 import app.models.product  # noqa: F401
 import app.models.stock  # noqa: F401
+import app.models.customer  # noqa: F401
+import app.models.accounting  # noqa: F401
+import app.models.shift  # noqa: F401
+import app.models.sale  # noqa: F401
 
 from app.config import DATABASE_URL
 

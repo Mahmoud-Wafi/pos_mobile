@@ -68,10 +68,37 @@ def _seed_default_manager(session: Session, role_map: dict[str, Role]) -> None:
         ))
 
 
+def _seed_cash_accounts(session: Session) -> None:
+    """Seed default cash accounts: الدرج (drawer), الخزنة (safe)."""
+    from app.models.accounting import CashAccount
+    accounts = [
+        ("الدرج", "drawer"),
+        ("الخزنة", "safe"),
+    ]
+    for name, acct_type in accounts:
+        if session.query(CashAccount).filter_by(name=name).first() is None:
+            session.add(CashAccount(name=name, type=acct_type, balance=0))
+
+
+def _seed_default_customer(session: Session) -> None:
+    """Seed default 'عميل نقدي' (Cash Customer)."""
+    from app.models.customer import Customer
+    if session.query(Customer).filter_by(name="عميل نقدي").first() is None:
+        session.add(Customer(
+            name="عميل نقدي",
+            phone="",
+            credit_limit=0,
+            balance=0,
+            notes="العميل النقدي الافتراضي للمبيعات المباشرة",
+        ))
+
+
 def seed_database(session: Session) -> None:
     """Idempotent seed: safe to call multiple times."""
     role_map = _seed_roles(session)
     _seed_settings(session)
     _seed_default_manager(session, role_map)
+    _seed_cash_accounts(session)
+    _seed_default_customer(session)
     session.commit()
 

@@ -20,6 +20,8 @@ from app.i18n import ar
 from app.core.database import get_session
 from app.models.user import User
 from app.ui.inventory.inventory_window import InventoryWindow
+from app.ui.pos.pos_window import POSWindow
+from app.ui.pos.returns_window import ReturnsWindow
 
 
 if HAS_QT:
@@ -111,8 +113,9 @@ if HAS_QT:
             self.nav_buttons: list[QPushButton] = []
 
             self.nav_items = [
-                ("📦  " + ar.INVENTORY, self._show_inventory, True),
-                ("🛒  " + ar.POS + " (المبيعات)", self._show_pos_placeholder, False),
+                ("🛒  " + ar.POS + " (المبيعات)", self._show_pos, True),
+                ("📦  " + ar.INVENTORY, self._show_inventory, False),
+                ("↩️  الضمان والمرتجعات", self._show_returns, False),
                 ("📥  " + ar.PURCHASES + " والموردين", self._show_purchases_placeholder, False),
                 ("💳  " + ar.WALLETS + " والشحن", self._show_wallets_placeholder, False),
                 ("💰  " + ar.ACCOUNTING + " والورديات", self._show_accounting_placeholder, False),
@@ -167,11 +170,19 @@ if HAS_QT:
             self.stack = QStackedWidget()
             self.stack.setContentsMargins(12, 12, 12, 12)
 
-            # 1. Inventory View
+            # 1. POS View (Phase 3)
+            self.pos_view = POSWindow(self.session, self.current_user)
+            self.stack.addWidget(self.pos_view)
+
+            # 2. Inventory View (Phase 2)
             self.inventory_view = InventoryWindow(self.session, self.current_user)
             self.stack.addWidget(self.inventory_view)
 
-            # 2. Placeholders for upcoming phases
+            # 3. Returns & Warranty View (Phase 3)
+            self.returns_view = ReturnsWindow(self.session, self.current_user)
+            self.stack.addWidget(self.returns_view)
+
+            # 4. Placeholders for upcoming phases
             self.placeholder_view = QWidget()
             pl_layout = QVBoxLayout(self.placeholder_view)
             pl_layout.setAlignment(Qt.AlignCenter)
@@ -212,49 +223,52 @@ if HAS_QT:
                         "background-color: transparent; color: #475569; font-weight: 600; border-right: none;"
                     )
 
-        def _show_inventory(self):
+        def _show_pos(self):
             self._set_active_nav(0)
+            self.pos_view._check_shift_and_init_sale()
+            self.stack.setCurrentWidget(self.pos_view)
+
+        def _show_inventory(self):
+            self._set_active_nav(1)
             self.inventory_view.refresh()
             self.stack.setCurrentWidget(self.inventory_view)
 
-        def _show_pos_placeholder(self):
-            self._set_active_nav(1)
-            self.placeholder_title.setText("🛒 شاشة نقطة البيع (POS) والفواتير")
-            self.placeholder_sub.setText("جاري بناؤها في المرحلة 3 (Phase 3) مع دعم الباركود وتجزئة الدفع وطباعة الفواتير")
-            self.stack.setCurrentWidget(self.placeholder_view)
+        def _show_returns(self):
+            self._set_active_nav(2)
+            self.stack.setCurrentWidget(self.returns_view)
 
         def _show_purchases_placeholder(self):
-            self._set_active_nav(2)
+            self._set_active_nav(3)
             self.placeholder_title.setText("📥 شاشة فواتير المشتريات وحسابات الموردين")
             self.placeholder_sub.setText("جاري بناؤها في المرحلة 4 (Phase 4) مع إدخال أرقام السيريال وعقود بيع المستعمل")
             self.stack.setCurrentWidget(self.placeholder_view)
 
         def _show_wallets_placeholder(self):
-            self._set_active_nav(3)
+            self._set_active_nav(4)
             self.placeholder_title.setText("💳 شاشة المحافظ الإلكترونية (فودافون كاش، أورنج، اتصالات)")
             self.placeholder_sub.setText("جاري بناؤها في المرحلة 5 (Phase 5) مع احتساب العمولات وإيداع وسحب الأموال")
             self.stack.setCurrentWidget(self.placeholder_view)
 
         def _show_accounting_placeholder(self):
-            self._set_active_nav(4)
+            self._set_active_nav(5)
             self.placeholder_title.setText("💰 شاشة الخزينة والورديات والمصروفات")
             self.placeholder_sub.setText("جاري بناؤها في المرحلة 6 (Phase 6) مع إغلاق الوردية وحساب العجز والزيادة")
             self.stack.setCurrentWidget(self.placeholder_view)
 
         def _show_customers_placeholder(self):
-            self._set_active_nav(5)
+            self._set_active_nav(6)
             self.placeholder_title.setText("👥 شاشة إدارة العملاء وكشف حساب الديون")
-            self.placeholder_sub.setText("جاري بناؤها في المرحلة 3 (Phase 3) مع سداد الأقساط وحدود الائتمان")
+            self.placeholder_sub.setText("تم تجهيز قاعدة البيانات، والواجهة قيد الربط")
             self.stack.setCurrentWidget(self.placeholder_view)
 
         def _show_reports_placeholder(self):
-            self._set_active_nav(6)
+            self._set_active_nav(7)
             self.placeholder_title.setText("📊 شاشة التقارير التفصيلية والأرباح")
             self.placeholder_sub.setText("جاري بناؤها في المرحلة 7 (Phase 7) مع تصدير PDF وإكسيل")
             self.stack.setCurrentWidget(self.placeholder_view)
 
         def _show_settings_placeholder(self):
-            self._set_active_nav(7)
+            self._set_active_nav(8)
             self.placeholder_title.setText("⚙️ إعدادات النظام والمستخدمين والنسخ الاحتياطي")
             self.placeholder_sub.setText("جاري بناؤها في المرحلة 7 (Phase 7)")
             self.stack.setCurrentWidget(self.placeholder_view)
