@@ -261,3 +261,4 @@ class TestExcelImport:
         assert p1.name == "جراب آيفون 15"
         assert p1.sale_price == 12000  # 120 EGP in piasters
         assert p1.current_quantity() == 25
+

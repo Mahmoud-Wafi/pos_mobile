@@ -1,8 +1,4 @@
-"""Main entry point for the shop management application.
-
-Usage:
-    python -m app.main
-"""
+"""Main entry point for the shop management application."""
 import sys
 
 
@@ -11,13 +7,16 @@ def main() -> None:
     try:
         from PySide6.QtWidgets import QApplication
         from PySide6.QtCore import Qt
+        from app.ui.theme import setup_theme
         from app.ui.main_window import MainWindow
-        from app.core.database import init_db
+        from app.core.database import init_db, session_scope
         from app.core.seed import seed_database
-        from app.core.database import session_scope
 
         app = QApplication(sys.argv)
         app.setLayoutDirection(Qt.RightToLeft)
+
+        # Apply global modern theme & Cairo font
+        setup_theme(app)
 
         # Ensure DB exists and is seeded
         init_db()
@@ -29,10 +28,9 @@ def main() -> None:
         sys.exit(app.exec())
 
     except ImportError:
-        # Headless / no PySide6 — just init DB and seed
-        from app.core.database import init_db
+        # Headless fallback
+        from app.core.database import init_db, session_scope
         from app.core.seed import seed_database
-        from app.core.database import session_scope
 
         init_db()
         with session_scope() as session:
@@ -41,4 +39,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
