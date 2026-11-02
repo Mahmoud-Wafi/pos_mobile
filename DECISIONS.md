@@ -23,3 +23,18 @@ Architectural and business-rule decisions made during development.
 ### D-005 — `PermissionDenied` raised in services, not silently swallowed
 **Decision**: Any service call that violates RBAC raises `PermissionDenied` immediately, even if the UI has hidden the button.  
 **Reason**: AGENTS.md §2 rule 5 explicitly requires this.
+
+## Phase 2 — Inventory
+
+### D-006 — Dual IMEI uniqueness checking
+**Decision**: Uniqueness is strictly enforced across both `imei1` and `imei2`. An IMEI cannot exist as `imei1` or `imei2` on any device in the database.
+**Reason**: Prevents duplicate registration of dual-SIM devices or cross-referencing conflicts.
+
+### D-007 — Stock integrity for IMEI items vs Non-IMEI items
+**Decision**: For non-IMEI items, `stock.quantity` is driven by and equals the sum of `stock_movements.quantity`. For IMEI items, `stock.quantity` mirrors the live count of devices with `status='in_stock'`.
+**Reason**: Aligns with AGENTS.md §5: "for non-IMEI items; for IMEI items quantity = count of devices in_stock".
+
+### D-008 — Excel Import Format
+**Decision**: The importer accepts both Arabic and English header names (e.g. `الاسم`/`name`, `الباركود`/`barcode`, `الكمية`/`quantity`) and converts Egyptian Pound amounts to integer piasters using `egp_to_piasters`.
+**Reason**: Maximum user convenience when importing vendor price lists or existing shop sheets.
+

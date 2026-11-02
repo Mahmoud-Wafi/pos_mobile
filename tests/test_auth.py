@@ -221,3 +221,4 @@ class TestLogout:
             .first()
         )
         assert entry is not None
+

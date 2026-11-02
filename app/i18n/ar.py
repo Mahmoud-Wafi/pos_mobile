@@ -76,3 +76,4 @@ SETTING_INVOICE_FOOTER = "invoice_footer"
 SETTING_WARRANTY_TEXT = "warranty_text"
 SETTING_CASHIER_DISCOUNT_LIMIT_PCT = "cashier_discount_limit_pct"
 SETTING_IDLE_LOCK_MINUTES = "idle_lock_minutes"
+

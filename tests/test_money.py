@@ -123,3 +123,4 @@ class TestWeightedAverageCost:
         result = weighted_average_cost(1000, 5000, 500, 6000)
         # (1000*5000 + 500*6000) / 1500 = (5000000 + 3000000) / 1500 = 5333.33 → 5333
         assert result == 5333
+

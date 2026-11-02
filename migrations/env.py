@@ -12,6 +12,8 @@ from alembic import context
 # Import Base (triggers model registration) and config
 from app.core.database import Base
 import app.models.user  # noqa: F401 — register models
+import app.models.product  # noqa: F401
+import app.models.stock  # noqa: F401
 
 from app.config import DATABASE_URL
 

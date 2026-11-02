@@ -33,3 +33,4 @@ def log_action(
     )
     session.add(entry)
     return entry
+

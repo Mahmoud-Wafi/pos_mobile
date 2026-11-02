@@ -74,3 +74,4 @@ def seed_database(session: Session) -> None:
     _seed_settings(session)
     _seed_default_manager(session, role_map)
     session.commit()
+

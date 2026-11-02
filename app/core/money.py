@@ -57,3 +57,4 @@ def weighted_average_cost(old_qty: int, old_avg_piasters: int, new_qty: int, new
     numerator = Decimal(old_qty) * Decimal(old_avg_piasters) + Decimal(new_qty) * Decimal(new_cost_piasters)
     avg = (numerator / Decimal(old_qty + new_qty)).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
     return int(avg)
+

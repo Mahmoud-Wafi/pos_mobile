@@ -102,3 +102,4 @@ def require_permission(user_permissions: set[str], permission_code: str, usernam
     """Raise PermissionDenied if the user lacks *permission_code*."""
     if not has_permission(user_permissions, permission_code):
         raise PermissionDenied(permission_code, username)
+

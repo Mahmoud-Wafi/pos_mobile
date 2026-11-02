@@ -122,3 +122,4 @@ class Setting(TimestampMixin, Base):
 
     def __repr__(self) -> str:
         return f"<Setting {self.key}={self.value!r}>"
+

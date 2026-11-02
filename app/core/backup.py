@@ -63,3 +63,4 @@ def restore_backup(backup_path: Path, db_path: Path = DB_PATH) -> Path:
 
     shutil.copy2(backup_path, db_path)
     return safety_path
+

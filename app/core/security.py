@@ -35,3 +35,4 @@ def compute_lockout(failed_attempts: int) -> Optional[datetime.datetime]:
     if failed_attempts >= MAX_FAILED_ATTEMPTS:
         return datetime.datetime.utcnow() + datetime.timedelta(minutes=LOCKOUT_MINUTES)
     return None
+

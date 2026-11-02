@@ -40,3 +40,4 @@ def db_session(db_engine):
     seed_database(session)
     yield session
     session.close()
+

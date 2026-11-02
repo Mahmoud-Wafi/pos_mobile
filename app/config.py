@@ -28,3 +28,4 @@ IDLE_LOCK_MINUTES_DEFAULT = 10   # default idle-lock timeout (overridable via Se
 # Application
 APP_NAME = "نظام إدارة محل الموبايلات"
 APP_VERSION = "1.0.0"
+

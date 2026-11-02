@@ -138,3 +138,4 @@ class TestRestoreBackup:
         fake_backup.write_bytes(b"fake")
         safety = restore_backup(backup_path=fake_backup, db_path=db_path)
         assert safety is None
+
