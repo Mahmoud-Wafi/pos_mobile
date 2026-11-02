@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Distribution / packaging
+*.egg-info/
+dist/
+build/
+
+# pytest
+.pytest_cache/
+*.log
+
+# SQLite
+data/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Alembic pycache
+migrations/__pycache__/
+migrations/versions/__pycache__/
+
+# PyInstaller
+*.spec
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
