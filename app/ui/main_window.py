@@ -23,6 +23,7 @@ from app.ui.inventory.inventory_window import InventoryWindow
 from app.ui.pos.pos_window import POSWindow
 from app.ui.pos.returns_window import ReturnsWindow
 from app.ui.purchases.purchases_window import PurchasesWidget
+from app.ui.wallets.wallets_window import WalletsWidget
 
 
 if HAS_QT:
@@ -118,7 +119,7 @@ if HAS_QT:
                 ("📦  " + ar.INVENTORY, self._show_inventory, False),
                 ("↩️  الضمان والمرتجعات", self._show_returns, False),
                 ("📥  " + ar.PURCHASES + " والموردين", self._show_purchases, False),
-                ("💳  " + ar.WALLETS + " والشحن", self._show_wallets_placeholder, False),
+                ("💳  " + ar.WALLETS + " والشحن", self._show_wallets, False),
                 ("💰  " + ar.ACCOUNTING + " والورديات", self._show_accounting_placeholder, False),
                 ("👥  " + ar.CUSTOMERS + " والديون", self._show_customers_placeholder, False),
             ]
@@ -187,7 +188,11 @@ if HAS_QT:
             self.purchases_view = PurchasesWidget(self.session, self.current_user)
             self.stack.addWidget(self.purchases_view)
 
-            # 5. Placeholders for upcoming phases
+            # 5. Wallets & Operations View (Phase 5)
+            self.wallets_view = WalletsWidget(self.session, self.current_user)
+            self.stack.addWidget(self.wallets_view)
+
+            # 6. Placeholders for upcoming phases
             self.placeholder_view = QWidget()
             pl_layout = QVBoxLayout(self.placeholder_view)
             pl_layout.setAlignment(Qt.AlignCenter)
@@ -247,11 +252,10 @@ if HAS_QT:
             self.purchases_view.load_all()
             self.stack.setCurrentWidget(self.purchases_view)
 
-        def _show_wallets_placeholder(self):
+        def _show_wallets(self):
             self._set_active_nav(4)
-            self.placeholder_title.setText("💳 شاشة المحافظ الإلكترونية (فودافون كاش، أورنج، اتصالات)")
-            self.placeholder_sub.setText("جاري بناؤها في المرحلة 5 (Phase 5) مع احتساب العمولات وإيداع وسحب الأموال")
-            self.stack.setCurrentWidget(self.placeholder_view)
+            self.wallets_view.load_all()
+            self.stack.setCurrentWidget(self.wallets_view)
 
         def _show_accounting_placeholder(self):
             self._set_active_nav(5)

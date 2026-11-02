@@ -6,6 +6,7 @@ from app.models.accounting import CashAccount, CashTransaction, Expense, Expense
 from app.models.shift import Shift
 from app.models.sale import Sale, SaleItem, SalePayment, SaleReturn, SaleReturnItem
 from app.models.purchase import Supplier, Purchase, PurchaseItem, SupplierPayment, UsedDevicePurchase
+from app.models.wallet import Wallet, CommissionRule, WalletTransaction, WalletAudit
 
 __all__ = [
     "User",
@@ -37,4 +38,8 @@ __all__ = [
     "PurchaseItem",
     "SupplierPayment",
     "UsedDevicePurchase",
+    "Wallet",
+    "CommissionRule",
+    "WalletTransaction",
+    "WalletAudit",
 ]

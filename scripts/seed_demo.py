@@ -22,16 +22,12 @@ def seed_demo_data():
 
         admin = session.query(User).filter_by(username="admin").first()
 
-        # Check if already seeded
+        # 1. Categories & Products (if not already seeded)
         from app.models.product import Product
-        if session.query(Product).count() > 0:
-            print("البيانات التجريبية موجودة بالفعل.")
-            return
-
-        # 1. Categories
-        cat_phones = inventory_service.create_category(session, admin, "هواتف ذكية")
-        cat_acc = inventory_service.create_category(session, admin, "إكسسوارات")
-        cat_cards = inventory_service.create_category(session, admin, "كروت شحن وباقات")
+        if session.query(Product).count() == 0:
+            cat_phones = inventory_service.create_category(session, admin, "هواتف ذكية")
+            cat_acc = inventory_service.create_category(session, admin, "إكسسوارات")
+            cat_cards = inventory_service.create_category(session, admin, "كروت شحن وباقات")
 
         # 2. Brands
         brand_samsung = inventory_service.create_brand(session, admin, "Samsung")
@@ -159,6 +155,84 @@ def seed_demo_data():
             "warranty_days": 0,
         })
         inventory_service.adjust_stock(session, admin, p_vf_100, 50, "رصيد افتتاحي")
+
+        # 6. Wallets & Commission Rules (Phase 5 Demo)
+        from app.services import wallet_service, purchase_service
+        from app.models.wallet import Wallet
+
+        if session.query(Wallet).count() == 0:
+            w_vf = wallet_service.create_wallet(
+                session, admin,
+                network="vodafone",
+                phone_number="01011223344",
+                label="فودافون كاش - الخط الرئيسي",
+                initial_balance=egp_to_piasters("18500"),
+                daily_limit=egp_to_piasters("30000"),
+                monthly_limit=egp_to_piasters("100000"),
+            )
+            w_og = wallet_service.create_wallet(
+                session, admin,
+                network="orange",
+                phone_number="01222334455",
+                label="أورنج موني - خط الفرع",
+                initial_balance=egp_to_piasters("9400"),
+                daily_limit=egp_to_piasters("30000"),
+                monthly_limit=egp_to_piasters("100000"),
+            )
+            w_et = wallet_service.create_wallet(
+                session, admin,
+                network="etisalat",
+                phone_number="01133445566",
+                label="اتصالات كاش - السحب والإيداع",
+                initial_balance=egp_to_piasters("12000"),
+                daily_limit=egp_to_piasters("30000"),
+                monthly_limit=egp_to_piasters("100000"),
+            )
+            w_insta = wallet_service.create_wallet(
+                session, admin,
+                network="instapay",
+                phone_number="01099887766",
+                label="حساب إنستاباي - المحل",
+                initial_balance=egp_to_piasters("35000"),
+                daily_limit=egp_to_piasters("70000"),
+                monthly_limit=egp_to_piasters("200000"),
+            )
+
+            # Commission Rules
+            for net in ("vodafone", "orange", "etisalat"):
+                wallet_service.create_commission_rule(
+                    session, admin, network=net, op_type="cash_in",
+                    min_amount=egp_to_piasters("1"), max_amount=egp_to_piasters("500"),
+                    fixed_fee=egp_to_piasters("5"), percent_bp=0, network_fee=egp_to_piasters("1"),
+                )
+                wallet_service.create_commission_rule(
+                    session, admin, network=net, op_type="cash_in",
+                    min_amount=egp_to_piasters("501"), max_amount=egp_to_piasters("30000"),
+                    fixed_fee=egp_to_piasters("5"), percent_bp=50, network_fee=egp_to_piasters("2"),  # 0.5%
+                )
+                wallet_service.create_commission_rule(
+                    session, admin, network=net, op_type="cash_out",
+                    min_amount=egp_to_piasters("1"), max_amount=egp_to_piasters("30000"),
+                    fixed_fee=egp_to_piasters("10"), percent_bp=0, network_fee=0,
+                )
+
+        # 7. Demo Suppliers (Phase 4 Demo)
+        from app.models.purchase import Supplier
+        if session.query(Supplier).count() == 0:
+            purchase_service.create_supplier(
+                session, admin,
+                name="شركة الأهرام لتوزيع الموبايل",
+                phone="01012345678",
+                notes="الموزع المعتمد لسامسونج وشاومي",
+                initial_balance=egp_to_piasters("15000"),
+            )
+            purchase_service.create_supplier(
+                session, admin,
+                name="تراست للاستيراد والإكسسوارات",
+                phone="01298765432",
+                notes="شواحن وكابلات أنكر وبافينج",
+                initial_balance=0,
+            )
 
         print("تم إضافة البيانات التجريبية بنجاح.")
 
