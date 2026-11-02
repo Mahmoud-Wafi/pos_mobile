@@ -5,6 +5,7 @@ from app.models.customer import Customer, CustomerPayment
 from app.models.accounting import CashAccount, CashTransaction, Expense, ExpenseCategory, OwnerDraw
 from app.models.shift import Shift
 from app.models.sale import Sale, SaleItem, SalePayment, SaleReturn, SaleReturnItem
+from app.models.purchase import Supplier, Purchase, PurchaseItem, SupplierPayment, UsedDevicePurchase
 
 __all__ = [
     "User",
@@ -31,4 +32,9 @@ __all__ = [
     "SalePayment",
     "SaleReturn",
     "SaleReturnItem",
+    "Supplier",
+    "Purchase",
+    "PurchaseItem",
+    "SupplierPayment",
+    "UsedDevicePurchase",
 ]

@@ -22,6 +22,7 @@ from app.models.user import User
 from app.ui.inventory.inventory_window import InventoryWindow
 from app.ui.pos.pos_window import POSWindow
 from app.ui.pos.returns_window import ReturnsWindow
+from app.ui.purchases.purchases_window import PurchasesWidget
 
 
 if HAS_QT:
@@ -116,7 +117,7 @@ if HAS_QT:
                 ("🛒  " + ar.POS + " (المبيعات)", self._show_pos, True),
                 ("📦  " + ar.INVENTORY, self._show_inventory, False),
                 ("↩️  الضمان والمرتجعات", self._show_returns, False),
-                ("📥  " + ar.PURCHASES + " والموردين", self._show_purchases_placeholder, False),
+                ("📥  " + ar.PURCHASES + " والموردين", self._show_purchases, False),
                 ("💳  " + ar.WALLETS + " والشحن", self._show_wallets_placeholder, False),
                 ("💰  " + ar.ACCOUNTING + " والورديات", self._show_accounting_placeholder, False),
                 ("👥  " + ar.CUSTOMERS + " والديون", self._show_customers_placeholder, False),
@@ -182,7 +183,11 @@ if HAS_QT:
             self.returns_view = ReturnsWindow(self.session, self.current_user)
             self.stack.addWidget(self.returns_view)
 
-            # 4. Placeholders for upcoming phases
+            # 4. Purchases & Suppliers View (Phase 4)
+            self.purchases_view = PurchasesWidget(self.session, self.current_user)
+            self.stack.addWidget(self.purchases_view)
+
+            # 5. Placeholders for upcoming phases
             self.placeholder_view = QWidget()
             pl_layout = QVBoxLayout(self.placeholder_view)
             pl_layout.setAlignment(Qt.AlignCenter)
@@ -237,11 +242,10 @@ if HAS_QT:
             self._set_active_nav(2)
             self.stack.setCurrentWidget(self.returns_view)
 
-        def _show_purchases_placeholder(self):
+        def _show_purchases(self):
             self._set_active_nav(3)
-            self.placeholder_title.setText("📥 شاشة فواتير المشتريات وحسابات الموردين")
-            self.placeholder_sub.setText("جاري بناؤها في المرحلة 4 (Phase 4) مع إدخال أرقام السيريال وعقود بيع المستعمل")
-            self.stack.setCurrentWidget(self.placeholder_view)
+            self.purchases_view.load_all()
+            self.stack.setCurrentWidget(self.purchases_view)
 
         def _show_wallets_placeholder(self):
             self._set_active_nav(4)
