@@ -19,12 +19,16 @@ except ImportError:
 from app.i18n import ar
 from app.core.database import get_session
 from app.models.user import User
+from app.ui.dashboard.dashboard_widget import DashboardWidget
 from app.ui.inventory.inventory_window import InventoryWindow
 from app.ui.pos.pos_window import POSWindow
 from app.ui.pos.returns_window import ReturnsWindow
 from app.ui.purchases.purchases_window import PurchasesWidget
 from app.ui.wallets.wallets_window import WalletsWidget
 from app.ui.accounting.accounting_window import AccountingWidget
+from app.ui.customers.customers_window import CustomersWidget
+from app.ui.reports.reports_window import ReportsWidget
+from app.ui.settings.settings_window import SettingsWidget
 
 
 if HAS_QT:
@@ -109,23 +113,24 @@ if HAS_QT:
             sidebar_layout.setContentsMargins(8, 16, 8, 16)
             sidebar_layout.setSpacing(4)
 
-            lbl_cat_ops = QLabel("العمليات الرئيسية")
+            lbl_cat_ops = QLabel("العمليات والنشاط")
             lbl_cat_ops.setObjectName("SidebarCategory")
             sidebar_layout.addWidget(lbl_cat_ops)
 
             self.nav_buttons: list[QPushButton] = []
 
             self.nav_items = [
-                ("🛒  " + ar.POS + " (المبيعات)", self._show_pos, True),
-                ("📦  " + ar.INVENTORY, self._show_inventory, False),
-                ("↩️  الضمان والمرتجعات", self._show_returns, False),
-                ("📥  " + ar.PURCHASES + " والموردين", self._show_purchases, False),
-                ("💳  " + ar.WALLETS + " والشحن", self._show_wallets, False),
-                ("💰  " + ar.ACCOUNTING + " والورديات", self._show_accounting, False),
-                ("👥  " + ar.CUSTOMERS + " والديون", self._show_customers_placeholder, False),
+                ("📊  لوحة التحكم", self._show_dashboard),
+                ("🛒  " + ar.POS + " (المبيعات)", self._show_pos),
+                ("📦  " + ar.INVENTORY, self._show_inventory),
+                ("↩️  الضمان والمرتجعات", self._show_returns),
+                ("📥  " + ar.PURCHASES + " والموردين", self._show_purchases),
+                ("💳  " + ar.WALLETS + " والشحن", self._show_wallets),
+                ("💰  " + ar.ACCOUNTING + " والورديات", self._show_accounting),
+                ("👥  " + ar.CUSTOMERS + " والديون", self._show_customers),
             ]
 
-            for label, slot, is_active in self.nav_items:
+            for label, slot in self.nav_items:
                 btn = QPushButton(label)
                 btn.setProperty("class", "NavBtn")
                 btn.clicked.connect(slot)
@@ -138,8 +143,8 @@ if HAS_QT:
             sidebar_layout.addWidget(lbl_cat_sys)
 
             self.sys_nav_items = [
-                ("📊  " + ar.REPORTS + " والأرباح", self._show_reports_placeholder),
-                ("⚙️  " + ar.SETTINGS + " والنسخ الاحتياطي", self._show_settings_placeholder),
+                ("📈  " + ar.REPORTS + " والأرباح", self._show_reports),
+                ("⚙️  " + ar.SETTINGS + " والنسخ الاحتياطي", self._show_settings),
             ]
 
             for label, slot in self.sys_nav_items:
@@ -173,6 +178,17 @@ if HAS_QT:
             self.stack = QStackedWidget()
             self.stack.setContentsMargins(12, 12, 12, 12)
 
+            # 0. Dashboard View (Phase 7)
+            self.dashboard_view = DashboardWidget(self.session, self.current_user)
+            self.dashboard_view.open_pos_requested.connect(self._show_pos)
+            self.dashboard_view.open_inventory_requested.connect(self._show_inventory)
+            self.dashboard_view.open_purchases_requested.connect(self._show_purchases)
+            self.dashboard_view.open_wallets_requested.connect(self._show_wallets)
+            self.dashboard_view.open_accounting_requested.connect(self._show_accounting)
+            self.dashboard_view.open_customers_requested.connect(self._show_customers)
+            self.dashboard_view.open_reports_requested.connect(self._show_reports)
+            self.stack.addWidget(self.dashboard_view)
+
             # 1. POS View (Phase 3)
             self.pos_view = POSWindow(self.session, self.current_user)
             self.stack.addWidget(self.pos_view)
@@ -197,19 +213,17 @@ if HAS_QT:
             self.accounting_view = AccountingWidget(self.session, self.current_user)
             self.stack.addWidget(self.accounting_view)
 
-            # 7. Placeholders for upcoming phases
-            self.placeholder_view = QWidget()
-            pl_layout = QVBoxLayout(self.placeholder_view)
-            pl_layout.setAlignment(Qt.AlignCenter)
-            self.placeholder_title = QLabel()
-            self.placeholder_title.setStyleSheet("font-size: 20px; color: #0F172A; font-weight: bold;")
-            self.placeholder_title.setAlignment(Qt.AlignCenter)
-            self.placeholder_sub = QLabel()
-            self.placeholder_sub.setStyleSheet("font-size: 14px; color: #64748B; margin-top: 8px;")
-            self.placeholder_sub.setAlignment(Qt.AlignCenter)
-            pl_layout.addWidget(self.placeholder_title)
-            pl_layout.addWidget(self.placeholder_sub)
-            self.stack.addWidget(self.placeholder_view)
+            # 7. Customers & Debts View (Phase 7)
+            self.customers_view = CustomersWidget(self.session, self.current_user)
+            self.stack.addWidget(self.customers_view)
+
+            # 8. Reports & P&L View (Phase 7)
+            self.reports_view = ReportsWidget(self.session, self.current_user)
+            self.stack.addWidget(self.reports_view)
+
+            # 9. Settings & Backup View (Phase 7)
+            self.settings_view = SettingsWidget(self.session, self.current_user)
+            self.stack.addWidget(self.settings_view)
 
             body_layout.addWidget(self.stack, 1)
             root_layout.addLayout(body_layout)
@@ -221,7 +235,8 @@ if HAS_QT:
             self.setStatusBar(status)
             status.showMessage("🟢 النظام يعمل بدون إنترنت (Offline Mode) - قاعدة البيانات SQLite مؤمنة بوضع WAL")
 
-            self._set_active_nav(0)
+            # Show Dashboard by default
+            self._show_dashboard()
 
         def _update_time(self):
             now = datetime.datetime.now()
@@ -238,52 +253,54 @@ if HAS_QT:
                         "background-color: transparent; color: #475569; font-weight: 600; border-right: none;"
                     )
 
-        def _show_pos(self):
+        def _show_dashboard(self):
             self._set_active_nav(0)
+            self.dashboard_view.refresh_data()
+            self.stack.setCurrentWidget(self.dashboard_view)
+
+        def _show_pos(self):
+            self._set_active_nav(1)
             self.pos_view._check_shift_and_init_sale()
             self.stack.setCurrentWidget(self.pos_view)
 
         def _show_inventory(self):
-            self._set_active_nav(1)
+            self._set_active_nav(2)
             self.inventory_view.refresh()
             self.stack.setCurrentWidget(self.inventory_view)
 
         def _show_returns(self):
-            self._set_active_nav(2)
+            self._set_active_nav(3)
             self.stack.setCurrentWidget(self.returns_view)
 
         def _show_purchases(self):
-            self._set_active_nav(3)
+            self._set_active_nav(4)
             self.purchases_view.load_all()
             self.stack.setCurrentWidget(self.purchases_view)
 
         def _show_wallets(self):
-            self._set_active_nav(4)
+            self._set_active_nav(5)
             self.wallets_view.load_all()
             self.stack.setCurrentWidget(self.wallets_view)
 
         def _show_accounting(self):
-            self._set_active_nav(5)
+            self._set_active_nav(6)
             self.accounting_view.load_all()
             self.stack.setCurrentWidget(self.accounting_view)
 
-        def _show_customers_placeholder(self):
-            self._set_active_nav(6)
-            self.placeholder_title.setText("👥 شاشة إدارة العملاء وكشف حساب الديون")
-            self.placeholder_sub.setText("تم تجهيز قاعدة البيانات، والواجهة قيد الربط")
-            self.stack.setCurrentWidget(self.placeholder_view)
-
-        def _show_reports_placeholder(self):
+        def _show_customers(self):
             self._set_active_nav(7)
-            self.placeholder_title.setText("📊 شاشة التقارير التفصيلية والأرباح")
-            self.placeholder_sub.setText("جاري بناؤها في المرحلة 7 (Phase 7) مع تصدير PDF وإكسيل")
-            self.stack.setCurrentWidget(self.placeholder_view)
+            self.customers_view.load_customers()
+            self.stack.setCurrentWidget(self.customers_view)
 
-        def _show_settings_placeholder(self):
+        def _show_reports(self):
             self._set_active_nav(8)
-            self.placeholder_title.setText("⚙️ إعدادات النظام والمستخدمين والنسخ الاحتياطي")
-            self.placeholder_sub.setText("جاري بناؤها في المرحلة 7 (Phase 7)")
-            self.stack.setCurrentWidget(self.placeholder_view)
+            self.reports_view.run_report()
+            self.stack.setCurrentWidget(self.reports_view)
+
+        def _show_settings(self):
+            self._set_active_nav(9)
+            self.settings_view.load_backups()
+            self.stack.setCurrentWidget(self.settings_view)
 
         def closeEvent(self, event):
             if hasattr(self, "session") and self.session:
