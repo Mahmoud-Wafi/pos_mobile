@@ -80,6 +80,23 @@ def _seed_cash_accounts(session: Session) -> None:
             session.add(CashAccount(name=name, type=acct_type, balance=0))
 
 
+def _seed_expense_categories(session: Session) -> None:
+    """Seed standard expense categories."""
+    from app.models.accounting import ExpenseCategory
+    categories = [
+        "إيجار المحل",
+        "كهرباء ومرافق",
+        "بوفيه وضيافة",
+        "مرتبات ومكافآت",
+        "أدوات نظافة ومطبوعات",
+        "صيانة دورية",
+        "مصروفات نثرية عامة",
+    ]
+    for cat_name in categories:
+        if session.query(ExpenseCategory).filter_by(name=cat_name).first() is None:
+            session.add(ExpenseCategory(name=cat_name))
+
+
 def _seed_default_customer(session: Session) -> None:
     """Seed default 'عميل نقدي' (Cash Customer)."""
     from app.models.customer import Customer
@@ -99,6 +116,7 @@ def seed_database(session: Session) -> None:
     _seed_settings(session)
     _seed_default_manager(session, role_map)
     _seed_cash_accounts(session)
+    _seed_expense_categories(session)
     _seed_default_customer(session)
     session.commit()
 

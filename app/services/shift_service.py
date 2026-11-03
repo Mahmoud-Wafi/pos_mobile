@@ -84,6 +84,7 @@ def calculate_expected_cash(session: Session, shift_id: int) -> int:
     cash_in = session.query(func.coalesce(func.sum(CashTransaction.amount), 0)).filter(
         CashTransaction.shift_id == shift_id,
         CashTransaction.type == "in",
+        CashTransaction.category != "shift_open",
     ).scalar() or 0
 
     cash_out = session.query(func.coalesce(func.sum(CashTransaction.amount), 0)).filter(
