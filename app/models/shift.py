@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import datetime
+from app.core.clock import utcnow
 from typing import Optional
 
 from sqlalchemy import (
@@ -21,7 +22,7 @@ class Shift(Base):
         Integer, ForeignKey("users.id"), nullable=False, index=True
     )
     opened_at: Mapped[datetime.datetime] = mapped_column(
-        DateTime, default=datetime.datetime.utcnow, nullable=False, index=True
+        DateTime, default=utcnow, nullable=False, index=True
     )
     closed_at: Mapped[Optional[datetime.datetime]] = mapped_column(
         DateTime, nullable=True

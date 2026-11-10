@@ -4,12 +4,14 @@ commission calculation rules, limits enforcement, operations ledger, and audits.
 from __future__ import annotations
 
 import datetime
+from app.core.clock import utcnow
 from decimal import Decimal
 from typing import Optional, Tuple
 
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
+from app.core import clock
 from app.core.audit import log_action
 from app.core.money import format_money
 from app.core.permissions import (
@@ -272,11 +274,10 @@ def get_wallet_usage(
     ref_date: Optional[datetime.datetime] = None,
 ) -> Tuple[int, int]:
     """Compute (used_today, used_month) in piasters from transactions without drifting."""
-    if ref_date is None:
-        ref_date = datetime.datetime.utcnow()
-
-    start_of_day = ref_date.replace(hour=0, minute=0, second=0, microsecond=0)
-    start_of_month = ref_date.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    # ref_date is a stored (naive UTC) moment; day/month are the shop's local ones
+    local_ref = clock.to_local(ref_date) if ref_date is not None else clock.local_now()
+    start_of_day, _ = clock.day_bounds_utc(local_ref.date())
+    start_of_month, _ = clock.day_bounds_utc(local_ref.date().replace(day=1))
 
     # Operations consuming wallet transfer quota
     quota_ops = ["cash_in", "cash_out", "bill", "recharge"]
@@ -452,7 +453,7 @@ def execute_wallet_transaction(
         user_id=user.id,
         shift_id=shift.id if shift else None,
         note=note.strip() if note else None,
-        created_at=datetime.datetime.utcnow(),
+        created_at=utcnow(),
     )
     session.add(tx)
     session.flush()
@@ -501,7 +502,7 @@ def audit_wallet(
         diff=diff,
         user_id=user.id,
         note=note.strip() if note else None,
-        created_at=datetime.datetime.utcnow(),
+        created_at=utcnow(),
     )
     session.add(audit)
     session.flush()

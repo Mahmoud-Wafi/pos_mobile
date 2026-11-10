@@ -4,6 +4,7 @@ and used-device purchases with legal declarations.
 from __future__ import annotations
 
 import datetime
+from app.core.clock import utcnow
 from pathlib import Path
 from typing import Any, Optional
 
@@ -239,7 +240,7 @@ def create_purchase(
         status="posted",
         notes=notes.strip() if notes else None,
         user_id=user.id,
-        created_at=datetime.datetime.utcnow(),
+        created_at=utcnow(),
     )
     session.add(purchase)
     session.flush()

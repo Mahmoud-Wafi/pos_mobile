@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import datetime
+from app.core.clock import utcnow
 from typing import Optional
 
 from sqlalchemy import (
@@ -23,12 +24,12 @@ class Supplier(Base):
     balance: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime.datetime] = mapped_column(
-        DateTime, default=datetime.datetime.utcnow, nullable=False
+        DateTime, default=utcnow, nullable=False
     )
     updated_at: Mapped[datetime.datetime] = mapped_column(
         DateTime,
-        default=datetime.datetime.utcnow,
-        onupdate=datetime.datetime.utcnow,
+        default=utcnow,
+        onupdate=utcnow,
         nullable=False,
     )
 
@@ -55,7 +56,7 @@ class Purchase(Base):
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="posted", index=True)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime.datetime] = mapped_column(
-        DateTime, default=datetime.datetime.utcnow, nullable=False
+        DateTime, default=utcnow, nullable=False
     )
     user_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("users.id"), nullable=False, index=True
@@ -118,7 +119,7 @@ class SupplierPayment(Base):
         Integer, ForeignKey("users.id"), nullable=False, index=True
     )
     created_at: Mapped[datetime.datetime] = mapped_column(
-        DateTime, default=datetime.datetime.utcnow, nullable=False
+        DateTime, default=utcnow, nullable=False
     )
     note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
@@ -151,7 +152,7 @@ class UsedDevicePurchase(Base):
         Integer, ForeignKey("users.id"), nullable=False, index=True
     )
     created_at: Mapped[datetime.datetime] = mapped_column(
-        DateTime, default=datetime.datetime.utcnow, nullable=False
+        DateTime, default=utcnow, nullable=False
     )
 
     device: Mapped[Device] = relationship("Device")

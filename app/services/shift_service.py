@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import datetime
+from app.core.clock import utcnow
 from typing import Optional
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -41,7 +42,7 @@ def open_shift(
 
     shift = Shift(
         user_id=user.id,
-        opened_at=datetime.datetime.utcnow(),
+        opened_at=utcnow(),
         opening_cash=opening_cash,
         expected_cash=opening_cash,
         actual_cash=0,
@@ -110,7 +111,7 @@ def close_shift(
     expected = calculate_expected_cash(session, shift_id)
     diff = actual_cash - expected  # negative = shortage, positive = overage
 
-    shift.closed_at = datetime.datetime.utcnow()
+    shift.closed_at = utcnow()
     shift.expected_cash = expected
     shift.actual_cash = actual_cash
     shift.diff = diff

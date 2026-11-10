@@ -3,6 +3,7 @@
 Lockout logic lives here so services stay thin.
 """
 import datetime
+from app.core.clock import utcnow
 from typing import Optional
 
 import bcrypt
@@ -25,7 +26,7 @@ def verify_password(plain: str, hashed: str) -> bool:
 
 def is_account_locked(failed_attempts: int, locked_until: Optional[datetime.datetime]) -> bool:
     """Return True if the account should be considered locked right now."""
-    if locked_until is not None and datetime.datetime.utcnow() < locked_until:
+    if locked_until is not None and utcnow() < locked_until:
         return True
     return False
 
@@ -33,6 +34,6 @@ def is_account_locked(failed_attempts: int, locked_until: Optional[datetime.date
 def compute_lockout(failed_attempts: int) -> Optional[datetime.datetime]:
     """Return a new *locked_until* datetime when threshold is hit, else None."""
     if failed_attempts >= MAX_FAILED_ATTEMPTS:
-        return datetime.datetime.utcnow() + datetime.timedelta(minutes=LOCKOUT_MINUTES)
+        return utcnow() + datetime.timedelta(minutes=LOCKOUT_MINUTES)
     return None
 

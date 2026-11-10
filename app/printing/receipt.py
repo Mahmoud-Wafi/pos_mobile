@@ -8,6 +8,7 @@ import datetime
 from pathlib import Path
 from typing import Optional
 
+from app.core import clock
 from app.core.money import format_money
 from app.models.sale import Sale
 
@@ -20,7 +21,7 @@ def generate_thermal_receipt_text(sale: Sale, shop_name: str = "محل المو�
         f"{'فاتورة مبيعات نقدية':^40}",
         divider,
         f"رقم الفاتورة: {sale.invoice_no}",
-        f"التاريخ: {sale.created_at.strftime('%Y-%m-%d  %I:%M %p')}",
+        f"التاريخ: {clock.fmt_local(sale.created_at, '%Y-%m-%d  %I:%M %p')}",
         f"الكاشير: {sale.user.full_name if sale.user else '—'}",
         f"العميل: {sale.customer.name if sale.customer else 'عميل نقدي'}",
         divider,
@@ -109,7 +110,7 @@ def generate_warranty_invoice_pdf(
 
     # Meta Info Table
     meta_data = [
-        [f"Invoice: {sale.invoice_no}", f"Date: {sale.created_at.strftime('%Y-%m-%d %H:%M')}"],
+        [f"Invoice: {sale.invoice_no}", f"Date: {clock.fmt_local(sale.created_at, '%Y-%m-%d %H:%M')}"],
         [f"Customer: {sale.customer.name}", f"Cashier: {sale.user.full_name if sale.user else 'Admin'}"],
     ]
     meta_table = Table(meta_data, colWidths=[260, 260])
