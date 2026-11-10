@@ -38,3 +38,19 @@ Architectural and business-rule decisions made during development.
 **Decision**: The importer accepts both Arabic and English header names (e.g. `الاسم`/`name`, `الباركود`/`barcode`, `الكمية`/`quantity`) and converts Egyptian Pound amounts to integer piasters using `egp_to_piasters`.
 **Reason**: Maximum user convenience when importing vendor price lists or existing shop sheets.
 
+
+## Phase 0/1 — Foundations & security
+
+### D-009 — Time: store naive UTC, think in Africa/Cairo
+**Decision**: The DB keeps naive UTC datetimes. `app/core/clock.py` is the only place that converts; days, daily close, reports, wallet quotas, invoice numbers and printed times use the shop's local day (`day_bounds_utc`, `local_today`, `fmt_local`). Override the zone with `POS_TIMEZONE`.
+**Reason**: sales between 00:00 and 02:00/03:00 Cairo time were previously counted in the previous day.
+
+### D-010 — Data in a per-user folder; Alembic runs at start-up
+**Decision**: `DATA_DIR` defaults to `%APPDATA%/MobileShopPOS` (Windows) / `~/.local/share/MobileShopPOS`; `POS_DATA_DIR` overrides. `startup.run_migrations()` upgrades to head (legacy `create_all` databases are stamped). Logs go to `DATA_DIR/logs/app.log`.
+**Reason**: the packaged app cannot write beside its own files and users must not run Alembic by hand.
+
+### D-011 — Login, idle lock and first-login password change
+**Decision**: `SessionController` owns login -> main window -> logout/lock. Idle timeout comes from the `idle_lock_minutes` setting (0 disables). Accounts still using a seeded default password must change it before continuing (detected by verifying the known defaults, no schema change).
+
+### D-012 — UI permission map is a hint, services still enforce
+**Decision**: `app/ui/access.py` decides which screens are shown per permission set; views a user cannot open are not even constructed.

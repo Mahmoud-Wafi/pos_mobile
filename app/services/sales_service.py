@@ -2,13 +2,16 @@
 from __future__ import annotations
 
 import datetime
+from app.core.clock import utcnow
 from decimal import Decimal
 from typing import Optional
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from app.core import clock
 from app.core.audit import log_action
 from app.core.money import percent_of
+from app.core.money import piasters_to_input
 from app.core.permissions import (
     PERM_SALES_CREATE, PERM_SALES_DISCOUNT, PERM_SALES_BELOW_MIN_PRICE,
     PERM_SALES_RETURN, PERM_SALES_VOID, ROLE_MANAGER,
@@ -58,7 +61,7 @@ class ShiftRequiredError(SaleError):
 
 def _generate_invoice_no(session: Session) -> str:
     """Generate sequential invoice number: INV-YYYYMMDD-####."""
-    today_str = datetime.datetime.utcnow().strftime("%Y%m%d")
+    today_str = clock.local_now().strftime("%Y%m%d")
     prefix = f"INV-{today_str}-"
     last = (
         session.query(Sale.invoice_no)
@@ -78,7 +81,7 @@ def _generate_invoice_no(session: Session) -> str:
 
 def _generate_return_no(session: Session) -> str:
     """Generate sequential return number: RET-YYYYMMDD-####."""
-    today_str = datetime.datetime.utcnow().strftime("%Y%m%d")
+    today_str = clock.local_now().strftime("%Y%m%d")
     prefix = f"RET-{today_str}-"
     last = (
         session.query(SaleReturn.return_no)
@@ -183,7 +186,7 @@ def add_line(
     # Calculate warranty end date
     warranty_end = None
     if product.warranty_days > 0:
-        warranty_end = datetime.datetime.utcnow() + datetime.timedelta(days=product.warranty_days)
+        warranty_end = utcnow() + datetime.timedelta(days=product.warranty_days)
 
     line_total = (price * quantity) - discount
     item = SaleItem(
@@ -334,7 +337,7 @@ def post_sale(
             is_mgr = can_below or (manager_override and has_permission(manager_override.permission_codes(), PERM_SALES_BELOW_MIN_PRICE))
             if not is_mgr:
                 raise PriceBelowMinimumError(
-                    f"سعر البيع ({item.unit_price / 100} ج.م) أقل من الحد الأدنى للصنف '{product.name}' ({product.min_price / 100} ج.م). مطلوب موافقة المدير."
+                    f"سعر البيع ({piasters_to_input(item.unit_price)} ج.م) أقل من الحد الأدنى للصنف '{product.name}' ({piasters_to_input(product.min_price)} ج.م). مطلوب موافقة المدير."
                 )
 
     # 3. Check Payments & Split Payments
@@ -381,7 +384,7 @@ def post_sale(
             is_mgr = user.role.name == ROLE_MANAGER or (manager_override and manager_override.role.name == ROLE_MANAGER)
             if not is_mgr:
                 raise CreditLimitExceededError(
-                    f"تجاوز العميل '{customer.name}' للحد الائتماني ({customer.credit_limit / 100} ج.م). مطلوب موافقة المدير."
+                    f"تجاوز العميل '{customer.name}' للحد الائتماني ({piasters_to_input(customer.credit_limit)} ج.م). مطلوب موافقة المدير."
                 )
 
     sale.paid = total_paid
@@ -669,7 +672,7 @@ def search_warranty(session: Session, query: str) -> list[dict]:
 
 
 def _format_warranty_info(item: SaleItem, device: Optional[Device]) -> dict:
-    now = datetime.datetime.utcnow()
+    now = utcnow()
     is_valid = item.warranty_end_date is not None and item.warranty_end_date >= now
     days_left = (item.warranty_end_date - now).days if (item.warranty_end_date and is_valid) else 0
 

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import datetime
+from app.core.clock import utcnow
 from typing import Optional
 
 from sqlalchemy import (
@@ -26,12 +27,12 @@ class Wallet(Base):
     monthly_limit: Mapped[int] = mapped_column(Integer, nullable=False, default=0)  # in piasters (0 = unlimited)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     created_at: Mapped[datetime.datetime] = mapped_column(
-        DateTime, default=datetime.datetime.utcnow, nullable=False
+        DateTime, default=utcnow, nullable=False
     )
     updated_at: Mapped[datetime.datetime] = mapped_column(
         DateTime,
-        default=datetime.datetime.utcnow,
-        onupdate=datetime.datetime.utcnow,
+        default=utcnow,
+        onupdate=utcnow,
         nullable=False,
     )
 
@@ -91,7 +92,7 @@ class WalletTransaction(Base):
     )
     note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime.datetime] = mapped_column(
-        DateTime, default=datetime.datetime.utcnow, nullable=False, index=True
+        DateTime, default=utcnow, nullable=False, index=True
     )
 
     wallet: Mapped[Wallet] = relationship("Wallet", back_populates="transactions")
@@ -118,7 +119,7 @@ class WalletAudit(Base):
     )
     note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime.datetime] = mapped_column(
-        DateTime, default=datetime.datetime.utcnow, nullable=False
+        DateTime, default=utcnow, nullable=False
     )
 
     wallet: Mapped[Wallet] = relationship("Wallet", back_populates="audits")

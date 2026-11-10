@@ -14,7 +14,9 @@ try:
 except ImportError:
     HAS_QT = False
 
+from app.core.money import parse_egp_input
 from app.core.money import format_money, egp_to_piasters
+from app.core.money import piasters_to_input
 
 
 if HAS_QT:
@@ -92,7 +94,7 @@ if HAS_QT:
             # 1. Cash (default gets full amount)
             lbl_cash = QLabel("💵 نقداً (كاش - الدرج):")
             lbl_cash.setStyleSheet("font-weight: bold; color: #059669;")
-            self.cash_edit = QLineEdit(str(self.total_piasters / 100))
+            self.cash_edit = QLineEdit(piasters_to_input(self.total_piasters))
             self.cash_edit.setValidator(QDoubleValidator(0.0, 9999999.0, 2))
             self.cash_edit.textChanged.connect(self._recalculate)
 
@@ -186,8 +188,8 @@ if HAS_QT:
 
         def _get_val(self, edit: QLineEdit) -> Decimal:
             try:
-                return Decimal(edit.text().strip() or "0")
-            except Exception:
+                return Decimal(parse_egp_input(edit.text() or "0")) / Decimal(100)
+            except ValueError:
                 return Decimal("0")
 
         def _recalculate(self):

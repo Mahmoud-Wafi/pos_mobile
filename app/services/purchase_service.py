@@ -4,12 +4,14 @@ and used-device purchases with legal declarations.
 from __future__ import annotations
 
 import datetime
+from app.core.clock import utcnow
 from pathlib import Path
 from typing import Any, Optional
 
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
+from app.config import DECLARATIONS_DIR
 from app.core.audit import log_action
 from app.core.money import weighted_average_cost
 from app.core.permissions import (
@@ -239,7 +241,7 @@ def create_purchase(
         status="posted",
         notes=notes.strip() if notes else None,
         user_id=user.id,
-        created_at=datetime.datetime.utcnow(),
+        created_at=utcnow(),
     )
     session.add(purchase)
     session.flush()
@@ -630,16 +632,19 @@ def generate_declaration(
     user: User,
     used_purchase_id: int,
     dest_path: Optional[Path | str] = None,
-    shop_name: str = "محل الموبايلات",
+    shop_name: Optional[str] = None,
 ) -> Path:
-    """Generate and mark declaration PDF as printed."""
+    """Generate and mark declaration PDF as printed (shop name defaults to the setting)."""
+    if shop_name is None:
+        from app.services import settings_service
+        shop_name = settings_service.get(session, "shop_name", "محل الموبايلات")
     require_permission(user.permission_codes(), PERM_PURCHASES_VIEW, user.username)
     used_purchase = session.get(UsedDevicePurchase, used_purchase_id)
     if not used_purchase:
         raise PurchaseError(f"سجل شراء الجهاز المستعمل {used_purchase_id} غير موجود")
 
     if not dest_path:
-        dest_path = Path("data/declarations") / f"declaration_{used_purchase.id:05d}.pdf"
+        dest_path = DECLARATIONS_DIR / f"declaration_{used_purchase.id:05d}.pdf"
 
     pdf_path = generate_used_device_declaration_pdf(
         used_purchase=used_purchase,

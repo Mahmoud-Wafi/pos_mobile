@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import datetime
+from app.core import clock
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel,
@@ -18,7 +19,7 @@ class DailyCloseDialog(QDialog):
         super().__init__(parent)
         self.session = session
         self.user = user
-        self.ref_date = ref_date or datetime.date.today()
+        self.ref_date = ref_date or clock.local_today()
         self.setWindowTitle(f"تقرير الإغلاق المالي اليومي — {self.ref_date.strftime('%Y-%m-%d')}")
         self.resize(750, 640)
         self.setModal(True)

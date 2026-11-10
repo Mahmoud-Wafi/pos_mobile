@@ -9,6 +9,7 @@ from PySide6.QtWidgets import (
 )
 
 from app.core.money import egp_to_piasters, format_money
+from app.core.money import piasters_to_input
 from app.models.accounting import CashAccount
 from app.models.customer import Customer
 from app.services import customer_service
@@ -87,7 +88,7 @@ class CollectPaymentDialog(QDialog):
         layout.addWidget(QLabel("المبلغ المحصل الآن (ج.م): *"))
         self.amount_edit = QLineEdit()
         self.amount_edit.setFixedHeight(42)
-        self.amount_edit.setPlaceholderText(f"أقصى تحصيل: {self.customer.balance / 100:.2f} ج.م")
+        self.amount_edit.setPlaceholderText(f"أقصى تحصيل: {piasters_to_input(self.customer.balance)} ج.م")
         self.amount_edit.setValidator(QDoubleValidator(0.01, 9999999.0, 2))
         layout.addWidget(self.amount_edit)
 

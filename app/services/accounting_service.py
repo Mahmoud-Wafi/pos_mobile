@@ -4,11 +4,13 @@ account-to-account transfers, shift reconciliation, and daily close reports.
 from __future__ import annotations
 
 import datetime
+from app.core.clock import utcnow
 from typing import Optional, Tuple
 
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
+from app.core import clock
 from app.core.audit import log_action
 from app.core.money import format_money
 from app.core.permissions import (
@@ -189,7 +191,7 @@ def add_expense(
         note=note.strip() if note else None,
         cash_transaction_id=cash_tx.id,
         user_id=user.id,
-        created_at=datetime.datetime.utcnow(),
+        created_at=utcnow(),
     )
     session.add(expense)
     session.flush()
@@ -256,7 +258,7 @@ def owner_draw(
         account_id=acc.id,
         note=note.strip() if note else None,
         user_id=user.id,
-        created_at=datetime.datetime.utcnow(),
+        created_at=utcnow(),
     )
     session.add(draw)
     session.flush()
@@ -397,10 +399,9 @@ def daily_close(
     require_permission(user.permission_codes(), PERM_CASH_CLOSE_DAY, user.username)
 
     if ref_date is None:
-        ref_date = datetime.date.today()
+        ref_date = clock.local_today()
 
-    start_dt = datetime.datetime.combine(ref_date, datetime.time.min)
-    end_dt = datetime.datetime.combine(ref_date, datetime.time.max)
+    start_dt, end_dt = clock.day_bounds_utc(ref_date)
 
     # 1. Sales
     sales_q = session.query(Sale).filter(Sale.created_at >= start_dt, Sale.created_at <= end_dt, Sale.status == "posted")

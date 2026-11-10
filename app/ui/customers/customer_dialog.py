@@ -10,6 +10,7 @@ from PySide6.QtWidgets import (
 )
 
 from app.core.money import egp_to_piasters, format_money
+from app.core.money import piasters_to_input
 from app.models.customer import Customer
 from app.services import customer_service
 
@@ -148,7 +149,7 @@ class CustomerDialog(QDialog):
     def _load_data(self):
         self.name_edit.setText(self.customer.name or "")
         self.phone_edit.setText(self.customer.phone or "")
-        self.credit_edit.setText(f"{self.customer.credit_limit / 100:.2f}")
+        self.credit_edit.setText(f"{piasters_to_input(self.customer.credit_limit)}")
         self.notes_edit.setPlainText(self.customer.notes or "")
 
     def _save(self):

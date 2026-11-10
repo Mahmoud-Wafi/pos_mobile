@@ -2,39 +2,45 @@
 import sys
 
 
+def _show_error_dialog(details: str) -> None:
+    from PySide6.QtWidgets import QMessageBox
+
+    box = QMessageBox()
+    box.setIcon(QMessageBox.Critical)
+    box.setWindowTitle("خطأ غير متوقع")
+    box.setText("حدث خطأ غير متوقع. تم تسجيل التفاصيل في ملف السجل.\nيمكنك المتابعة، وإن تكرر الخطأ يرجى إبلاغ الدعم الفني.")
+    box.setDetailedText(details)
+    box.exec()
+
+
 def main() -> None:
     """Start the application."""
-    try:
-        from PySide6.QtWidgets import QApplication
-        from PySide6.QtCore import Qt
-        from app.ui.theme import setup_theme
-        from app.ui.main_window import MainWindow
-        from app.core.database import init_db, session_scope
-        from app.core.seed import seed_database
+    from app.core import startup
 
-        app = QApplication(sys.argv)
-        app.setLayoutDirection(Qt.RightToLeft)
+    startup.setup_logging()
+    startup.install_excepthook()
 
-        # Apply global modern theme & Cairo font
-        setup_theme(app)
+    from app.core.database import session_scope
+    from app.core.seed import seed_database
 
-        # Ensure DB exists and is seeded
-        init_db()
-        with session_scope() as session:
-            seed_database(session)
+    # Schema is managed by Alembic in production (D-002); tests use create_all.
+    startup.run_migrations()
+    with session_scope() as session:
+        seed_database(session)
 
-        window = MainWindow()
-        window.show()
-        sys.exit(app.exec())
+    from PySide6.QtCore import Qt
+    from PySide6.QtWidgets import QApplication
 
-    except ImportError:
-        # Headless fallback
-        from app.core.database import init_db, session_scope
-        from app.core.seed import seed_database
+    from app.ui.theme import setup_theme
 
-        init_db()
-        with session_scope() as session:
-            seed_database(session)
+    app = QApplication(sys.argv)
+    app.setLayoutDirection(Qt.RightToLeft)
+    setup_theme(app)
+    startup.install_excepthook(_show_error_dialog)
+
+    from app.ui.session import run_with_login
+
+    sys.exit(run_with_login(app))
 
 
 if __name__ == "__main__":

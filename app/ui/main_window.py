@@ -7,9 +7,9 @@ from typing import Optional
 try:
     from PySide6.QtWidgets import (
         QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLabel,
-        QPushButton, QStackedWidget, QStatusBar, QFrame,
+        QPushButton, QStackedWidget, QStatusBar, QFrame, QMenu, QMessageBox,
     )
-    from PySide6.QtCore import Qt, QTimer
+    from PySide6.QtCore import Qt, QTimer, Signal
     from PySide6.QtGui import QFont
 
     HAS_QT = True
@@ -17,6 +17,7 @@ except ImportError:
     HAS_QT = False
 
 from app.i18n import ar
+from app.ui.access import can_open
 from app.core.database import get_session
 from app.models.user import User
 from app.ui.dashboard.dashboard_widget import DashboardWidget
@@ -33,13 +34,22 @@ from app.ui.settings.settings_window import SettingsWidget
 
 if HAS_QT:
     class MainWindow(QMainWindow):
-        def __init__(self, current_user: Optional[User] = None) -> None:
+        logout_requested = Signal()
+        lock_requested = Signal()
+        closed_by_user = Signal()
+
+        def __init__(self, user_id: Optional[int] = None, current_user: Optional[User] = None) -> None:
             super().__init__()
             self.session = get_session()
+            self._closing_for_logout = False
 
-            if current_user is None:
-                current_user = self.session.query(User).filter_by(username="admin").first()
-            self.current_user = current_user
+            if user_id is None and current_user is not None:
+                user_id = current_user.id
+            if user_id is None:
+                raise ValueError("MainWindow requires an authenticated user")
+            self.user_id = user_id
+            self.current_user = self.session.get(User, user_id)
+            self.perms = self.current_user.permission_codes()
 
             self.setWindowTitle(f"{ar.APP_TITLE} - الإصدار 1.0")
             self.resize(1340, 860)
@@ -97,6 +107,17 @@ if HAS_QT:
 
             user_box.addWidget(user_label)
             user_box.addWidget(role_badge)
+
+            btn_menu = QPushButton("⋮")
+            btn_menu.setFixedSize(34, 34)
+            btn_menu.setToolTip(ar.USER_MENU_CHANGE_PASSWORD + " / " + ar.LOCK_NOW + " / " + ar.LOGOUT)
+            menu = QMenu(btn_menu)
+            menu.addAction(ar.USER_MENU_CHANGE_PASSWORD, self._open_change_password)
+            menu.addAction(ar.LOCK_NOW, self.lock_requested.emit)
+            menu.addSeparator()
+            menu.addAction(ar.LOGOUT, self._confirm_logout)
+            btn_menu.setMenu(menu)
+            user_box.addWidget(btn_menu)
             header_layout.addLayout(user_box)
 
             root_layout.addWidget(header)
@@ -120,37 +141,40 @@ if HAS_QT:
             self.nav_buttons: list[QPushButton] = []
 
             self.nav_items = [
-                ("📊  لوحة التحكم", self._show_dashboard),
-                ("🛒  " + ar.POS + " (المبيعات)", self._show_pos),
-                ("📦  " + ar.INVENTORY, self._show_inventory),
-                ("↩️  الضمان والمرتجعات", self._show_returns),
-                ("📥  " + ar.PURCHASES + " والموردين", self._show_purchases),
-                ("💳  " + ar.WALLETS + " والشحن", self._show_wallets),
-                ("💰  " + ar.ACCOUNTING + " والورديات", self._show_accounting),
-                ("👥  " + ar.CUSTOMERS + " والديون", self._show_customers),
+                ("dashboard", "📊  لوحة التحكم", self._show_dashboard),
+                ("pos", "🛒  " + ar.POS + " (المبيعات)", self._show_pos),
+                ("inventory", "📦  " + ar.INVENTORY, self._show_inventory),
+                ("returns", "↩️  الضمان والمرتجعات", self._show_returns),
+                ("purchases", "📥  " + ar.PURCHASES + " والموردين", self._show_purchases),
+                ("wallets", "💳  " + ar.WALLETS + " والشحن", self._show_wallets),
+                ("accounting", "💰  " + ar.ACCOUNTING + " والورديات", self._show_accounting),
+                ("customers", "👥  " + ar.CUSTOMERS + " والديون", self._show_customers),
             ]
 
-            for label, slot in self.nav_items:
+            for key, label, slot in self.nav_items:
                 btn = QPushButton(label)
                 btn.setProperty("class", "NavBtn")
                 btn.clicked.connect(slot)
+                btn.setVisible(can_open(self.perms, key))
                 sidebar_layout.addWidget(btn)
                 self.nav_buttons.append(btn)
 
             sidebar_layout.addSpacing(16)
             lbl_cat_sys = QLabel("الإدارة والتقارير")
             lbl_cat_sys.setObjectName("SidebarCategory")
+            lbl_cat_sys.setVisible(can_open(self.perms, "reports") or can_open(self.perms, "settings"))
             sidebar_layout.addWidget(lbl_cat_sys)
 
             self.sys_nav_items = [
-                ("📈  " + ar.REPORTS + " والأرباح", self._show_reports),
-                ("⚙️  " + ar.SETTINGS + " والنسخ الاحتياطي", self._show_settings),
+                ("reports", "📈  " + ar.REPORTS + " والأرباح", self._show_reports),
+                ("settings", "⚙️  " + ar.SETTINGS + " والنسخ الاحتياطي", self._show_settings),
             ]
 
-            for label, slot in self.sys_nav_items:
+            for key, label, slot in self.sys_nav_items:
                 btn = QPushButton(label)
                 btn.setProperty("class", "NavBtn")
                 btn.clicked.connect(slot)
+                btn.setVisible(can_open(self.perms, key))
                 sidebar_layout.addWidget(btn)
                 self.nav_buttons.append(btn)
 
@@ -190,40 +214,49 @@ if HAS_QT:
             self.stack.addWidget(self.dashboard_view)
 
             # 1. POS View (Phase 3)
-            self.pos_view = POSWindow(self.session, self.current_user)
-            self.stack.addWidget(self.pos_view)
+            self.pos_view = POSWindow(self.session, self.current_user) if can_open(self.perms, "pos") else None
+            if self.pos_view is not None:
+                self.stack.addWidget(self.pos_view)
 
             # 2. Inventory View (Phase 2)
-            self.inventory_view = InventoryWindow(self.session, self.current_user)
-            self.stack.addWidget(self.inventory_view)
+            self.inventory_view = InventoryWindow(self.session, self.current_user) if can_open(self.perms, "inventory") else None
+            if self.inventory_view is not None:
+                self.stack.addWidget(self.inventory_view)
 
             # 3. Returns & Warranty View (Phase 3)
-            self.returns_view = ReturnsWindow(self.session, self.current_user)
-            self.stack.addWidget(self.returns_view)
+            self.returns_view = ReturnsWindow(self.session, self.current_user) if can_open(self.perms, "returns") else None
+            if self.returns_view is not None:
+                self.stack.addWidget(self.returns_view)
 
             # 4. Purchases & Suppliers View (Phase 4)
-            self.purchases_view = PurchasesWidget(self.session, self.current_user)
-            self.stack.addWidget(self.purchases_view)
+            self.purchases_view = PurchasesWidget(self.session, self.current_user) if can_open(self.perms, "purchases") else None
+            if self.purchases_view is not None:
+                self.stack.addWidget(self.purchases_view)
 
             # 5. Wallets & Operations View (Phase 5)
-            self.wallets_view = WalletsWidget(self.session, self.current_user)
-            self.stack.addWidget(self.wallets_view)
+            self.wallets_view = WalletsWidget(self.session, self.current_user) if can_open(self.perms, "wallets") else None
+            if self.wallets_view is not None:
+                self.stack.addWidget(self.wallets_view)
 
             # 6. Accounting & Cash Accounts View (Phase 6)
-            self.accounting_view = AccountingWidget(self.session, self.current_user)
-            self.stack.addWidget(self.accounting_view)
+            self.accounting_view = AccountingWidget(self.session, self.current_user) if can_open(self.perms, "accounting") else None
+            if self.accounting_view is not None:
+                self.stack.addWidget(self.accounting_view)
 
             # 7. Customers & Debts View (Phase 7)
-            self.customers_view = CustomersWidget(self.session, self.current_user)
-            self.stack.addWidget(self.customers_view)
+            self.customers_view = CustomersWidget(self.session, self.current_user) if can_open(self.perms, "customers") else None
+            if self.customers_view is not None:
+                self.stack.addWidget(self.customers_view)
 
             # 8. Reports & P&L View (Phase 7)
-            self.reports_view = ReportsWidget(self.session, self.current_user)
-            self.stack.addWidget(self.reports_view)
+            self.reports_view = ReportsWidget(self.session, self.current_user) if can_open(self.perms, "reports") else None
+            if self.reports_view is not None:
+                self.stack.addWidget(self.reports_view)
 
             # 9. Settings & Backup View (Phase 7)
-            self.settings_view = SettingsWidget(self.session, self.current_user)
-            self.stack.addWidget(self.settings_view)
+            self.settings_view = SettingsWidget(self.session, self.current_user) if can_open(self.perms, "settings") else None
+            if self.settings_view is not None:
+                self.stack.addWidget(self.settings_view)
 
             body_layout.addWidget(self.stack, 1)
             root_layout.addLayout(body_layout)
@@ -259,53 +292,99 @@ if HAS_QT:
             self.stack.setCurrentWidget(self.dashboard_view)
 
         def _show_pos(self):
+            if not self._allow("pos"):
+                return
             self._set_active_nav(1)
             self.pos_view._check_shift_and_init_sale()
             self.stack.setCurrentWidget(self.pos_view)
 
         def _show_inventory(self):
+            if not self._allow("inventory"):
+                return
             self._set_active_nav(2)
             self.inventory_view.refresh()
             self.stack.setCurrentWidget(self.inventory_view)
 
         def _show_returns(self):
+            if not self._allow("returns"):
+                return
             self._set_active_nav(3)
             self.stack.setCurrentWidget(self.returns_view)
 
         def _show_purchases(self):
+            if not self._allow("purchases"):
+                return
             self._set_active_nav(4)
             self.purchases_view.load_all()
             self.stack.setCurrentWidget(self.purchases_view)
 
         def _show_wallets(self):
+            if not self._allow("wallets"):
+                return
             self._set_active_nav(5)
             self.wallets_view.load_all()
             self.stack.setCurrentWidget(self.wallets_view)
 
         def _show_accounting(self):
+            if not self._allow("accounting"):
+                return
             self._set_active_nav(6)
             self.accounting_view.load_all()
             self.stack.setCurrentWidget(self.accounting_view)
 
         def _show_customers(self):
+            if not self._allow("customers"):
+                return
             self._set_active_nav(7)
             self.customers_view.load_customers()
             self.stack.setCurrentWidget(self.customers_view)
 
         def _show_reports(self):
+            if not self._allow("reports"):
+                return
             self._set_active_nav(8)
             self.reports_view.run_report()
             self.stack.setCurrentWidget(self.reports_view)
 
         def _show_settings(self):
+            if not self._allow("settings"):
+                return
             self._set_active_nav(9)
             self.settings_view.load_backups()
             self.stack.setCurrentWidget(self.settings_view)
+
+        def _allow(self, screen: str) -> bool:
+            if can_open(self.perms, screen):
+                return True
+            QMessageBox.warning(self, ar.WARNING, ar.ACCESS_DENIED_SCREEN)
+            return False
+
+        def _confirm_logout(self):
+            if QMessageBox.question(self, ar.LOGOUT, ar.LOGOUT_CONFIRM,
+                                    QMessageBox.Yes | QMessageBox.No) == QMessageBox.Yes:
+                self.logout_requested.emit()
+
+        def _open_change_password(self):
+            if self.settings_view is not None:
+                self._show_settings()
+            else:
+                from app.ui.login_dialog import ForcePasswordDialog
+                dlg = ForcePasswordDialog(self.user_id, self, mandatory=False)
+                dlg.setWindowTitle(ar.CHANGE_PASSWORD)
+                dlg.exec()
+
+        def close_for_logout(self):
+            """Close without treating it as the user quitting the application."""
+            self._closing_for_logout = True
+            self.timer.stop()
+            self.close()
 
         def closeEvent(self, event):
             if hasattr(self, "session") and self.session:
                 self.session.close()
             event.accept()
+            if not self._closing_for_logout:
+                self.closed_by_user.emit()
 
 else:
     class MainWindow:  # type: ignore[no-redef]

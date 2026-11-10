@@ -10,6 +10,7 @@ from PySide6.QtWidgets import (
 )
 
 from app.core.money import egp_to_piasters, format_money, piasters_to_egp
+from app.core.money import piasters_to_input
 from app.models.wallet import Wallet
 from app.services import wallet_service
 
@@ -179,8 +180,8 @@ class WalletDialog(QDialog):
         self.phone_edit.setText(self.wallet.phone_number)
         self.phone_edit.setEnabled(False)
         self.label_edit.setText(self.wallet.label)
-        self.daily_limit_edit.setText(f"{self.wallet.daily_limit / 100:.2f}")
-        self.monthly_limit_edit.setText(f"{self.wallet.monthly_limit / 100:.2f}")
+        self.daily_limit_edit.setText(f"{piasters_to_input(self.wallet.daily_limit)}")
+        self.monthly_limit_edit.setText(f"{piasters_to_input(self.wallet.monthly_limit)}")
 
     def _save(self):
         label = self.label_edit.text().strip()

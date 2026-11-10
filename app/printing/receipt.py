@@ -8,19 +8,29 @@ import datetime
 from pathlib import Path
 from typing import Optional
 
+from app.core import clock
 from app.core.money import format_money
+from app.core.money import piasters_to_egp
 from app.models.sale import Sale
 
 
-def generate_thermal_receipt_text(sale: Sale, shop_name: str = "محل الموبايلات") -> str:
+def generate_thermal_receipt_text(
+    sale: Sale,
+    shop_name: str = "محل الموبايلات",
+    footer: str = "شكراً لتعاملكم معنا",
+    phone: str = "",
+    address: str = "",
+) -> str:
     """Generate a clean 80mm text format of the receipt (for printer or preview)."""
     divider = "─" * 40
     lines = [
         f"{shop_name:^40}",
+        *([f"{address:^40}"] if address else []),
+        *([f"{phone:^40}"] if phone else []),
         f"{'فاتورة مبيعات نقدية':^40}",
         divider,
         f"رقم الفاتورة: {sale.invoice_no}",
-        f"التاريخ: {sale.created_at.strftime('%Y-%m-%d  %I:%M %p')}",
+        f"التاريخ: {clock.fmt_local(sale.created_at, '%Y-%m-%d  %I:%M %p')}",
         f"الكاشير: {sale.user.full_name if sale.user else '—'}",
         f"العميل: {sale.customer.name if sale.customer else 'عميل نقدي'}",
         divider,
@@ -50,7 +60,7 @@ def generate_thermal_receipt_text(sale: Sale, shop_name: str = "محل المو�
 
     lines.extend([
         divider,
-        f"{'شكراً لتعاملكم معنا':^40}",
+        f"{footer:^40}",
         f"{'البضاعة المباعة ترد وتستبدل خلال 14 يوم':^40}",
         divider,
     ])
@@ -109,7 +119,7 @@ def generate_warranty_invoice_pdf(
 
     # Meta Info Table
     meta_data = [
-        [f"Invoice: {sale.invoice_no}", f"Date: {sale.created_at.strftime('%Y-%m-%d %H:%M')}"],
+        [f"Invoice: {sale.invoice_no}", f"Date: {clock.fmt_local(sale.created_at, '%Y-%m-%d %H:%M')}"],
         [f"Customer: {sale.customer.name}", f"Cashier: {sale.user.full_name if sale.user else 'Admin'}"],
     ]
     meta_table = Table(meta_data, colWidths=[260, 260])
@@ -126,18 +136,18 @@ def generate_warranty_invoice_pdf(
     table_data = [["#", "Item Description", "IMEI / Serial", "Qty", "Unit Price", "Total (EGP)"]]
     for idx, it in enumerate(sale.items, start=1):
         imei_str = it.device.imei1 if it.device else "—"
-        price_egp = f"{it.unit_price / 100:,.2f}"
-        total_egp = f"{it.line_total / 100:,.2f}"
+        price_egp = f"{piasters_to_egp(it.unit_price):,.2f}"
+        total_egp = f"{piasters_to_egp(it.line_total):,.2f}"
         table_data.append([str(idx), it.product.name, imei_str, str(it.quantity), price_egp, total_egp])
 
     # Totals rows
-    table_data.append(["", "", "", "", "Subtotal:", f"{sale.subtotal / 100:,.2f}"])
+    table_data.append(["", "", "", "", "Subtotal:", f"{piasters_to_egp(sale.subtotal):,.2f}"])
     if sale.discount > 0:
-        table_data.append(["", "", "", "", "Discount:", f"-{sale.discount / 100:,.2f}"])
-    table_data.append(["", "", "", "", "Net Total:", f"{sale.total / 100:,.2f}"])
-    table_data.append(["", "", "", "", "Paid:", f"{sale.paid / 100:,.2f}"])
+        table_data.append(["", "", "", "", "Discount:", f"-{piasters_to_egp(sale.discount):,.2f}"])
+    table_data.append(["", "", "", "", "Net Total:", f"{piasters_to_egp(sale.total):,.2f}"])
+    table_data.append(["", "", "", "", "Paid:", f"{piasters_to_egp(sale.paid):,.2f}"])
     if sale.remaining > 0:
-        table_data.append(["", "", "", "", "Remaining:", f"{sale.remaining / 100:,.2f}"])
+        table_data.append(["", "", "", "", "Remaining:", f"{piasters_to_egp(sale.remaining):,.2f}"])
 
     items_table = Table(table_data, colWidths=[30, 180, 120, 40, 80, 80])
     items_table.setStyle(TableStyle([

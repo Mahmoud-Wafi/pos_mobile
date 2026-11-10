@@ -16,7 +16,7 @@ from app.core.backup import BACKUP_DIR, create_backup, list_backups, restore_bac
 from app.services.auth_service import hash_password, verify_password
 
 
-class SettingsWidget(QWidget):
+class BackupSecurityTab(QWidget):
     def __init__(self, session, user, parent=None):
         super().__init__(parent)
         self.session = session
@@ -214,3 +214,40 @@ class SettingsWidget(QWidget):
             self.session.rollback()
             QMessageBox.critical(self, "خطأ", f"تعذر حفظ كلمة المرور:\n{e}")
 
+
+
+class SettingsWidget(QWidget):
+    """Settings screen: shop info, users, audit log, backup & password (tabs depend on permissions)."""
+
+    def __init__(self, session, user, parent=None):
+        super().__init__(parent)
+        from PySide6.QtWidgets import QTabWidget
+        from app.core import permissions as P
+        from app.i18n import ar
+        from app.ui.settings.settings_tabs import AuditTab, ShopSettingsTab, UsersTab
+
+        perms = user.permission_codes()
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(12, 12, 12, 12)
+        self.tabs = QTabWidget()
+        layout.addWidget(self.tabs)
+
+        self.shop_tab = self.users_tab = self.audit_tab = None
+        if P.PERM_SETTINGS_MANAGE in perms:
+            self.shop_tab = ShopSettingsTab(session, user)
+            self.tabs.addTab(self.shop_tab, ar.SET_TAB_SHOP)
+        if P.PERM_USERS_MANAGE in perms:
+            self.users_tab = UsersTab(session, user)
+            self.tabs.addTab(self.users_tab, ar.SET_TAB_USERS)
+        if P.PERM_AUDIT_VIEW in perms:
+            self.audit_tab = AuditTab(session, user)
+            self.tabs.addTab(self.audit_tab, ar.SET_TAB_AUDIT)
+        self.backup_tab = BackupSecurityTab(session, user)
+        self.tabs.addTab(self.backup_tab, ar.SET_TAB_BACKUP)
+
+    def load_backups(self):
+        """Called by the main window whenever the screen is opened."""
+        self.backup_tab.load_backups()
+        for tab in (self.shop_tab, self.users_tab, self.audit_tab):
+            if tab is not None:
+                tab.refresh()

@@ -4,6 +4,7 @@ shift reconciliation, and daily close report.
 from __future__ import annotations
 
 import datetime
+from app.core import clock
 import pytest
 from sqlalchemy.orm import Session
 
@@ -230,7 +231,7 @@ class TestDailyCloseReport:
         )
         db_session.commit()
 
-        today = datetime.date.today()
+        today = clock.local_today()
         report = accounting_service.daily_close(db_session, manager_user, ref_date=today)
 
         assert report["date"] == today.strftime("%Y-%m-%d")

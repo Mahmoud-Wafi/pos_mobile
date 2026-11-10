@@ -4,6 +4,7 @@ debts, cash ledger, dashboard metrics, and CSV export.
 from __future__ import annotations
 
 import datetime
+from app.core import clock
 import os
 import time
 import pytest
@@ -54,7 +55,7 @@ def cashier_user(db_session: Session) -> User:
 
 def test_sales_report_reconciliation(db_session: Session, manager_user: User):
     """Verify sales report accurately aggregates posted sales."""
-    today = datetime.date.today()
+    today = clock.local_today()
 
     cust = Customer(name="عميل تجريبي للتقرير", phone="01099999999", balance=0, credit_limit=egp_to_piasters(5000))
     db_session.add(cust)
@@ -71,7 +72,7 @@ def test_sales_report_reconciliation(db_session: Session, manager_user: User):
         paid=egp_to_piasters(950),
         remaining=0,
         status="posted",
-        created_at=datetime.datetime.now(),
+        created_at=clock.utcnow(),
     )
     s2 = Sale(
         invoice_no="INV-REP-002",
@@ -83,7 +84,7 @@ def test_sales_report_reconciliation(db_session: Session, manager_user: User):
         paid=egp_to_piasters(300),
         remaining=egp_to_piasters(200),
         status="posted",
-        created_at=datetime.datetime.now(),
+        created_at=clock.utcnow(),
     )
     # Draft sale should be excluded
     s3 = Sale(
@@ -96,7 +97,7 @@ def test_sales_report_reconciliation(db_session: Session, manager_user: User):
         paid=0,
         remaining=egp_to_piasters(200),
         status="draft",
-        created_at=datetime.datetime.now(),
+        created_at=clock.utcnow(),
     )
     db_session.add_all([s1, s2, s3])
     db_session.commit()
@@ -112,7 +113,7 @@ def test_sales_report_reconciliation(db_session: Session, manager_user: User):
 
 def test_profit_report_reconciliation(db_session: Session, manager_user: User, cashier_user: User):
     """Verify P&L formula: Sales profit + Wallet profit - Expenses + Shift diff."""
-    today = datetime.date.today()
+    today = clock.local_today()
 
     # Cashier cannot view profit report
     with pytest.raises(PermissionDenied):
@@ -129,7 +130,7 @@ def test_profit_report_reconciliation(db_session: Session, manager_user: User, c
         account_id=acc.id,
         amount=egp_to_piasters(100),
         user_id=manager_user.id,
-        created_at=datetime.datetime.now(),
+        created_at=clock.utcnow(),
     )
     db_session.add(exp)
     db_session.commit()
@@ -190,7 +191,7 @@ def test_dashboard_metrics(db_session: Session, manager_user: User):
 
 def test_export_report_to_csv(tmp_path, db_session: Session, manager_user: User):
     """Verify CSV export produces clean UTF-8 with BOM file."""
-    today = datetime.date.today()
+    today = clock.local_today()
     rep = report_service.sales_report(db_session, manager_user, today, today)
     csv_file = str(tmp_path / "sales_report.csv")
     out = report_service.export_report_to_csv(rep, csv_file)

@@ -13,7 +13,7 @@ from PySide6.QtWidgets import (
     QHeaderView, QMessageBox, QFrame, QGroupBox, QGridLayout,
 )
 
-from app.core.money import egp_to_piasters, format_money, piasters_to_egp
+from app.core.money import egp_to_piasters, format_money, piasters_to_egp, piasters_to_input
 from app.models.accounting import CashAccount
 from app.models.product import Product
 from app.models.purchase import Supplier
@@ -326,7 +326,7 @@ class PurchaseInvoiceDialog(QDialog):
         product: Optional[Product] = self.product_combo.currentData()
         self._current_pending_imeis = []
         if product:
-            self.cost_edit.setText(f"{product.cost_price / 100:.2f}")
+            self.cost_edit.setText(f"{piasters_to_input(product.cost_price)}")
             if product.track_imei:
                 self.btn_imei.setEnabled(True)
                 qty = int(self.qty_edit.text() or 1)

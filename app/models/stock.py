@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import datetime
+from app.core.clock import utcnow
 from typing import Optional
 
 from sqlalchemy import (
@@ -22,12 +23,12 @@ class Stock(Base):
     )
     quantity: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     created_at: Mapped[datetime.datetime] = mapped_column(
-        DateTime, default=datetime.datetime.utcnow, nullable=False
+        DateTime, default=utcnow, nullable=False
     )
     updated_at: Mapped[datetime.datetime] = mapped_column(
         DateTime,
-        default=datetime.datetime.utcnow,
-        onupdate=datetime.datetime.utcnow,
+        default=utcnow,
+        onupdate=utcnow,
         nullable=False,
     )
 
@@ -60,12 +61,12 @@ class Device(Base):
     sale_item_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True, index=True)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime.datetime] = mapped_column(
-        DateTime, default=datetime.datetime.utcnow, nullable=False
+        DateTime, default=utcnow, nullable=False
     )
     updated_at: Mapped[datetime.datetime] = mapped_column(
         DateTime,
-        default=datetime.datetime.utcnow,
-        onupdate=datetime.datetime.utcnow,
+        default=utcnow,
+        onupdate=utcnow,
         nullable=False,
     )
     created_by: Mapped[Optional[int]] = mapped_column(
@@ -103,7 +104,7 @@ class StockMovement(Base):
     )
     note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime.datetime] = mapped_column(
-        DateTime, default=datetime.datetime.utcnow, nullable=False, index=True
+        DateTime, default=utcnow, nullable=False, index=True
     )
 
     product: Mapped[Product] = relationship("Product", back_populates="movements")

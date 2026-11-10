@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import datetime
+from app.core.clock import utcnow
 from typing import Optional
 
 from sqlalchemy import (
@@ -24,12 +25,12 @@ class Customer(Base):
     balance: Mapped[int] = mapped_column(Integer, nullable=False, default=0)       # in piasters (positive = owes shop)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime.datetime] = mapped_column(
-        DateTime, default=datetime.datetime.utcnow, nullable=False
+        DateTime, default=utcnow, nullable=False
     )
     updated_at: Mapped[datetime.datetime] = mapped_column(
         DateTime,
-        default=datetime.datetime.utcnow,
-        onupdate=datetime.datetime.utcnow,
+        default=utcnow,
+        onupdate=utcnow,
         nullable=False,
     )
     created_by: Mapped[Optional[int]] = mapped_column(
@@ -61,7 +62,7 @@ class CustomerPayment(Base):
     )
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime.datetime] = mapped_column(
-        DateTime, default=datetime.datetime.utcnow, nullable=False, index=True
+        DateTime, default=utcnow, nullable=False, index=True
     )
 
     customer: Mapped[Customer] = relationship("Customer", back_populates="payments")

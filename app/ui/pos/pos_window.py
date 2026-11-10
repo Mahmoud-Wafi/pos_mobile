@@ -16,12 +16,18 @@ try:
 except ImportError:
     HAS_QT = False
 
-from app.core.money import format_money, egp_to_piasters
+from app.core.money import format_money, egp_to_piasters, parse_egp_input, piasters_to_input
+from app.i18n import ar
 from app.models.product import Product
 from app.models.stock import Device
 from app.models.customer import Customer
-from app.services import sales_service, shift_service, customer_service, inventory_service
+from app.services import settings_service, sales_service, shift_service, customer_service, inventory_service
 from app.ui.pos.payment_dialog import PaymentDialog
+from app.ui.approval_dialog import request_manager_approval
+from app.core.permissions import PERM_SALES_BELOW_MIN_PRICE, PERM_SALES_DISCOUNT
+from app.services.sales_service import (
+    CreditLimitExceededError, DiscountLimitExceededError, InsufficientStockError, PriceBelowMinimumError,
+)
 from app.printing.receipt import generate_thermal_receipt_text, generate_warranty_invoice_pdf
 
 
@@ -37,6 +43,7 @@ if HAS_QT:
             self.session = session
             self.user = user
             self.current_sale = None
+            self._discount_manager = None   # manager who approved the current discount
             self._build_ui()
             self._setup_shortcuts()
             self._check_shift_and_init_sale()
@@ -175,6 +182,7 @@ if HAS_QT:
             self.disc_edit.setFixedWidth(100)
             self.disc_edit.setAlignment(Qt.AlignCenter)
             self.disc_edit.textChanged.connect(self._on_discount_changed)
+            self.disc_edit.editingFinished.connect(self._on_discount_committed)
             row_disc.addStretch(); row_disc.addWidget(self.disc_edit)
             s_layout.addLayout(row_disc)
 
@@ -264,6 +272,7 @@ if HAS_QT:
                 )
                 self.lbl_inv_no.setText(f"رقم الفاتورة: {self.current_sale.invoice_no}")
                 self.disc_edit.setText("0")
+                self._discount_manager = None
                 self._refresh_cart()
                 self._focus_search()
             except Exception as e:
@@ -364,16 +373,41 @@ if HAS_QT:
             sales_service.remove_line(self.session, self.user, self.current_sale, item_id)
             self._refresh_cart()
 
+        def _apply_discount_text(self, manager=None) -> None:
+            disc_piasters = parse_egp_input(self.disc_edit.text() or "0")
+            sales_service.apply_discount(
+                self.session, self.user, self.current_sale, disc_piasters, manager_override=manager
+            )
+            self.lbl_big_total.setText(format_money(self.current_sale.total))
+
         def _on_discount_changed(self):
+            """Live preview while typing; limits needing approval are handled on commit."""
             if not self.current_sale:
                 return
             try:
-                disc_egp = Decimal(self.disc_edit.text().strip() or "0")
-                disc_piasters = egp_to_piasters(disc_egp)
-                sales_service.apply_discount(self.session, self.user, self.current_sale, disc_piasters)
-                self.lbl_big_total.setText(format_money(self.current_sale.total))
-            except Exception:
+                self._apply_discount_text(self._discount_manager)
+            except DiscountLimitExceededError:
+                self.disc_edit.setToolTip(ar.APPROVAL_DISCOUNT_HINT)
+            except (ValueError, sales_service.SaleError):
                 pass
+
+        def _on_discount_committed(self):
+            """Enter / focus-out: ask a manager if the cashier's discount limit was exceeded."""
+            if not self.current_sale:
+                return
+            try:
+                self._apply_discount_text(self._discount_manager)
+            except DiscountLimitExceededError as exc:
+                manager = request_manager_approval(
+                    self, self.session, self.user, PERM_SALES_DISCOUNT, str(exc)
+                )
+                if manager is None:
+                    self.disc_edit.setText(piasters_to_input(self.current_sale.discount))
+                    return
+                self._discount_manager = manager
+                self._apply_discount_text(manager)
+            except (ValueError, sales_service.SaleError):
+                self.disc_edit.setText(piasters_to_input(self.current_sale.discount))
 
         def _on_checkout(self):
             if not self.current_sale or not self.current_sale.items:
@@ -382,24 +416,43 @@ if HAS_QT:
 
             cust_name = self.customer_combo.currentText()
             dlg = PaymentDialog(self.current_sale.total, cust_name, parent=self)
-            if dlg.exec() == QDialog.Accepted:
+            if dlg.exec() != QDialog.Accepted:
+                return
+            manager = self._discount_manager
+            while True:
                 try:
                     sales_service.post_sale(
-                        self.session, self.user, self.current_sale, dlg.payments_breakdown
+                        self.session, self.user, self.current_sale, dlg.payments_breakdown,
+                        manager_override=manager,
                     )
                     self.session.commit()
-
-                    # Print or preview thermal receipt
-                    if dlg.print_receipt:
-                        receipt_text = generate_thermal_receipt_text(self.current_sale)
-                        QMessageBox.information(self, "تم حفظ الفاتورة بنجاح ✓", f"تم اعتماد الفاتورة #{self.current_sale.invoice_no}\n\n{receipt_text}")
-                    else:
-                        QMessageBox.information(self, "نجاح", f"تم اعتماد الفاتورة #{self.current_sale.invoice_no} بنجاح ✓")
-
-                    self._new_invoice()
-                except Exception as e:
+                    break
+                except (PriceBelowMinimumError, CreditLimitExceededError, InsufficientStockError) as exc:
+                    # Needs a manager: ask once, then retry the same sale with their approval.
+                    if manager is not None:
+                        QMessageBox.critical(self, "خطأ في اعتماد الفاتورة", str(exc))
+                        return
+                    manager = request_manager_approval(
+                        self, self.session, self.user, PERM_SALES_BELOW_MIN_PRICE, str(exc)
+                    )
+                    if manager is None:
+                        return
+                except Exception as exc:
                     self.session.rollback()
-                    QMessageBox.critical(self, "خطأ في اعتماد الفاتورة", str(e))
+                    QMessageBox.critical(self, "خطأ في اعتماد الفاتورة", str(exc))
+                    return
+
+            # Print or preview thermal receipt
+            if dlg.print_receipt:
+                cfg = settings_service.get_all(self.session)
+                receipt_text = generate_thermal_receipt_text(
+                    self.current_sale, shop_name=cfg["shop_name"], footer=cfg["invoice_footer"],
+                    phone=cfg["shop_phone"], address=cfg["shop_address"],
+                )
+                QMessageBox.information(self, "تم حفظ الفاتورة بنجاح ✓", f"تم اعتماد الفاتورة #{self.current_sale.invoice_no}\n\n{receipt_text}")
+            else:
+                QMessageBox.information(self, "نجاح", f"تم اعتماد الفاتورة #{self.current_sale.invoice_no} بنجاح ✓")
+            self._new_invoice()
 
         def _hold_invoice(self):
             if not self.current_sale or not self.current_sale.items:

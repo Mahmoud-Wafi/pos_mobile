@@ -9,7 +9,10 @@ from PySide6.QtWidgets import (
     QHeaderView, QMessageBox, QFrame, QGroupBox, QGridLayout,
 )
 
+from decimal import Decimal
+from app.core.money import parse_egp_input, parse_percent_to_bp
 from app.core.money import egp_to_piasters, format_money, piasters_to_egp
+from app.core.money import piasters_to_input
 from app.models.wallet import CommissionRule
 from app.services import wallet_service
 
@@ -169,7 +172,7 @@ class CommissionRulesDialog(QDialog):
             self.table.setItem(idx, 3, QTableWidgetItem(format_money(r.min_amount)))
             self.table.setItem(idx, 4, QTableWidgetItem(format_money(r.max_amount) if r.max_amount else "بلا سقف"))
             self.table.setItem(idx, 5, QTableWidgetItem(format_money(r.fixed_fee)))
-            pct_val = f"{r.percent_bp / 100:.2f}%"
+            pct_val = f"{piasters_to_input(r.percent_bp)}%"
             self.table.setItem(idx, 6, QTableWidgetItem(pct_val))
             self.table.setItem(idx, 7, QTableWidgetItem("العميل" if r.paid_by == "customer" else "الشبكة"))
 
@@ -177,11 +180,10 @@ class CommissionRulesDialog(QDialog):
         try:
             net = self.net_combo.currentData()
             op = self.op_combo.currentData()
-            min_amt = egp_to_piasters(self.min_edit.text() or 0)
-            max_amt = egp_to_piasters(self.max_edit.text() or 0)
-            fixed_fee = egp_to_piasters(self.fix_edit.text() or 0)
-            pct = float(self.pct_edit.text() or 0.0)
-            percent_bp = int(pct * 100)
+            min_amt = parse_egp_input(self.min_edit.text() or '0')
+            max_amt = parse_egp_input(self.max_edit.text() or '0')
+            fixed_fee = parse_egp_input(self.fix_edit.text() or '0')
+            percent_bp = parse_percent_to_bp(self.pct_edit.text())
 
             wallet_service.create_commission_rule(
                 self.session, self.user,

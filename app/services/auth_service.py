@@ -11,6 +11,7 @@ Public API:
 from __future__ import annotations
 
 import datetime
+from app.core.clock import utcnow
 from typing import Optional
 
 from sqlalchemy.orm import Session
@@ -68,7 +69,7 @@ def login(session: Session, username: str, password: str) -> User:
     # Success — reset counters
     user.failed_attempts = 0
     user.locked_until = None
-    user.last_login = datetime.datetime.utcnow()
+    user.last_login = utcnow()
     log_action(session, "login", user_id=user.id, table_name="users", record_id=user.id)
     session.commit()
     return user

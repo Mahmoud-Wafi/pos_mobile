@@ -58,3 +58,46 @@ def weighted_average_cost(old_qty: int, old_avg_piasters: int, new_qty: int, new
     avg = (numerator / Decimal(old_qty + new_qty)).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
     return int(avg)
 
+
+
+_ARABIC_DIGITS = str.maketrans("٠١٢٣٤٥٦٧٨٩٫٬،", "0123456789.,,")
+
+
+def parse_egp_input(text: str) -> int:
+    """Parse user-typed EGP text into integer piasters. Decimal only, never float.
+
+    Accepts Arabic-Indic digits, ',' thousands separators and '٫' decimal marks.
+    Raises ValueError on empty / invalid / negative input.
+    """
+    from decimal import InvalidOperation
+
+    cleaned = (text or "").strip().translate(_ARABIC_DIGITS).replace(",", "").replace(" ", "")
+    cleaned = cleaned.replace("ج.م", "").replace("EGP", "")
+    if not cleaned:
+        raise ValueError("empty amount")
+    try:
+        value = Decimal(cleaned)
+    except InvalidOperation as exc:
+        raise ValueError(f"invalid amount: {text!r}") from exc
+    if not value.is_finite() or value < 0:
+        raise ValueError(f"invalid amount: {text!r}")
+    return egp_to_piasters(value)
+
+
+def piasters_to_input(piasters: int) -> str:
+    """Piasters -> plain editable text like '1234.50' (no float involved)."""
+    return f"{piasters_to_egp(piasters):.2f}"
+
+
+def parse_percent_to_bp(text: str) -> int:
+    """'2.5' (percent) -> 250 basis points, via Decimal."""
+    from decimal import InvalidOperation
+
+    cleaned = (text or "").strip().translate(_ARABIC_DIGITS).replace("%", "").replace(",", "")
+    try:
+        value = Decimal(cleaned or "0")
+    except InvalidOperation as exc:
+        raise ValueError(f"invalid percent: {text!r}") from exc
+    if value < 0:
+        raise ValueError("negative percent")
+    return int((value * 100).quantize(Decimal("1"), rounding=ROUND_HALF_UP))

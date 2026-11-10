@@ -12,7 +12,9 @@ from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from app.core.audit import log_action
+from app.core import clock
 from app.core.money import format_money
+from app.core.money import piasters_to_input
 from app.core.permissions import (
     PERM_PROFIT_VIEW,
     PERM_REPORTS_PROFIT,
@@ -34,12 +36,10 @@ def _date_bounds(
     start_date: Optional[datetime.date] = None,
     end_date: Optional[datetime.date] = None,
 ) -> tuple[datetime.datetime, datetime.datetime]:
-    today = datetime.date.today()
+    today = clock.local_today()
     s = start_date or today
     e = end_date or today
-    start_dt = datetime.datetime.combine(s, datetime.time.min)
-    end_dt = datetime.datetime.combine(e, datetime.time.max)
-    return start_dt, end_dt
+    return clock.day_bounds_utc(s, e)
 
 
 # ── 1. Sales Report ───────────────────────────────────────────────────────────
@@ -75,7 +75,7 @@ def sales_report(
             "id": s.id,
             "invoice_no": s.invoice_no,
             "customer_name": s.customer.name if s.customer else "عميل نقدي",
-            "date": s.created_at.strftime("%Y-%m-%d %H:%M"),
+            "date": clock.fmt_local(s.created_at, "%Y-%m-%d %H:%M"),
             "items_count": len(s.items),
             "subtotal": s.subtotal,
             "discount": s.discount,
@@ -88,8 +88,8 @@ def sales_report(
 
     return {
         "title": "تقرير المبيعات",
-        "start_date": start_dt.strftime("%Y-%m-%d"),
-        "end_date": end_dt.strftime("%Y-%m-%d"),
+        "start_date": clock.to_local(start_dt).strftime("%Y-%m-%d"),
+        "end_date": clock.to_local(end_dt).strftime("%Y-%m-%d"),
         "total_invoices": total_invoices,
         "total_subtotal": total_subtotal,
         "total_discount": total_discount,
@@ -152,8 +152,8 @@ def profit_report(
 
     return {
         "title": "تقرير الأرباح والخسائر الشامل (P&L)",
-        "start_date": start_dt.strftime("%Y-%m-%d"),
-        "end_date": end_dt.strftime("%Y-%m-%d"),
+        "start_date": clock.to_local(start_dt).strftime("%Y-%m-%d"),
+        "end_date": clock.to_local(end_dt).strftime("%Y-%m-%d"),
         "sales_revenue": sales_revenue,
         "sales_profit": sales_profit,
         "wallet_commission": wallet_comm,
@@ -268,13 +268,13 @@ def wallet_report(
             "profit": t.profit,
             "cash_effect": t.cash_effect,
             "wallet_effect": t.wallet_effect,
-            "date": t.created_at.strftime("%Y-%m-%d %H:%M"),
+            "date": clock.fmt_local(t.created_at, "%Y-%m-%d %H:%M"),
         })
 
     return {
         "title": "تقرير حركة المحافظ الإلكترونية والعمولات",
-        "start_date": start_dt.strftime("%Y-%m-%d"),
-        "end_date": end_dt.strftime("%Y-%m-%d"),
+        "start_date": clock.to_local(start_dt).strftime("%Y-%m-%d"),
+        "end_date": clock.to_local(end_dt).strftime("%Y-%m-%d"),
         "total_operations": len(txs),
         "total_amount": total_amount,
         "total_commission": total_commission,
@@ -357,8 +357,8 @@ def cash_report(
 
     return {
         "title": "تقرير حركة النقدية والخزائن",
-        "start_date": start_dt.strftime("%Y-%m-%d"),
-        "end_date": end_dt.strftime("%Y-%m-%d"),
+        "start_date": clock.to_local(start_dt).strftime("%Y-%m-%d"),
+        "end_date": clock.to_local(end_dt).strftime("%Y-%m-%d"),
         "total_in": in_total,
         "total_out": out_total,
         "net_cash_flow": in_total - out_total,
@@ -372,7 +372,7 @@ def cash_report(
 
 def dashboard_metrics(session: Session, user: User) -> dict[str, Any]:
     """Summary KPI metrics for landing dashboard."""
-    today = datetime.date.today()
+    today = clock.local_today()
     start_dt, end_dt = _date_bounds(today, today)
     perm_codes = user.permission_codes()
 
@@ -435,7 +435,7 @@ def dashboard_metrics(session: Session, user: User) -> dict[str, Any]:
             "invoice_no": s.invoice_no,
             "customer_name": s.customer.name if s.customer else "عميل نقدي",
             "total": s.total,
-            "time": s.created_at.strftime("%I:%M %p"),
+            "time": clock.fmt_local(s.created_at, "%I:%M %p"),
         })
 
     return {
@@ -492,7 +492,7 @@ def export_report_to_csv(report_data: dict[str, Any], filepath: str) -> str:
             clean_row = {}
             for k, v in r.items():
                 if isinstance(v, int) and ("price" in k or "total" in k or "profit" in k or "cost" in k or "balance" in k or "paid" in k or "subtotal" in k or "amount" in k or "remaining" in k):
-                    clean_row[k] = f"{v / 100:.2f}"
+                    clean_row[k] = f"{piasters_to_input(v)}"
                 else:
                     clean_row[k] = v
             writer.writerow(clean_row)

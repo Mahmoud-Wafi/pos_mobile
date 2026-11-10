@@ -5,6 +5,7 @@ Covers: roles, role_permissions, users, audit_log, settings.
 from __future__ import annotations
 
 import datetime
+from app.core.clock import utcnow
 from typing import Optional
 
 from sqlalchemy import (
@@ -20,12 +21,12 @@ from app.core.database import Base
 
 class TimestampMixin:
     created_at: Mapped[datetime.datetime] = mapped_column(
-        DateTime, default=datetime.datetime.utcnow, nullable=False
+        DateTime, default=utcnow, nullable=False
     )
     updated_at: Mapped[datetime.datetime] = mapped_column(
         DateTime,
-        default=datetime.datetime.utcnow,
-        onupdate=datetime.datetime.utcnow,
+        default=utcnow,
+        onupdate=utcnow,
         nullable=False,
     )
 
@@ -102,7 +103,7 @@ class AuditLog(Base):
     new_value: Mapped[Optional[str]] = mapped_column(Text, nullable=True)   # JSON
     reason: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     timestamp: Mapped[datetime.datetime] = mapped_column(
-        DateTime, default=datetime.datetime.utcnow, nullable=False, index=True
+        DateTime, default=utcnow, nullable=False, index=True
     )
 
     user: Mapped[Optional[User]] = relationship("User", foreign_keys=[user_id])

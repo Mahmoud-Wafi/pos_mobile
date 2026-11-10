@@ -1,6 +1,8 @@
 """Modern Device / IMEI list widget with search, status badges, and clean dialog."""
 from __future__ import annotations
 
+from app.core.money import piasters_to_input
+
 from decimal import Decimal
 
 try:
@@ -385,7 +387,7 @@ if HAS_QT:
                 self.product_combo.addItem(f"📱 {p.name}", p)
             if products:
                 # Pre-fill cost price from product default
-                self.cost_edit.setText(str(p.cost_price / 100))
+                self.cost_edit.setText(piasters_to_input(p.cost_price))
 
         def _save(self):
             if not self._products:
