@@ -14,11 +14,19 @@ from app.core.money import piasters_to_egp
 from app.models.sale import Sale
 
 
-def generate_thermal_receipt_text(sale: Sale, shop_name: str = "محل الموبايلات") -> str:
+def generate_thermal_receipt_text(
+    sale: Sale,
+    shop_name: str = "محل الموبايلات",
+    footer: str = "شكراً لتعاملكم معنا",
+    phone: str = "",
+    address: str = "",
+) -> str:
     """Generate a clean 80mm text format of the receipt (for printer or preview)."""
     divider = "─" * 40
     lines = [
         f"{shop_name:^40}",
+        *([f"{address:^40}"] if address else []),
+        *([f"{phone:^40}"] if phone else []),
         f"{'فاتورة مبيعات نقدية':^40}",
         divider,
         f"رقم الفاتورة: {sale.invoice_no}",
@@ -52,7 +60,7 @@ def generate_thermal_receipt_text(sale: Sale, shop_name: str = "محل المو�
 
     lines.extend([
         divider,
-        f"{'شكراً لتعاملكم معنا':^40}",
+        f"{footer:^40}",
         f"{'البضاعة المباعة ترد وتستبدل خلال 14 يوم':^40}",
         divider,
     ])

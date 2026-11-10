@@ -21,7 +21,7 @@ from app.i18n import ar
 from app.models.product import Product
 from app.models.stock import Device
 from app.models.customer import Customer
-from app.services import sales_service, shift_service, customer_service, inventory_service
+from app.services import settings_service, sales_service, shift_service, customer_service, inventory_service
 from app.ui.pos.payment_dialog import PaymentDialog
 from app.ui.approval_dialog import request_manager_approval
 from app.core.permissions import PERM_SALES_BELOW_MIN_PRICE, PERM_SALES_DISCOUNT
@@ -444,7 +444,11 @@ if HAS_QT:
 
             # Print or preview thermal receipt
             if dlg.print_receipt:
-                receipt_text = generate_thermal_receipt_text(self.current_sale)
+                cfg = settings_service.get_all(self.session)
+                receipt_text = generate_thermal_receipt_text(
+                    self.current_sale, shop_name=cfg["shop_name"], footer=cfg["invoice_footer"],
+                    phone=cfg["shop_phone"], address=cfg["shop_address"],
+                )
                 QMessageBox.information(self, "تم حفظ الفاتورة بنجاح ✓", f"تم اعتماد الفاتورة #{self.current_sale.invoice_no}\n\n{receipt_text}")
             else:
                 QMessageBox.information(self, "نجاح", f"تم اعتماد الفاتورة #{self.current_sale.invoice_no} بنجاح ✓")

@@ -632,9 +632,12 @@ def generate_declaration(
     user: User,
     used_purchase_id: int,
     dest_path: Optional[Path | str] = None,
-    shop_name: str = "محل الموبايلات",
+    shop_name: Optional[str] = None,
 ) -> Path:
-    """Generate and mark declaration PDF as printed."""
+    """Generate and mark declaration PDF as printed (shop name defaults to the setting)."""
+    if shop_name is None:
+        from app.services import settings_service
+        shop_name = settings_service.get(session, "shop_name", "محل الموبايلات")
     require_permission(user.permission_codes(), PERM_PURCHASES_VIEW, user.username)
     used_purchase = session.get(UsedDevicePurchase, used_purchase_id)
     if not used_purchase:

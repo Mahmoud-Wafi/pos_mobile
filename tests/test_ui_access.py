@@ -100,3 +100,55 @@ def test_default_password_detection(db_session):
     assert uses_default_password(admin)
     strong = _make_user(db_session, "strong", ROLE_CASHIER, password="Str0ng-pass")
     assert not uses_default_password(strong)
+
+
+def test_settings_tabs_follow_permissions(qtbot, db_session):
+    from app.ui.settings.settings_window import SettingsWidget
+
+    admin = db_session.query(User).filter_by(username="admin").first()
+    w = SettingsWidget(db_session, admin)
+    qtbot.addWidget(w)
+    assert w.tabs.count() == 4                      # shop, users, audit, backup
+
+    cashier = _make_user(db_session, "tabs_cashier", ROLE_CASHIER)
+    w2 = SettingsWidget(db_session, cashier)
+    qtbot.addWidget(w2)
+    assert w2.tabs.count() == 1                     # only backup/password
+
+
+def test_shop_settings_tab_saves(qtbot, db_session, monkeypatch):
+    from app.services import settings_service
+    from app.ui.settings.settings_tabs import ShopSettingsTab
+
+    admin = db_session.query(User).filter_by(username="admin").first()
+    tab = ShopSettingsTab(db_session, admin)
+    qtbot.addWidget(tab)
+    tab.edits["shop_name"].setText("محل الأمل")
+    tab.edits["invoice_footer"].setText("نشكركم")
+    import app.ui.settings.settings_tabs as st
+    monkeypatch.setattr(st.QMessageBox, "information", lambda *a, **k: None)
+    tab.save()
+    assert settings_service.get(db_session, "shop_name") == "محل الأمل"
+
+
+def test_users_tab_lists_users(qtbot, db_session):
+    from app.ui.settings.settings_tabs import UsersTab
+
+    admin = db_session.query(User).filter_by(username="admin").first()
+    tab = UsersTab(db_session, admin)
+    qtbot.addWidget(tab)
+    assert tab.table.rowCount() >= 1
+    assert tab.table.item(0, 0).text() == "admin"
+
+
+def test_receipt_uses_shop_settings(db_session):
+    from app.printing.receipt import generate_thermal_receipt_text
+    from app.models.sale import Sale
+
+    admin = db_session.query(User).filter_by(username="admin").first()
+    sale = Sale(invoice_no="R-1", user_id=admin.id, customer_id=1, status="posted", subtotal=100,
+                discount=0, total=100, paid=100, remaining=0, created_at=__import__("datetime").datetime(2026, 1, 1))
+    db_session.add(sale)
+    db_session.flush()
+    text = generate_thermal_receipt_text(sale, shop_name="محل النور", footer="مع السلامة", phone="0100")
+    assert "محل النور" in text and "مع السلامة" in text and "0100" in text
