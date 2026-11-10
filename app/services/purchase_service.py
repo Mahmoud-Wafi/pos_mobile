@@ -11,6 +11,7 @@ from typing import Any, Optional
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
+from app.config import DECLARATIONS_DIR
 from app.core.audit import log_action
 from app.core.money import weighted_average_cost
 from app.core.permissions import (
@@ -640,7 +641,7 @@ def generate_declaration(
         raise PurchaseError(f"سجل شراء الجهاز المستعمل {used_purchase_id} غير موجود")
 
     if not dest_path:
-        dest_path = Path("data/declarations") / f"declaration_{used_purchase.id:05d}.pdf"
+        dest_path = DECLARATIONS_DIR / f"declaration_{used_purchase.id:05d}.pdf"
 
     pdf_path = generate_used_device_declaration_pdf(
         used_purchase=used_purchase,

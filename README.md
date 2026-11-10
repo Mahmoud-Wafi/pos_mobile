@@ -71,7 +71,7 @@
 - **محرك قواعد البيانات (ORM):** SQLAlchemy 2.0.
 - **إدارة ترحيل قواعد البيانات (Migrations):** Alembic.
 - **توليد الفواتير والمستندات (PDF Generation):** ReportLab.
-- **تشفير كلمات المرور:** Argon2 / PBKDF2 عبر `hashlib` و `secrets`.
+- **تشفير كلمات المرور:** bcrypt.
 - **أطر الاختبار:** Pytest 8.x.
 
 ---
@@ -219,8 +219,8 @@
 
 1. **استنساخ المستودع والدخول للمجلد:**
    ```bash
-   git clone https://github.com/your-repo/POS_Mobile.git
-   cd POS_Mobile
+   git clone https://github.com/Mahmoud-Wafi/pos_mobile.git
+   cd pos_mobile
    ```
 
 2. **إنشاء البيئة الافتراضية وتفعيلها:**
@@ -248,13 +248,15 @@
 
 6. **تشغيل التطبيق:**
    ```bash
-   python main.py
+   python main.py        # أو: python -m app.main
    ```
 
 ### بيانات الدخول الافتراضية (بيئة التطوير)
 - **المدير (Manager):** اسم المستخدم: `admin` | كلمة المرور: `admin123`
-- **الكاشير (Cashier):** اسم المستخدم: `cashier1` | كلمة المرور: `cashier123`
+- **الكاشير (Cashier):** اسم المستخدم: `cashier1` | كلمة المرور: `cashier123` (حسابات التجربة من `scripts/seed_demo.py`)
 - **موظف المحافظ (Wallet Staff):** اسم المستخدم: `wallet1` | كلمة المرور: `wallet123`
+
+> عند أول تسجيل دخول بكلمة مرور افتراضية يُجبرك البرنامج على تغييرها قبل المتابعة.
 
 ---
 

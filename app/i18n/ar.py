@@ -97,3 +97,18 @@ SETTING_WARRANTY_TEXT = "warranty_text"
 SETTING_CASHIER_DISCOUNT_LIMIT_PCT = "cashier_discount_limit_pct"
 SETTING_IDLE_LOCK_MINUTES = "idle_lock_minutes"
 
+
+# Login / session
+LOGIN_TITLE = "تسجيل الدخول إلى النظام"
+LOGIN_SUBTITLE = "أدخل اسم المستخدم وكلمة المرور للمتابعة"
+LOCK_SCREEN_TITLE = "تم قفل الجلسة بسبب عدم النشاط"
+LOGOUT_CONFIRM = "هل تريد تسجيل الخروج؟"
+LOCK_NOW = "قفل الجلسة"
+FORCE_PASSWORD_TITLE = "يجب تغيير كلمة المرور"
+FORCE_PASSWORD_MSG = "أنت تستخدم كلمة المرور الافتراضية. اختر كلمة مرور جديدة للمتابعة."
+PASSWORD_TOO_SHORT = "كلمة المرور الجديدة يجب أن تكون 6 خانات على الأقل"
+PASSWORD_IS_DEFAULT = "لا يمكن استخدام كلمة المرور الافتراضية"
+PASSWORD_MISMATCH = "كلمتا المرور غير متطابقتين"
+PASSWORD_CHANGED = "تم تغيير كلمة المرور بنجاح"
+ACCESS_DENIED_SCREEN = "ليس لديك صلاحية لفتح هذه الشاشة"
+USER_MENU_CHANGE_PASSWORD = "تغيير كلمة المرور"

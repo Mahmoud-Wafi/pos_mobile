@@ -1,13 +1,17 @@
 """Application configuration."""
 from pathlib import Path
-import os
 
-# Base directory of the project
-BASE_DIR = Path(__file__).resolve().parent.parent
+from app.core.paths import default_data_dir, resource_dir
 
-# Data directory (user data, backups, DB)
-DATA_DIR = Path(os.environ.get("POS_DATA_DIR", BASE_DIR / "data"))
+# Folder with bundled read-only resources (assets, migrations)
+BASE_DIR = resource_dir()
+
+# Data directory (user data, backups, DB, logs). Per-user folder; override with POS_DATA_DIR.
+DATA_DIR = default_data_dir()
 DATA_DIR.mkdir(parents=True, exist_ok=True)
+
+LOG_DIR = DATA_DIR / "logs"
+DECLARATIONS_DIR = DATA_DIR / "declarations"
 
 # Database
 DB_PATH = DATA_DIR / "shop.db"
