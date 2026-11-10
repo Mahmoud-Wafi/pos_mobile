@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 from app.core.audit import log_action
 from app.core import clock
 from app.core.money import format_money
+from app.core.money import piasters_to_input
 from app.core.permissions import (
     PERM_PROFIT_VIEW,
     PERM_REPORTS_PROFIT,
@@ -491,7 +492,7 @@ def export_report_to_csv(report_data: dict[str, Any], filepath: str) -> str:
             clean_row = {}
             for k, v in r.items():
                 if isinstance(v, int) and ("price" in k or "total" in k or "profit" in k or "cost" in k or "balance" in k or "paid" in k or "subtotal" in k or "amount" in k or "remaining" in k):
-                    clean_row[k] = f"{v / 100:.2f}"
+                    clean_row[k] = f"{piasters_to_input(v)}"
                 else:
                     clean_row[k] = v
             writer.writerow(clean_row)

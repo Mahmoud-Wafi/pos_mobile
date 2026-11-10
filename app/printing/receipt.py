@@ -10,6 +10,7 @@ from typing import Optional
 
 from app.core import clock
 from app.core.money import format_money
+from app.core.money import piasters_to_egp
 from app.models.sale import Sale
 
 
@@ -127,18 +128,18 @@ def generate_warranty_invoice_pdf(
     table_data = [["#", "Item Description", "IMEI / Serial", "Qty", "Unit Price", "Total (EGP)"]]
     for idx, it in enumerate(sale.items, start=1):
         imei_str = it.device.imei1 if it.device else "—"
-        price_egp = f"{it.unit_price / 100:,.2f}"
-        total_egp = f"{it.line_total / 100:,.2f}"
+        price_egp = f"{piasters_to_egp(it.unit_price):,.2f}"
+        total_egp = f"{piasters_to_egp(it.line_total):,.2f}"
         table_data.append([str(idx), it.product.name, imei_str, str(it.quantity), price_egp, total_egp])
 
     # Totals rows
-    table_data.append(["", "", "", "", "Subtotal:", f"{sale.subtotal / 100:,.2f}"])
+    table_data.append(["", "", "", "", "Subtotal:", f"{piasters_to_egp(sale.subtotal):,.2f}"])
     if sale.discount > 0:
-        table_data.append(["", "", "", "", "Discount:", f"-{sale.discount / 100:,.2f}"])
-    table_data.append(["", "", "", "", "Net Total:", f"{sale.total / 100:,.2f}"])
-    table_data.append(["", "", "", "", "Paid:", f"{sale.paid / 100:,.2f}"])
+        table_data.append(["", "", "", "", "Discount:", f"-{piasters_to_egp(sale.discount):,.2f}"])
+    table_data.append(["", "", "", "", "Net Total:", f"{piasters_to_egp(sale.total):,.2f}"])
+    table_data.append(["", "", "", "", "Paid:", f"{piasters_to_egp(sale.paid):,.2f}"])
     if sale.remaining > 0:
-        table_data.append(["", "", "", "", "Remaining:", f"{sale.remaining / 100:,.2f}"])
+        table_data.append(["", "", "", "", "Remaining:", f"{piasters_to_egp(sale.remaining):,.2f}"])
 
     items_table = Table(table_data, colWidths=[30, 180, 120, 40, 80, 80])
     items_table.setStyle(TableStyle([
