@@ -112,3 +112,10 @@ PASSWORD_MISMATCH = "كلمتا المرور غير متطابقتين"
 PASSWORD_CHANGED = "تم تغيير كلمة المرور بنجاح"
 ACCESS_DENIED_SCREEN = "ليس لديك صلاحية لفتح هذه الشاشة"
 USER_MENU_CHANGE_PASSWORD = "تغيير كلمة المرور"
+
+# Manager approval
+APPROVAL_TITLE = "موافقة المدير مطلوبة"
+APPROVAL_MANAGER_USERNAME = "اسم المستخدم (المدير)"
+APPROVAL_GRANT = "موافقة"
+APPROVAL_NOT_MANAGER = "هذا الحساب لا يملك صلاحية الموافقة"
+APPROVAL_DISCOUNT_HINT = "الخصم يتجاوز حد الكاشير — يلزم موافقة المدير"
