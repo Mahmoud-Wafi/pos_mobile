@@ -7,7 +7,9 @@ from typing import Optional
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from app.core import clock
 from app.core.audit import log_action
+from app.core.permissions import ROLE_MANAGER, PermissionDenied
 from app.models.shift import Shift
 from app.models.accounting import CashAccount, CashTransaction
 from app.models.user import User
@@ -107,6 +109,10 @@ def close_shift(
     shift = session.get(Shift, shift_id)
     if not shift or shift.status != "open":
         raise NoActiveShiftError("الوردية غير موجودة أو مغلقة بالفعل")
+    if shift.user_id != user.id and user.role.name != ROLE_MANAGER:
+        raise PermissionDenied("shift.close_other", user.username)
+    if actual_cash < 0:
+        raise ValueError("المبلغ الفعلي لا يمكن أن يكون سالباً")
 
     expected = calculate_expected_cash(session, shift_id)
     diff = actual_cash - expected  # negative = shortage, positive = overage
@@ -125,3 +131,16 @@ def close_shift(
                new_value={"expected": expected, "actual": actual_cash, "diff": diff})
     return shift
 
+
+
+def shift_status(session: Session, user: User) -> dict:
+    """Small dict describing the user's current shift, for headers/sidebar cards."""
+    shift = get_active_shift(session, user.id)
+    if shift is None:
+        return {"is_open": False, "id": None, "opened_at": None, "user_name": user.full_name}
+    return {
+        "is_open": True,
+        "id": shift.id,
+        "opened_at": clock.fmt_local(shift.opened_at, "%Y-%m-%d %H:%M"),
+        "user_name": user.full_name,
+    }

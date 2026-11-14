@@ -190,10 +190,10 @@ if HAS_QT:
             d_layout.setSpacing(4)
             d_title = QLabel("💵 حالة الوردية")
             d_title.setStyleSheet("font-weight: bold; font-size: 11px; color: #475569;")
-            d_val = QLabel("الدرج مفتوح - جاهز")
-            d_val.setStyleSheet("font-size: 12px; font-weight: bold; color: #059669;")
+            self.shift_val = QLabel("")
+            self.shift_val.setWordWrap(True)
             d_layout.addWidget(d_title)
-            d_layout.addWidget(d_val)
+            d_layout.addWidget(self.shift_val)
             sidebar_layout.addWidget(drawer_card)
 
             body_layout.addWidget(sidebar)
@@ -217,6 +217,7 @@ if HAS_QT:
             self.pos_view = POSWindow(self.session, self.current_user) if can_open(self.perms, "pos") else None
             if self.pos_view is not None:
                 self.stack.addWidget(self.pos_view)
+                self.pos_view.shift_changed.connect(self.refresh_shift_status)
 
             # 2. Inventory View (Phase 2)
             self.inventory_view = InventoryWindow(self.session, self.current_user) if can_open(self.perms, "inventory") else None
@@ -269,7 +270,22 @@ if HAS_QT:
             status.showMessage("🟢 النظام يعمل بدون إنترنت (Offline Mode) - قاعدة البيانات SQLite مؤمنة بوضع WAL")
 
             # Show Dashboard by default
+            self.refresh_shift_status()
             self._show_dashboard()
+
+        def refresh_shift_status(self):
+            from app.services import shift_service
+
+            if not can_open(self.perms, "pos"):
+                self.shift_val.setText("—")
+                return
+            st = shift_service.shift_status(self.session, self.current_user)
+            if st["is_open"]:
+                self.shift_val.setText(f"🟢 {ar.SHIFT_OPEN_STATUS} #{st['id']}\n{st['opened_at']}")
+                self.shift_val.setStyleSheet("font-size: 12px; font-weight: bold; color: #059669;")
+            else:
+                self.shift_val.setText(f"🔴 {ar.SHIFT_CLOSED_STATUS}")
+                self.shift_val.setStyleSheet("font-size: 12px; font-weight: bold; color: #DC2626;")
 
         def _update_time(self):
             now = datetime.datetime.now()
@@ -285,6 +301,7 @@ if HAS_QT:
                     btn.setStyleSheet(
                         "background-color: transparent; color: #475569; font-weight: 600; border-right: none;"
                     )
+            self.refresh_shift_status()
 
         def _show_dashboard(self):
             self._set_active_nav(0)

@@ -10,7 +10,7 @@ try:
         QTableWidgetItem, QHeaderView, QLabel, QLineEdit, QComboBox,
         QMessageBox, QFrame, QSplitter, QDialog, QInputDialog,
     )
-    from PySide6.QtCore import Qt, QTimer
+    from PySide6.QtCore import Qt, QTimer, Signal
     from PySide6.QtGui import QColor, QFont, QKeySequence, QShortcut
     HAS_QT = True
 except ImportError:
@@ -37,6 +37,8 @@ HEADERS = ["#", "اسم الصنف", "السيريال (IMEI)", "الكمية", 
 if HAS_QT:
     class POSWindow(QWidget):
         """Main POS cash register window."""
+
+        shift_changed = Signal()
 
         def __init__(self, session, user, parent=None):
             super().__init__(parent)
@@ -67,6 +69,19 @@ if HAS_QT:
             sb_layout.addStretch()
             sb_layout.addWidget(btn_open_shift)
             root_layout.addWidget(self.shift_banner)
+
+            # Open-shift status row with the close-shift action
+            self.shift_bar = QFrame()
+            bar_l = QHBoxLayout(self.shift_bar)
+            bar_l.setContentsMargins(4, 0, 4, 0)
+            self.lbl_shift_status = QLabel("")
+            self.lbl_shift_status.setStyleSheet("color: #059669; font-weight: 700;")
+            self.btn_close_shift = QPushButton("🔒 " + ar.SHIFT_CLOSE)
+            self.btn_close_shift.clicked.connect(self._close_shift_dialog)
+            bar_l.addWidget(self.lbl_shift_status)
+            bar_l.addStretch()
+            bar_l.addWidget(self.btn_close_shift)
+            root_layout.addWidget(self.shift_bar)
 
             # Main Body: Splitter (Cart Table on right/main + Totals sidebar on left)
             splitter = QSplitter(Qt.Horizontal)
@@ -243,9 +258,13 @@ if HAS_QT:
             active_shift = shift_service.get_active_shift(self.session, self.user.id)
             if active_shift:
                 self.shift_banner.setVisible(False)
+                self.shift_bar.setVisible(True)
+                st = shift_service.shift_status(self.session, self.user)
+                self.lbl_shift_status.setText(f"🟢 {ar.SHIFT_OPEN_STATUS} #{st['id']} — {st['opened_at']}")
                 self.btn_pay.setEnabled(True)
             else:
                 self.shift_banner.setVisible(True)
+                self.shift_bar.setVisible(False)
                 self.btn_pay.setEnabled(False)
 
             if not self.current_sale:
@@ -481,6 +500,22 @@ if HAS_QT:
             if reply == QMessageBox.Yes:
                 self._new_invoice()
 
+        def _close_shift_dialog(self):
+            from app.ui.shift_dialog import CloseShiftDialog
+
+            shift = shift_service.get_active_shift(self.session, self.user.id)
+            if shift is None:
+                self._check_shift_and_init_sale()
+                return
+            if self.current_sale and self.current_sale.items:
+                QMessageBox.warning(self, ar.WARNING, "أكمل الفاتورة الحالية أو علّقها قبل إغلاق الوردية")
+                return
+            dlg = CloseShiftDialog(self.session, self.user, shift, parent=self)
+            dlg.exec()
+            if dlg.closed:
+                self._check_shift_and_init_sale()
+                self.shift_changed.emit()
+
         def _open_shift_dialog(self):
             amount, ok = QInputDialog.getDouble(self, "فتح وردية جديدة", "أدخل رصيد العهدة الافتتاحي (كاش الدرج بالجنيه):", 0.0, 0.0, 999999.0, 2)
             if ok:
@@ -489,6 +524,7 @@ if HAS_QT:
                     self.session.commit()
                     QMessageBox.information(self, "تم بنجاح", "تم فتح الوردية بنجاح ✓")
                     self._check_shift_and_init_sale()
+                    self.shift_changed.emit()
                 except Exception as e:
                     self.session.rollback()
                     QMessageBox.critical(self, "خطأ", str(e))
