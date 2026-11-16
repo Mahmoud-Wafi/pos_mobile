@@ -28,7 +28,6 @@ from app.core.permissions import PERM_SALES_BELOW_MIN_PRICE, PERM_SALES_DISCOUNT
 from app.services.sales_service import (
     CreditLimitExceededError, DiscountLimitExceededError, InsufficientStockError, PriceBelowMinimumError,
 )
-from app.printing.receipt import generate_thermal_receipt_text, generate_warranty_invoice_pdf
 
 
 HEADERS = ["#", "اسم الصنف", "السيريال (IMEI)", "الكمية", "سعر الوحدة", "الخصم", "الإجمالي", "حذف"]
@@ -461,16 +460,11 @@ if HAS_QT:
                     QMessageBox.critical(self, "خطأ في اعتماد الفاتورة", str(exc))
                     return
 
-            # Print or preview thermal receipt
             if dlg.print_receipt:
-                cfg = settings_service.get_all(self.session)
-                receipt_text = generate_thermal_receipt_text(
-                    self.current_sale, shop_name=cfg["shop_name"], footer=cfg["invoice_footer"],
-                    phone=cfg["shop_phone"], address=cfg["shop_address"],
-                )
-                QMessageBox.information(self, "تم حفظ الفاتورة بنجاح ✓", f"تم اعتماد الفاتورة #{self.current_sale.invoice_no}\n\n{receipt_text}")
+                from app.ui.print_dialogs import SaleCompleteDialog
+                SaleCompleteDialog(self.session, self.current_sale, self).exec()
             else:
-                QMessageBox.information(self, "نجاح", f"تم اعتماد الفاتورة #{self.current_sale.invoice_no} بنجاح ✓")
+                QMessageBox.information(self, ar.SUCCESS, f"{ar.SALE_DONE_TITLE} #{self.current_sale.invoice_no}")
             self._new_invoice()
 
         def _hold_invoice(self):
