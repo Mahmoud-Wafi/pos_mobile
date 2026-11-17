@@ -5,7 +5,7 @@ import logging
 import re
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QDialog, QHBoxLayout, QLabel, QPlainTextEdit, QPushButton, QVBoxLayout
+from PySide6.QtWidgets import QDialog, QHBoxLayout, QLabel, QLineEdit, QPlainTextEdit, QPushButton, QVBoxLayout
 
 from app.i18n import ar
 from app.ui.components.basic import button
@@ -54,6 +54,27 @@ class ConfirmDialog(QDialog):
         lay.addLayout(row)
         (self.btn_cancel if destructive else self.btn_ok).setDefault(True)
         (self.btn_cancel if destructive else self.btn_ok).setFocus()
+
+
+class TypedConfirmDialog(ConfirmDialog):
+    """Destructive confirmation that needs the user to type a phrase before the button is enabled."""
+
+    def __init__(self, parent, title: str, message: str, phrase: str, confirm_text: str):
+        super().__init__(parent, title, message, confirm_text, destructive=True)
+        self.phrase = phrase
+        hint = QLabel(f"اكتب «{phrase}» للمتابعة")
+        text_role(hint, "muted")
+        self.input = QLineEdit()
+        lay = self.layout()
+        lay.insertWidget(lay.count() - 1, hint)
+        lay.insertWidget(lay.count() - 1, self.input)
+        self.btn_ok.setEnabled(False)
+        self.input.textChanged.connect(lambda t: self.btn_ok.setEnabled(t.strip() == self.phrase))
+        self.input.setFocus()
+
+
+def confirm_typed(parent, title: str, message: str, phrase: str, confirm_text: str) -> bool:
+    return TypedConfirmDialog(parent, title, message, phrase, confirm_text).exec() == QDialog.Accepted
 
 
 def confirm(parent, title: str, message: str, confirm_text: str = "تأكيد", destructive: bool = False) -> bool:

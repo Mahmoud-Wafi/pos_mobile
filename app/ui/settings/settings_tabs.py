@@ -49,6 +49,8 @@ class ShopSettingsTab(QWidget):
         ("warranty_text", ar.SET_WARRANTY_TEXT),
         ("cashier_discount_limit_pct", ar.SET_DISCOUNT_LIMIT),
         ("idle_lock_minutes", ar.SET_IDLE_LOCK),
+        ("backup_retention", ar.SET_BACKUP_RETENTION),
+        ("auto_backup", ar.SET_AUTO_BACKUP),
     ]
 
     def __init__(self, session, user, parent=None):

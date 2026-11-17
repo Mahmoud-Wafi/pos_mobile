@@ -22,6 +22,8 @@ DEFAULT_SETTINGS: dict[str, str] = {
     "warranty_text": "الضمان وفق شروط الشركة المصنّعة",
     "cashier_discount_limit_pct": "5",
     "idle_lock_minutes": "10",
+    "backup_retention": "14",
+    "auto_backup": "1",
 }
 
 

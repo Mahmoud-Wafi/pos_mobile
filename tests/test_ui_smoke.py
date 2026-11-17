@@ -78,3 +78,33 @@ def test_login_and_approval_dialogs(qtbot, db_session, manager):
     for dlg in (LoginDialog(), ManagerApprovalDialog(db_session, manager, "sales.discount", "why")):
         qtbot.addWidget(dlg)
         dlg.show()
+
+
+def test_typed_confirmation_enables_button_only_for_phrase(qtbot):
+    from app.i18n import ar
+    from app.ui.components.dialogs import TypedConfirmDialog
+
+    d = TypedConfirmDialog(None, "t", "m", ar.RESTORE_PHRASE, ar.RESTORE_PHRASE)
+    qtbot.addWidget(d)
+    assert not d.btn_ok.isEnabled()
+    d.input.setText("خطأ")
+    assert not d.btn_ok.isEnabled()
+    d.input.setText(ar.RESTORE_PHRASE)
+    assert d.btn_ok.isEnabled()
+
+
+def test_restore_flow_requires_typed_phrase_and_calls_service(qtbot, db_session, manager, monkeypatch, tmp_path):
+    from pathlib import Path
+    from app.ui.settings import settings_window as sw
+
+    tab = sw.BackupSecurityTab(db_session, manager)
+    qtbot.addWidget(tab)
+    calls = []
+    monkeypatch.setattr(sw, "confirm_typed", lambda *a, **k: False)
+    monkeypatch.setattr(sw.backup_service, "restore", lambda *a, **k: calls.append(a))
+    tab._confirm_restore(Path("shop_x.zip"))
+    assert calls == []                                   # declined -> nothing happens
+    monkeypatch.setattr(sw, "confirm_typed", lambda *a, **k: True)
+    monkeypatch.setattr(tab, "_offer_restart", lambda: calls.append("restart"))
+    tab._confirm_restore(Path("shop_x.zip"))
+    assert calls[-1] == "restart" and len(calls) == 2

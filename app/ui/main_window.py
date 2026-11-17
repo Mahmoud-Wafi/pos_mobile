@@ -311,11 +311,11 @@ if HAS_QT:
                 return ar.APP_TITLE
 
         def _refresh_status_bar(self) -> None:
-            from app.core.backup import list_backups
+            from app.core.backup import last_backup_time
 
             try:
-                backups = list_backups()
-                last = clock.fmt_local(datetime.datetime.utcfromtimestamp(backups[0].stat().st_mtime)) if backups else ar.NO_BACKUP_YET
+                when = last_backup_time()
+                last = when.strftime("%Y-%m-%d %H:%M") if when else ar.NO_BACKUP_YET
             except Exception:
                 last = ar.NO_BACKUP_YET
             self.sb_db.setText(ar.STATUS_DB_OK)

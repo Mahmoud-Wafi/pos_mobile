@@ -252,3 +252,11 @@ STATUS_DB_OK = "قاعدة البيانات: تعمل (بدون إنترنت)"
 STATUS_LAST_BACKUP = "آخر نسخة احتياطية"
 STATUS_USER = "المستخدم"
 NO_BACKUP_YET = "لا توجد"
+
+# Backup / restore
+RESTORE_PHRASE = "استعادة"
+RESTORE_DONE_TITLE = "تمت الاستعادة"
+RESTORE_DONE_MSG = "تمت استعادة النسخة الاحتياطية. يجب إعادة تشغيل البرنامج الآن لتحميل البيانات."
+RESTART_NOW = "إعادة التشغيل الآن"
+SET_BACKUP_RETENTION = "عدد النسخ الاحتياطية المحفوظة"
+SET_AUTO_BACKUP = "نسخ احتياطي تلقائي (1 = تشغيل، 0 = إيقاف)"

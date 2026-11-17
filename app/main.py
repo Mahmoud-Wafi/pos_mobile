@@ -28,6 +28,14 @@ def main() -> None:
     with session_scope() as session:
         seed_database(session)
 
+    from app.core import backup as backup_core
+    from app.services import backup_service
+
+    with session_scope() as session:
+        enabled, keep = backup_service.auto_enabled(session), backup_service.retention(session)
+    if enabled:
+        backup_core.run_auto_backup(keep)           # daily backup (no-op when today's exists)
+
     from PySide6.QtCore import Qt
     from PySide6.QtWidgets import QApplication
 
@@ -37,6 +45,14 @@ def main() -> None:
     app.setLayoutDirection(Qt.RightToLeft)
     setup_theme(app)
     startup.install_excepthook(_show_error_dialog)
+
+    if enabled:
+        def _backup_on_close() -> None:
+            last = backup_core.last_backup_time()
+            import datetime as _dt
+            if last is None or _dt.datetime.now() - last > _dt.timedelta(hours=1):
+                backup_core.run_auto_backup(keep, force=True)
+        app.aboutToQuit.connect(_backup_on_close)
 
     from app.ui.session import run_with_login
 

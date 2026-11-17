@@ -6,15 +6,17 @@ Scenario:
   3. restore_backup() → safety copy created, backup copied over.
   4. Verify the restored DB contains the original data.
 """
-import shutil
-import tempfile
+import json
+import sqlite3
+import zipfile
 from pathlib import Path
 
 import pytest
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 
-from app.core.backup import create_backup, list_backups, restore_backup
+from app.core.backup import (BackupError, backup_due, create_backup, known_revisions, list_backups, prune_backups,
+                             restore_backup, run_auto_backup, verify_backup)
 from app.core.database import Base, override_engine
 from app.core.seed import seed_database
 
@@ -51,91 +53,192 @@ def seeded_db(tmp_dirs):
     return db_path, backup_dir
 
 
+def _roles(db_path):
+    con = sqlite3.connect(str(db_path))
+    try:
+        return {r[0] for r in con.execute("SELECT name FROM roles")}
+    finally:
+        con.close()
+
+
 class TestCreateBackup:
-    def test_creates_file(self, seeded_db):
+    def test_zip_with_manifest(self, seeded_db):
         db_path, backup_dir = seeded_db
-        backup_file = create_backup(db_path=db_path, backup_dir=backup_dir)
-        assert backup_file.exists()
-        assert backup_file.suffix == ".db"
+        f = create_backup(db_path=db_path, backup_dir=backup_dir)
+        assert f.suffix == ".zip"
+        with zipfile.ZipFile(f) as z:
+            assert set(z.namelist()) == {"shop.db", "manifest.json"}
+            m = json.loads(z.read("manifest.json"))
+        assert {"app_version", "alembic_revision", "created_at", "sha256"} <= set(m)
+        assert verify_backup(f)["sha256"] == m["sha256"]
 
-    def test_file_in_backup_dir(self, seeded_db):
+    def test_manifest_records_alembic_revision(self, seeded_db):
         db_path, backup_dir = seeded_db
-        backup_file = create_backup(db_path=db_path, backup_dir=backup_dir)
-        assert backup_file.parent == backup_dir
+        rev = sorted(known_revisions())[0]
+        con = sqlite3.connect(str(db_path))
+        con.execute("CREATE TABLE alembic_version (version_num VARCHAR(32) NOT NULL)")
+        con.execute("INSERT INTO alembic_version VALUES (?)", (rev,))
+        con.commit(); con.close()
+        assert verify_backup(create_backup(db_path, backup_dir))["alembic_revision"] == rev
 
-    def test_raises_if_db_missing(self, tmp_dirs):
+    def test_missing_db_raises(self, tmp_dirs):
         db_path, backup_dir = tmp_dirs
-        with pytest.raises(FileNotFoundError):
+        with pytest.raises(BackupError):
             create_backup(db_path=db_path, backup_dir=backup_dir)
 
+    def test_two_backups_in_one_second_do_not_clash(self, seeded_db):
+        db_path, backup_dir = seeded_db
+        a = create_backup(db_path, backup_dir)
+        b = create_backup(db_path, backup_dir)
+        assert a != b and a.exists() and b.exists()
 
-class TestListBackups:
-    def test_empty_dir(self, tmp_dirs):
+
+class TestListAndPrune:
+    def test_empty_and_missing_dir(self, tmp_dirs, tmp_path):
+        assert list_backups(tmp_dirs[1]) == []
+        assert list_backups(tmp_path / "nope") == []
+
+    def test_newest_first_and_safety_hidden(self, seeded_db):
+        db_path, backup_dir = seeded_db
+        for name in ("shop_20240101_000001.zip", "shop_20240102_000001.zip", "shop_safety_20240103_000001.zip"):
+            (backup_dir / name).write_bytes(b"x")
+        assert [p.name for p in list_backups(backup_dir)] == ["shop_20240102_000001.zip", "shop_20240101_000001.zip"]
+
+    def test_prune_keeps_n_newest(self, tmp_dirs):
         _, backup_dir = tmp_dirs
-        assert list_backups(backup_dir) == []
+        for d in range(1, 21):
+            (backup_dir / f"shop_202401{d:02d}_000000.zip").write_bytes(b"x")
+        removed = prune_backups(14, backup_dir)
+        assert len(removed) == 6 and len(list_backups(backup_dir)) == 14
+        assert (backup_dir / "shop_20240120_000000.zip").exists()
+        assert not (backup_dir / "shop_20240101_000000.zip").exists()
 
-    def test_lists_newest_first(self, seeded_db):
-        import time
+
+class TestRestore:
+    def test_round_trip_with_safety_copy(self, seeded_db):
         db_path, backup_dir = seeded_db
-        b1 = create_backup(db_path=db_path, backup_dir=backup_dir)
-        time.sleep(1.1)  # ensure different timestamp
-        b2 = create_backup(db_path=db_path, backup_dir=backup_dir)
-        backups = list_backups(backup_dir)
-        assert backups[0] == b2  # newest first
-        assert backups[1] == b1
-
-    def test_non_existent_dir_returns_empty(self, tmp_path):
-        assert list_backups(tmp_path / "nonexistent") == []
-
-
-class TestRestoreBackup:
-    def test_round_trip(self, seeded_db):
-        """Backup → restore → data intact."""
-        db_path, backup_dir = seeded_db
-
-        # Take backup
-        backup_file = create_backup(db_path=db_path, backup_dir=backup_dir)
-
-        # Corrupt the DB by truncating it
+        f = create_backup(db_path, backup_dir)
         db_path.write_bytes(b"corrupted!")
+        safety = restore_backup(f, db_path=db_path, backup_dir=backup_dir)
+        assert {"manager", "cashier", "wallet_employee"} <= _roles(db_path)
+        assert safety is not None and safety.name.startswith("shop_safety_")
 
-        # Restore
-        safety = restore_backup(backup_path=backup_file, db_path=db_path)
-
-        # Safety copy should exist
-        assert safety is not None
-        assert safety.exists()
-
-        # Restored DB should be readable and contain roles
-        from sqlalchemy import event as sa_event
-        engine = create_engine(f"sqlite:///{db_path}", echo=False)
-        override_engine(engine)
-        with engine.connect() as conn:
-            result = conn.execute(text("SELECT name FROM roles ORDER BY name")).fetchall()
-        engine.dispose()
-        role_names = {row[0] for row in result}
-        assert "manager" in role_names
-        assert "cashier" in role_names
-        assert "wallet_employee" in role_names
-
-    def test_safety_copy_created_when_db_exists(self, seeded_db):
+    def test_safety_backup_made_when_db_exists(self, seeded_db):
         db_path, backup_dir = seeded_db
-        backup_file = create_backup(db_path=db_path, backup_dir=backup_dir)
-        safety = restore_backup(backup_path=backup_file, db_path=db_path)
-        assert safety is not None
-        assert safety.exists()
+        f = create_backup(db_path, backup_dir)
+        safety = restore_backup(f, db_path=db_path, backup_dir=backup_dir)
+        assert safety is not None and safety.exists() and safety.name.startswith("shop_safety_")
+        verify_backup(safety)
 
-    def test_raises_if_backup_missing(self, tmp_dirs):
+    def test_tampered_database_is_rejected(self, seeded_db, tmp_path):
+        db_path, backup_dir = seeded_db
+        f = create_backup(db_path, backup_dir)
+        bad = tmp_path / "shop_bad.zip"
+        with zipfile.ZipFile(f) as zin, zipfile.ZipFile(bad, "w") as zout:
+            zout.writestr("manifest.json", zin.read("manifest.json"))
+            zout.writestr("shop.db", zin.read("shop.db") + b"tamper")
+        before = db_path.read_bytes()
+        with pytest.raises(BackupError):
+            restore_backup(bad, db_path=db_path, backup_dir=backup_dir)
+        assert db_path.read_bytes() == before            # live DB untouched
+
+    def test_garbage_and_missing_files_rejected(self, tmp_dirs, tmp_path):
         db_path, backup_dir = tmp_dirs
-        with pytest.raises(FileNotFoundError):
-            restore_backup(backup_path=backup_dir / "nonexistent.db", db_path=db_path)
+        junk = tmp_path / "shop_junk.zip"
+        junk.write_bytes(b"not a zip")
+        with pytest.raises(BackupError):
+            restore_backup(junk, db_path=db_path, backup_dir=backup_dir)
+        with pytest.raises(BackupError):
+            restore_backup(tmp_path / "nonexistent.zip", db_path=db_path, backup_dir=backup_dir)
 
-    def test_no_safety_copy_if_db_absent(self, tmp_dirs):
-        """If there's no existing DB, safety copy should be None."""
-        db_path, backup_dir = tmp_dirs
-        # Create a fake backup file to restore from
-        fake_backup = backup_dir / "shop_20240101_120000.db"
-        fake_backup.write_bytes(b"fake")
-        safety = restore_backup(backup_path=fake_backup, db_path=db_path)
-        assert safety is None
+    def test_unknown_newer_revision_rejected(self, seeded_db):
+        db_path, backup_dir = seeded_db
+        con = sqlite3.connect(str(db_path))
+        con.execute("CREATE TABLE alembic_version (version_num VARCHAR(32) NOT NULL)")
+        con.execute("INSERT INTO alembic_version VALUES ('zzzz_from_the_future')")
+        con.commit(); con.close()
+        f = create_backup(db_path, backup_dir)
+        with pytest.raises(BackupError):
+            verify_backup(f)
 
+    def test_stale_wal_and_shm_are_removed(self, seeded_db):
+        db_path, backup_dir = seeded_db
+        f = create_backup(db_path, backup_dir)
+        Path(str(db_path) + "-wal").write_bytes(b"stale")
+        Path(str(db_path) + "-shm").write_bytes(b"stale")
+        restore_backup(f, db_path=db_path, backup_dir=backup_dir)
+        assert not Path(str(db_path) + "-wal").exists() and not Path(str(db_path) + "-shm").exists()
+        assert "manager" in _roles(db_path)
+
+    def test_backup_during_open_write_transaction_restores_cleanly(self, seeded_db):
+        db_path, backup_dir = seeded_db
+        writer = sqlite3.connect(str(db_path), isolation_level=None)
+        writer.execute("PRAGMA journal_mode=WAL")
+        writer.execute("INSERT INTO settings (key, value, created_at, updated_at) VALUES ('committed_marker', '1', datetime('now'), datetime('now'))")
+        writer.execute("BEGIN IMMEDIATE")
+        writer.execute("INSERT INTO settings (key, value, created_at, updated_at) VALUES ('uncommitted_marker', '1', datetime('now'), datetime('now'))")
+        try:
+            f = create_backup(db_path, backup_dir)         # taken while the write transaction is open
+        finally:
+            writer.execute("ROLLBACK")
+            writer.close()
+        restore_backup(f, db_path=db_path, backup_dir=backup_dir)
+        con = sqlite3.connect(str(db_path))
+        try:
+            keys = {r[0] for r in con.execute("SELECT key FROM settings")}
+            assert con.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
+        finally:
+            con.close()
+        assert "committed_marker" in keys and "uncommitted_marker" not in keys
+
+    def test_legacy_db_backup_still_restores(self, seeded_db, tmp_path):
+        db_path, backup_dir = seeded_db
+        legacy = backup_dir / "shop_20200101_000000.db"
+        legacy.write_bytes(db_path.read_bytes())
+        db_path.write_bytes(b"corrupted!")
+        restore_backup(legacy, db_path=db_path, backup_dir=backup_dir)
+        assert "manager" in _roles(db_path)
+
+
+class TestAutoBackup:
+    def test_due_and_run(self, seeded_db):
+        db_path, backup_dir = seeded_db
+        assert backup_due(backup_dir)
+        assert run_auto_backup(14, db_path=db_path, backup_dir=backup_dir) is not None
+        assert not backup_due(backup_dir)
+        assert run_auto_backup(14, db_path=db_path, backup_dir=backup_dir) is None      # already done today
+        assert run_auto_backup(14, force=True, db_path=db_path, backup_dir=backup_dir) is not None
+
+    def test_failure_never_raises(self, tmp_dirs):
+        db_path, backup_dir = tmp_dirs                      # db does not exist
+        assert run_auto_backup(14, force=True, db_path=db_path, backup_dir=backup_dir) is None
+
+    def test_retention_applied(self, seeded_db):
+        db_path, backup_dir = seeded_db
+        for d in range(1, 6):
+            (backup_dir / f"shop_202401{d:02d}_000000.zip").write_bytes(b"x")
+        run_auto_backup(3, force=True, db_path=db_path, backup_dir=backup_dir)
+        assert len(list_backups(backup_dir)) == 3
+
+
+class TestService:
+    def test_requires_backup_manage_and_audits(self, seeded_db):
+        from app.core.database import get_session
+        from app.core.permissions import PermissionDenied
+        from app.models.user import AuditLog, Role, User
+        from app.core.security import hash_password
+        from app.services import backup_service
+
+        db_path, backup_dir = seeded_db
+        eng = create_engine(f"sqlite:///{db_path}")
+        S = sessionmaker(bind=eng)
+        with S() as s:
+            def mk(name, role):
+                r = s.query(Role).filter_by(name=role).first()
+                u = User(username=name, password_hash=hash_password("Passw0rd!"), full_name=name, role_id=r.id)
+                s.add(u); s.commit(); return u
+            cashier, mgr = mk("cc", "cashier"), mk("mm", "manager")
+            with pytest.raises(PermissionDenied):
+                backup_service.create(s, cashier)
+            assert backup_service.retention(s) == 14
+        eng.dispose()

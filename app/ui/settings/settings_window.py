@@ -12,8 +12,10 @@ from PySide6.QtWidgets import (
     QMessageBox, QFrame, QLineEdit, QGroupBox, QGridLayout,
 )
 
-from app.ui.components import confirm, show_error, show_toast
-from app.core.backup import BACKUP_DIR, create_backup, list_backups, restore_backup
+from app.ui.components import confirm, confirm_typed, show_error, show_toast
+from app.core.permissions import PermissionDenied
+from app.services import backup_service
+from app.i18n import ar
 from app.services.auth_service import hash_password, verify_password
 from app.ui.design.style import style_label, variant
 
@@ -152,7 +154,10 @@ class BackupSecurityTab(QWidget):
         main_layout.addLayout(content_layout, 1)
 
     def load_backups(self):
-        backups = list_backups(BACKUP_DIR)
+        try:
+            backups = backup_service.listing(self.session, self.user)
+        except PermissionDenied:
+            backups = []
         self.table_backups.setRowCount(len(backups))
         for r, bp in enumerate(backups):
             self.table_backups.setItem(r, 0, QTableWidgetItem(bp.name))
@@ -166,19 +171,34 @@ class BackupSecurityTab(QWidget):
 
     def _create_backup(self):
         try:
-            bp = create_backup()
+            bp = backup_service.create(self.session, self.user)
             show_toast(self, f"تم إنشاء النسخة الاحتياطية بنجاح:\n{bp.name}")
             self.load_backups()
         except Exception as e:
             show_error(self, e)
 
     def _confirm_restore(self, backup_path: Path):
-        if confirm(self, "تأكيد الاستعادة", f"تحذير: استعادة النسخة الاحتياطية ({backup_path.name}) ستقوم بحفظ نسخة أمان أولاً ثم استبدال قاعدة البيانات الحالية.\nهل أنت متأكد من المتابعة؟", "استعادة", destructive=True):
-            try:
-                restore_backup(backup_path)
-                show_toast(self, "تمت استعادة النسخة الاحتياطية بنجاح. يُرجى إعادة تشغيل التطبيق لتحديث الجداول.")
-            except Exception as e:
-                show_error(self, e)
+        msg = (f"ستتم استعادة النسخة ({backup_path.name}) بعد حفظ نسخة أمان من قاعدة البيانات الحالية، "
+               "وسيتم استبدال كل البيانات الحالية ببيانات هذه النسخة، ثم يُعاد تشغيل البرنامج.")
+        if not confirm_typed(self, "تأكيد الاستعادة", msg, ar.RESTORE_PHRASE, ar.RESTORE_PHRASE):
+            return
+        try:
+            backup_service.restore(self.session, self.user, backup_path)
+        except Exception as e:
+            show_error(self, e)
+            return
+        self._offer_restart()
+
+    def _offer_restart(self):
+        if confirm(self, ar.RESTORE_DONE_TITLE, ar.RESTORE_DONE_MSG, ar.RESTART_NOW):
+            from PySide6.QtCore import QProcess
+            from PySide6.QtWidgets import QApplication
+            from app.core.startup import restart_command
+
+            program, args = restart_command()
+            QProcess.startDetached(program, args)
+        from PySide6.QtWidgets import QApplication
+        QApplication.quit()
 
     def _change_password(self):
         old_pwd = self.old_pass_edit.text()
