@@ -22,6 +22,7 @@ except ImportError:
 
 if HAS_QT:
     from app.services import inventory_service
+    from app.i18n import ar
     from app.core.money import format_money, egp_to_piasters, piasters_to_egp
     from app.core.permissions import PermissionDenied
 
@@ -70,6 +71,15 @@ if HAS_QT:
             self.btn_refresh.setFixedHeight(40)
             self.btn_refresh.clicked.connect(self.load_data)
             bar.addWidget(self.btn_refresh)
+
+            self.btn_import = QPushButton(ar.IMPORT_BUTTON)
+            self.btn_import.setMinimumHeight(40)
+            self.btn_import.clicked.connect(self._import_excel)
+            bar.addWidget(self.btn_import)
+            self.btn_export = QPushButton(ar.EXPORT_BUTTON)
+            self.btn_export.setMinimumHeight(40)
+            self.btn_export.clicked.connect(self._export_excel)
+            bar.addWidget(self.btn_export)
 
             self.btn_add = QPushButton("إضافة منتج جديد")
             self.btn_add.setObjectName("PrimaryBtn")
@@ -179,6 +189,23 @@ if HAS_QT:
                     self.table.setItem(row, col, item)
 
             self.footer_label.setText(f"إجمالي الأصناف المعروضة: {len(products)} صنف | مجموع الوحدات: {total_items} قطعة")
+
+        def _import_excel(self):
+            from app.ui.inventory.import_wizard import ImportWizard
+            if ImportWizard(self.session, self.user, parent=self).exec():
+                self.load_data()
+
+        def _export_excel(self):
+            from PySide6.QtWidgets import QFileDialog
+            from app.services import import_export_service as ie
+            from app.ui.components import show_error, show_toast
+            dest, _ = QFileDialog.getSaveFileName(self, ar.EXPORT_BUTTON, "products.xlsx", "Excel (*.xlsx);;CSV (*.csv)")
+            if dest:
+                try:
+                    ie.export_products(self.session, self.user, dest)
+                    show_toast(self, ar.EXPORT_DONE)
+                except Exception as exc:
+                    show_error(self, exc)
 
         def _add_product(self):
             dlg = ProductDialog(self.session, self.user, parent=self)

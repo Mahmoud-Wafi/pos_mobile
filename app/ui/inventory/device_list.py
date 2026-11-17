@@ -71,6 +71,15 @@ if HAS_QT:
 
             bar.addStretch()
 
+            self.btn_import = QPushButton("استيراد Excel")
+            self.btn_import.setMinimumHeight(40)
+            self.btn_import.clicked.connect(self._import_excel)
+            bar.addWidget(self.btn_import)
+            self.btn_export = QPushButton("تصدير Excel")
+            self.btn_export.setMinimumHeight(40)
+            self.btn_export.clicked.connect(self._export_excel)
+            bar.addWidget(self.btn_export)
+
             self.btn_refresh = QPushButton("تحديث")
             self.btn_refresh.setFixedHeight(40)
             self.btn_refresh.clicked.connect(self.load_data)
@@ -160,6 +169,23 @@ if HAS_QT:
                     self.table.setItem(row, col, item)
 
             self.footer_label.setText(f"إجمالي الأجهزة المسجلة: {len(devices)} جهاز")
+
+        def _import_excel(self):
+            from app.ui.inventory.import_wizard import ImportWizard
+            if ImportWizard(self.session, self.user, kind="devices", parent=self).exec():
+                self.load_data()
+
+        def _export_excel(self):
+            from PySide6.QtWidgets import QFileDialog
+            from app.services import import_export_service as ie
+            from app.ui.components import show_error, show_toast
+            dest, _ = QFileDialog.getSaveFileName(self, "تصدير Excel", "devices.xlsx", "Excel (*.xlsx);;CSV (*.csv)")
+            if dest:
+                try:
+                    ie.export_devices(self.session, self.user, dest)
+                    show_toast(self, "تم حفظ الملف")
+                except Exception as exc:
+                    show_error(self, exc)
 
         def _add_device(self):
             dlg = AddDeviceDialog(self.session, self.user, parent=self)

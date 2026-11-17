@@ -108,3 +108,32 @@ def test_restore_flow_requires_typed_phrase_and_calls_service(qtbot, db_session,
     monkeypatch.setattr(tab, "_offer_restart", lambda: calls.append("restart"))
     tab._confirm_restore(Path("shop_x.zip"))
     assert calls[-1] == "restart" and len(calls) == 2
+
+
+def test_import_wizard_flow(qtbot, db_session, manager, tmp_path):
+    from app.models.product import Product
+    from app.services import import_export_service as ie
+    from app.ui.inventory.import_wizard import ImportWizard
+
+    path = ie.write_template("products", tmp_path / "t.xlsx")
+    w = ImportWizard(db_session, manager)
+    qtbot.addWidget(w)
+    w.load_file(path)
+    assert w.steps.currentIndex() == 1 and w.table.rowCount() == 1 and w.btn_confirm.isEnabled()
+    assert "✓" in w.table.item(0, 2).text()
+    w.confirm()
+    assert w.imported == 1 and db_session.query(Product).count() == 1
+
+
+def test_import_wizard_shows_row_errors(qtbot, db_session, manager, tmp_path):
+    from openpyxl import Workbook
+    from app.ui.inventory.import_wizard import ImportWizard
+
+    wb = Workbook(); ws = wb.active
+    ws.append(["الاسم", "النوع"]); ws.append(["", "اكسسوار"]); ws.append(["جيد", "اكسسوار"])
+    wb.save(tmp_path / "e.xlsx")
+    w = ImportWizard(db_session, manager)
+    qtbot.addWidget(w)
+    w.load_file(tmp_path / "e.xlsx")
+    assert "✗" in w.table.item(0, 2).text() and "✓" in w.table.item(1, 2).text()
+    assert "1" in w.btn_confirm.text()

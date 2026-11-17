@@ -17,6 +17,7 @@ from PySide6.QtWidgets import (
 
 from app.ui.components import show_error
 from app.core.money import format_money
+from app.services import import_export_service
 from app.services import report_service
 from app.ui.design.style import set_prop, style_label, variant
 
@@ -80,7 +81,7 @@ class ReportsWidget(QWidget):
         bar_layout.addWidget(btn_run)
 
         # Export Excel Button
-        btn_export = QPushButton("تصدير Excel (CSV)")
+        btn_export = QPushButton("تصدير Excel")
         btn_export.setMinimumHeight(40)
         variant(btn_export, "success")
         btn_export.clicked.connect(self.export_excel)
@@ -330,15 +331,15 @@ class ReportsWidget(QWidget):
         rep_name = self.report_type_combo.currentText().replace(" ", "_")
         dest_file, _ = QFileDialog.getSaveFileName(
             self,
-            "حفظ التقرير بصيغة Excel (CSV)",
-            f"{rep_name}_{datetime.datetime.now().strftime('%Y%m%d_%H%M')}.csv",
-            "CSV Files (*.csv)",
+            "حفظ التقرير",
+            f"{rep_name}_{datetime.datetime.now().strftime('%Y%m%d_%H%M')}.xlsx",
+            "Excel (*.xlsx);;CSV (*.csv)",
         )
         if not dest_file:
             return
 
         try:
-            report_service.export_report_to_csv(self.current_report_data, dest_file)
+            import_export_service.export_report(self.user, self.current_report_data, dest_file)
             msg = QMessageBox(self)
             msg.setWindowTitle("تم التصدير بنجاح")
             msg.setText(f"تم تصدير التقرير بنجاح إلى:\n{dest_file}")
