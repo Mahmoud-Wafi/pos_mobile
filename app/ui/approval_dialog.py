@@ -10,6 +10,7 @@ from app.core.permissions import PermissionDenied
 from app.i18n import ar
 from app.models.user import User
 from app.services import auth_service
+from app.ui.design.style import set_prop, style_label
 
 
 class ManagerApprovalDialog(QDialog):
@@ -31,7 +32,7 @@ class ManagerApprovalDialog(QDialog):
         root.setSpacing(10)
         why = QLabel(reason)
         why.setWordWrap(True)
-        why.setStyleSheet("font-weight: 600; color: #92400E; background: #FEF3C7; padding: 8px; border-radius: 6px;")
+        set_prop(why, "banner", "warning")
         root.addWidget(why)
 
         form = QFormLayout()
@@ -45,7 +46,7 @@ class ManagerApprovalDialog(QDialog):
         root.addLayout(form)
 
         self.error_lbl = QLabel("")
-        self.error_lbl.setStyleSheet("color: #DC2626; font-weight: 600;")
+        style_label(self.error_lbl, tone="danger", bold=True)
         self.error_lbl.setWordWrap(True)
         root.addWidget(self.error_lbl)
 

@@ -12,6 +12,7 @@ from PySide6.QtWidgets import (
 
 from app.core.money import format_money
 from app.services import report_service
+from app.ui.design.style import set_prop, style_label, variant
 
 
 class DashboardWidget(QWidget):
@@ -39,32 +40,19 @@ class DashboardWidget(QWidget):
         top_bar = QHBoxLayout()
         top_bar.setSpacing(12)
 
-        lbl_title = QLabel("📊 لوحة المؤشرات ونظرة عامة على النشاط")
-        lbl_title.setStyleSheet("font-size: 20px; font-weight: bold; color: #0F172A;")
+        lbl_title = QLabel("لوحة المؤشرات ونظرة عامة على النشاط")
+        style_label(lbl_title, size="h2", tone="text", bold=True)
         top_bar.addWidget(lbl_title)
 
         top_bar.addStretch()
 
         self.lbl_date = QLabel()
-        self.lbl_date.setStyleSheet("font-size: 13px; color: #64748B; font-weight: 600;")
+        style_label(self.lbl_date, size="body", tone="muted", bold=True)
         top_bar.addWidget(self.lbl_date)
 
-        btn_refresh = QPushButton("🔄 تحديث البيانات")
-        btn_refresh.setFixedHeight(36)
-        btn_refresh.setStyleSheet("""
-            QPushButton {
-                background-color: #FFFFFF;
-                border: 1px solid #CBD5E1;
-                border-radius: 6px;
-                padding: 0 14px;
-                font-weight: 600;
-                color: #334155;
-            }
-            QPushButton:hover {
-                background-color: #F8FAFC;
-                border-color: #94A3B8;
-            }
-        """)
+        btn_refresh = QPushButton("تحديث البيانات")
+        btn_refresh.setMinimumHeight(40)
+        variant(btn_refresh, "secondary")
         btn_refresh.clicked.connect(self.refresh_data)
         top_bar.addWidget(btn_refresh)
 
@@ -76,37 +64,37 @@ class DashboardWidget(QWidget):
 
         # 1. Today's Sales
         self.card_sales, self.lbl_sales_val, self.lbl_sales_sub = self._create_card(
-            "🛒 مبيعات اليوم", "0.00 ج.م", "0 فواتير مسجلة", "#2563EB", "#EFF6FF"
+            "مبيعات اليوم", "0.00 ج.م", "0 فواتير مسجلة", "#2563EB", "#EFF6FF"
         )
         kpi_grid.addWidget(self.card_sales, 0, 0)
 
         # 2. Today's Profit
         self.card_profit, self.lbl_profit_val, self.lbl_profit_sub = self._create_card(
-            "📈 صافي أرباح اليوم", "0.00 ج.م", "المبيعات + المحافظ", "#059669", "#ECFDF5"
+            "صافي أرباح اليوم", "0.00 ج.م", "المبيعات + المحافظ", "#059669", "#ECFDF5"
         )
         kpi_grid.addWidget(self.card_profit, 0, 1)
 
         # 3. Cash Drawer Balance
         self.card_drawer, self.lbl_drawer_val, self.lbl_drawer_sub = self._create_card(
-            "💵 رصيد درج النقدية", "0.00 ج.م", "الخزينة المباشرة للكاشير", "#D97706", "#FFFBEB"
+            "رصيد درج النقدية", "0.00 ج.م", "الخزينة المباشرة للكاشير", "#D97706", "#FFFBEB"
         )
         kpi_grid.addWidget(self.card_drawer, 0, 2)
 
         # 4. Total Wallets Balance
         self.card_wallets, self.lbl_wallets_val, self.lbl_wallets_sub = self._create_card(
-            "💳 إجمالي أرصدة المحافظ", "0.00 ج.م", "فودافون كاش والأجهزة", "#0284C7", "#F0F9FF"
+            "إجمالي أرصدة المحافظ", "0.00 ج.م", "فودافون كاش والأجهزة", "#0284C7", "#F0F9FF"
         )
         kpi_grid.addWidget(self.card_wallets, 1, 0)
 
         # 5. Low Stock Alert
         self.card_stock, self.lbl_stock_val, self.lbl_stock_sub = self._create_card(
-            "⚠️ نواقص المخزون", "0 صنف", "أصناف بلغت الحد الأدنى", "#DC2626", "#FEF2F2"
+            "نواقص المخزون", "0 صنف", "أصناف بلغت الحد الأدنى", "#DC2626", "#FEF2F2"
         )
         kpi_grid.addWidget(self.card_stock, 1, 1)
 
         # 6. Active Shift Info
         self.card_shift, self.lbl_shift_val, self.lbl_shift_sub = self._create_card(
-            "🕒 الوردية الحالية", "مفتوحة", "الكاشير: —", "#7C3AED", "#F5F3FF"
+            "الوردية الحالية", "مفتوحة", "الكاشير: —", "#7C3AED", "#F5F3FF"
         )
         kpi_grid.addWidget(self.card_shift, 1, 2)
 
@@ -114,34 +102,27 @@ class DashboardWidget(QWidget):
 
         # ── Quick Action Shortcuts ──────────────────────────
         shortcut_frame = QFrame()
-        shortcut_frame.setStyleSheet("""
-            QFrame {
-                background-color: #FFFFFF;
-                border: 1px solid #E2E8F0;
-                border-radius: 10px;
-                padding: 10px;
-            }
-        """)
+        set_prop(shortcut_frame, "card", True)
         sc_layout = QHBoxLayout(shortcut_frame)
         sc_layout.setSpacing(10)
 
-        sc_title = QLabel("⚡ وصول سريع:")
-        sc_title.setStyleSheet("font-weight: bold; color: #475569; font-size: 13px;")
+        sc_title = QLabel("وصول سريع:")
+        style_label(sc_title, size="body", tone="muted", bold=True)
         sc_layout.addWidget(sc_title)
 
         shortcuts = [
-            ("🛒 نقطة البيع (POS)", "#2563EB", self.open_pos_requested.emit),
-            ("💳 عمليات المحافظ", "#0284C7", self.open_wallets_requested.emit),
-            ("📥 فاتورة مشتريات", "#059669", self.open_purchases_requested.emit),
-            ("💰 الخزينة والمصروفات", "#D97706", self.open_accounting_requested.emit),
-            ("👥 حسابات العملاء", "#4F46E5", self.open_customers_requested.emit),
-            ("📦 إدارة المخزون", "#0D9488", self.open_inventory_requested.emit),
-            ("📊 التقارير الشاملة", "#475569", self.open_reports_requested.emit),
+            ("نقطة البيع (POS)", "#2563EB", self.open_pos_requested.emit),
+            ("عمليات المحافظ", "#0284C7", self.open_wallets_requested.emit),
+            ("فاتورة مشتريات", "#059669", self.open_purchases_requested.emit),
+            ("الخزينة والمصروفات", "#D97706", self.open_accounting_requested.emit),
+            ("حسابات العملاء", "#4F46E5", self.open_customers_requested.emit),
+            ("إدارة المخزون", "#0D9488", self.open_inventory_requested.emit),
+            ("التقارير الشاملة", "#475569", self.open_reports_requested.emit),
         ]
 
         for text, color, slot in shortcuts:
             btn = QPushButton(text)
-            btn.setFixedHeight(34)
+            btn.setMinimumHeight(40)
             btn.setCursor(Qt.PointingHandCursor)
             btn.setStyleSheet(f"""
                 QPushButton {{
@@ -170,12 +151,12 @@ class DashboardWidget(QWidget):
 
         # Right Feed: Recent Sales
         recent_box = QFrame()
-        recent_box.setStyleSheet("background-color: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 10px; padding: 12px;")
+        set_prop(recent_box, "card", True)
         recent_layout = QVBoxLayout(recent_box)
         recent_layout.setSpacing(10)
 
-        r_title = QLabel("🛒 أحدث مبيعات اليوم")
-        r_title.setStyleSheet("font-weight: bold; font-size: 14px; color: #0F172A;")
+        r_title = QLabel("أحدث مبيعات اليوم")
+        style_label(r_title, size="label", tone="text", bold=True)
         recent_layout.addWidget(r_title)
 
         self.recent_table = QTableWidget()
@@ -196,12 +177,12 @@ class DashboardWidget(QWidget):
 
         # Left Feed: Low Stock Alerts
         stock_box = QFrame()
-        stock_box.setStyleSheet("background-color: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 10px; padding: 12px;")
+        set_prop(stock_box, "card", True)
         stock_layout = QVBoxLayout(stock_box)
         stock_layout.setSpacing(10)
 
-        s_title = QLabel("⚠️ تنبيهات النواقص بالمخزون")
-        s_title.setStyleSheet("font-weight: bold; font-size: 14px; color: #B91C1C;")
+        s_title = QLabel("تنبيهات النواقص بالمخزون")
+        style_label(s_title, size="label", tone="danger", bold=True)
         stock_layout.addWidget(s_title)
 
         self.stock_table = QTableWidget()
@@ -225,14 +206,8 @@ class DashboardWidget(QWidget):
     def _create_card(self, title: str, init_val: str, subtitle: str, color: str, bg_tint: str):
         card = QFrame()
         card.setFixedHeight(105)
-        card.setStyleSheet(f"""
-            QFrame {{
-                background-color: {bg_tint};
-                border: 1px solid #E2E8F0;
-                border-radius: 10px;
-                padding: 10px 14px;
-            }}
-        """)
+        card.setObjectName("DashCard")
+        card.setStyleSheet(f"QFrame#DashCard {{ background-color: {bg_tint}; border: 1px solid #E2E8F0; border-radius: 10px; }}")
         vbox = QVBoxLayout(card)
         vbox.setContentsMargins(6, 6, 6, 6)
         vbox.setSpacing(3)
@@ -242,11 +217,11 @@ class DashboardWidget(QWidget):
         vbox.addWidget(lbl_title)
 
         lbl_val = QLabel(init_val)
-        lbl_val.setStyleSheet(f"font-size: 19px; font-weight: bold; color: #0F172A;")
+        style_label(lbl_val, size="h2", tone="text", bold=True)
         vbox.addWidget(lbl_val)
 
         lbl_sub = QLabel(subtitle)
-        lbl_sub.setStyleSheet("font-size: 11px; color: #64748B;")
+        style_label(lbl_sub, size="caption", tone="muted")
         vbox.addWidget(lbl_sub)
 
         return card, lbl_val, lbl_sub
@@ -281,20 +256,20 @@ class DashboardWidget(QWidget):
             lsc = metrics["low_stock_count"]
             self.lbl_stock_val.setText(f"{lsc} أصناف" if lsc > 0 else "المخزون كافٍ")
             if lsc > 0:
-                self.card_stock.setStyleSheet("background-color: #FEF2F2; border: 1px solid #FCA5A5; border-radius: 10px; padding: 10px 14px;")
+                set_prop(self.card_stock, "banner", "danger")
             else:
-                self.card_stock.setStyleSheet("background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 10px 14px;")
+                set_prop(self.card_stock, "card", True)
 
             # Shift
             shift_info = metrics["active_shift"]
             if shift_info["is_open"]:
                 self.lbl_shift_val.setText(f"وردية #{shift_info['id']} (نشطة)")
                 self.lbl_shift_sub.setText(f"الكاشير: {shift_info['user_name']} | بدأت {shift_info['opened_at']}")
-                self.card_shift.setStyleSheet("background-color: #ECFDF5; border: 1px solid #A7F3D0; border-radius: 10px; padding: 10px 14px;")
+                set_prop(self.card_shift, "banner", "success")
             else:
                 self.lbl_shift_val.setText("الوردية مغلقة")
                 self.lbl_shift_sub.setText("لا توجد وردية مفتوحة حالياً")
-                self.card_shift.setStyleSheet("background-color: #FFF1F2; border: 1px solid #FECDD3; border-radius: 10px; padding: 10px 14px;")
+                set_prop(self.card_shift, "banner", "danger")
 
             # Populate Recent Sales Table
             self.recent_table.setRowCount(len(metrics["recent_sales"]))

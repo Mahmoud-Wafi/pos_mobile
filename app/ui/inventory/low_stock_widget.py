@@ -1,5 +1,6 @@
 """Modern Low stock alert widget with warning badges."""
 from __future__ import annotations
+from app.ui.design.style import style_label
 
 try:
     from PySide6.QtWidgets import (
@@ -32,12 +33,12 @@ if HAS_QT:
             layout.setSpacing(12)
 
             bar = QHBoxLayout()
-            title = QLabel("⚠️ الأصناف التي وصلت لحد الطلب أو نفدت من المخزن")
-            title.setStyleSheet("font-size: 14px; font-weight: bold; color: #B45309;")
+            title = QLabel("الأصناف التي وصلت لحد الطلب أو نفدت من المخزن")
+            style_label(title, size="label", tone="warning", bold=True)
             bar.addWidget(title)
             bar.addStretch()
 
-            self.btn_refresh = QPushButton("🔄 تحديث القائمة")
+            self.btn_refresh = QPushButton("تحديث القائمة")
             self.btn_refresh.clicked.connect(self.load_data)
             bar.addWidget(self.btn_refresh)
             layout.addLayout(bar)
@@ -71,13 +72,13 @@ if HAS_QT:
                 deficit = p.min_stock - qty
                 is_zero = qty == 0
 
-                type_ar = {"phone": "📱 هاتف", "accessory": "🎧 إكسسوار", "card": "💳 كارت"}.get(p.type, p.type)
+                type_ar = {"phone": "هاتف", "accessory": "إكسسوار", "card": "كارت"}.get(p.type, p.type)
 
                 cols = [
                     (str(p.id), Qt.AlignCenter, None, None, None),
                     (p.name, Qt.AlignRight | Qt.AlignVCenter, None, True, None),
                     (type_ar, Qt.AlignCenter, "#64748B", False, None),
-                    (f"{qty} قطعة" if qty > 0 else "❌ نفد المخزون", Qt.AlignCenter, "#991B1B" if is_zero else "#92400E", True, "#FEE2E2" if is_zero else "#FEF3C7"),
+                    (f"{qty} قطعة" if qty > 0 else "نفد المخزون", Qt.AlignCenter, "#991B1B" if is_zero else "#92400E", True, "#FEE2E2" if is_zero else "#FEF3C7"),
                     (f"{p.min_stock} قطعة", Qt.AlignCenter, "#334155", False, None),
                     (f"-{deficit} قطعة", Qt.AlignCenter, "#DC2626", True, None),
                 ]

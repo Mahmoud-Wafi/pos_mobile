@@ -9,9 +9,13 @@ from PySide6.QtWidgets import (
     QComboBox, QPushButton, QMessageBox, QFrame, QInputDialog,
 )
 
+from app.ui.components import show_error, show_toast
 from app.core.money import egp_to_piasters, format_money
 from app.models.accounting import CashAccount, ExpenseCategory
 from app.services import accounting_service
+from app.ui.design.style import set_prop, style_label, variant
+from app.ui.design import icons
+from app.ui.design.tokens import COLORS
 
 
 class ExpenseDialog(QDialog):
@@ -22,28 +26,7 @@ class ExpenseDialog(QDialog):
         self.setWindowTitle("تسجيل مصروف تشغيلي")
         self.resize(480, 440)
         self.setModal(True)
-        self.setStyleSheet("""
-            QDialog {
-                background-color: #FFFFFF;
-            }
-            QLabel {
-                color: #0F172A;
-                font-size: 13px;
-                font-weight: 600;
-            }
-            QLineEdit, QComboBox {
-                background-color: #F8FAFC;
-                border: 1px solid #CBD5E1;
-                border-radius: 8px;
-                padding: 10px 12px;
-                font-size: 13px;
-                color: #0F172A;
-            }
-            QLineEdit:focus, QComboBox:focus {
-                background-color: #FFFFFF;
-                border: 2px solid #2563EB;
-            }
-        """)
+
         self._build_ui()
         self._load_data()
 
@@ -54,16 +37,16 @@ class ExpenseDialog(QDialog):
 
         # Header
         hdr = QHBoxLayout()
-        icon = QLabel("💸")
-        icon.setStyleSheet("font-size: 28px;")
+        icon = QLabel()
+        icon.setPixmap(icons.pixmap("banknote", COLORS["primary"], 28))
         hdr.addWidget(icon)
 
         t_box = QVBoxLayout()
         t_box.setSpacing(2)
         lbl_t = QLabel("تسجيل مصروف جديد")
-        lbl_t.setStyleSheet("font-size: 16px; font-weight: bold; color: #0F172A;")
+        style_label(lbl_t, size="title", tone="text", bold=True)
         lbl_sub = QLabel("يتم خصم المصروف من الخزينة المحددة وتسجيله في حركة النقدية")
-        lbl_sub.setStyleSheet("font-size: 12px; color: #64748B; font-weight: normal;")
+        style_label(lbl_sub, size="caption", tone="muted")
         t_box.addWidget(lbl_t)
         t_box.addWidget(lbl_sub)
         hdr.addLayout(t_box)
@@ -72,7 +55,7 @@ class ExpenseDialog(QDialog):
 
         sep = QFrame()
         sep.setFrameShape(QFrame.HLine)
-        sep.setStyleSheet("color: #E2E8F0;")
+        set_prop(sep, "hline", True)
         layout.addWidget(sep)
 
         # Category
@@ -82,9 +65,9 @@ class ExpenseDialog(QDialog):
         self.cat_combo.setFixedHeight(42)
         cat_box.addWidget(self.cat_combo, 1)
 
-        btn_new_cat = QPushButton("➕ بند جديد")
+        btn_new_cat = QPushButton("بند جديد")
         btn_new_cat.setFixedHeight(42)
-        btn_new_cat.setStyleSheet("background-color: #EFF6FF; color: #2563EB; border: 1px solid #BFDBFE; border-radius: 8px; font-weight: bold; padding: 0 12px;")
+        variant(btn_new_cat, "secondary")
         btn_new_cat.clicked.connect(self._create_category_inline)
         cat_box.addWidget(btn_new_cat)
         layout.addLayout(cat_box)
@@ -118,33 +101,13 @@ class ExpenseDialog(QDialog):
 
         btn_cancel = QPushButton("إلغاء")
         btn_cancel.setFixedHeight(42)
-        btn_cancel.setStyleSheet("""
-            QPushButton {
-                background-color: #F1F5F9;
-                color: #475569;
-                border: 1px solid #CBD5E1;
-                border-radius: 8px;
-                font-weight: 600;
-                padding: 0 18px;
-            }
-        """)
+        variant(btn_cancel, "secondary")
         btn_cancel.clicked.connect(self.reject)
         btn_box.addWidget(btn_cancel)
 
-        btn_save = QPushButton("💾 تسجيل وصرف المصروف")
+        btn_save = QPushButton("تسجيل وصرف المصروف")
         btn_save.setFixedHeight(42)
-        btn_save.setStyleSheet("""
-            QPushButton {
-                background-color: #DC2626;
-                color: white;
-                border-radius: 8px;
-                font-weight: bold;
-                padding: 0 24px;
-            }
-            QPushButton:hover {
-                background-color: #B91C1C;
-            }
-        """)
+        variant(btn_save, "danger")
         btn_save.clicked.connect(self._save)
         btn_box.addWidget(btn_save)
 
@@ -174,12 +137,12 @@ class ExpenseDialog(QDialog):
     def _save(self):
         cat_id = self.cat_combo.currentData()
         if not cat_id:
-            QMessageBox.warning(self, "تنبيه", "يرجى اختيار بند المصروف")
+            show_error(self, message="يرجى اختيار بند المصروف")
             return
 
         amt_str = self.amount_edit.text().strip()
         if not amt_str:
-            QMessageBox.warning(self, "تنبيه", "يرجى كتابة مبلغ المصروف")
+            show_error(self, message="يرجى كتابة مبلغ المصروف")
             self.amount_edit.setFocus()
             return
 
@@ -188,7 +151,7 @@ class ExpenseDialog(QDialog):
             if amt_piasters <= 0:
                 raise ValueError()
         except Exception:
-            QMessageBox.warning(self, "تنبيه", "صيغة المبلغ غير صحيحة")
+            show_error(self, message="صيغة المبلغ غير صحيحة")
             self.amount_edit.setFocus()
             return
 
@@ -204,9 +167,9 @@ class ExpenseDialog(QDialog):
                 note=note,
             )
             self.session.commit()
-            QMessageBox.information(self, "نجاح", f"تم تسجيل وصرف مصروف بقيمة {amt_str} ج.م بنجاح!")
+            show_toast(self, f"تم تسجيل وصرف مصروف بقيمة {amt_str} ج.م بنجاح!")
             self.accept()
         except Exception as e:
             self.session.rollback()
-            QMessageBox.critical(self, "خطأ", f"تعذر تسجيل المصروف:\n{str(e)}")
+            show_error(self, message=f"تعذر تسجيل المصروف:\n{str(e)}")
 

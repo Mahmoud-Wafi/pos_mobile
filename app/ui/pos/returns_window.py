@@ -13,8 +13,10 @@ try:
 except ImportError:
     HAS_QT = False
 
+from app.ui.components import show_error, show_toast
 from app.core.money import format_money
 from app.services import sales_service
+from app.ui.design.style import set_prop, style_label, variant
 
 
 HEADERS = ["رقم الفاتورة", "اسم العميل", "الصنف / الموديل", "السيريال (IMEI)", "حالة الضمان", "الأيام المتبقية", "تاريخ انتهاء الضمان", "إجراء"]
@@ -37,13 +39,13 @@ if HAS_QT:
 
             # Search Bar Card
             search_card = QFrame()
-            search_card.setStyleSheet("background-color: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 10px; padding: 14px;")
+            set_prop(search_card, "card", True)
             s_layout = QVBoxLayout(search_card)
 
-            title = QLabel("🔍 استعلام عن الضمان ومرتجعات المبيعات")
-            title.setStyleSheet("font-size: 16px; font-weight: bold; color: #0F172A;")
+            title = QLabel("استعلام عن الضمان ومرتجعات المبيعات")
+            style_label(title, size="title", tone="text", bold=True)
             sub = QLabel("ابحث برقم السيريال (IMEI) أو رقم الفاتورة أو هاتف العميل لفحص سريان الضمان أو تسجيل مرتجع")
-            sub.setStyleSheet("font-size: 12px; color: #64748B;")
+            style_label(sub, size="caption", tone="muted")
             s_layout.addWidget(title)
             s_layout.addWidget(sub)
 
@@ -54,7 +56,7 @@ if HAS_QT:
             self.search_edit.returnPressed.connect(self._do_search)
             bar.addWidget(self.search_edit)
 
-            btn_search = QPushButton("🔍 بحث")
+            btn_search = QPushButton("بحث")
             btn_search.setFixedHeight(44)
             btn_search.setMinimumWidth(100)
             btn_search.setObjectName("PrimaryBtn")
@@ -100,7 +102,7 @@ if HAS_QT:
                 return
 
             for row, r in enumerate(results):
-                status_text = "ساري ومفعل ✓" if r["is_valid"] else "منتهي الصلاحية ✕"
+                status_text = "ساري ومفعل " if r["is_valid"] else "منتهي الصلاحية "
                 bg_color = "#ECFDF5" if r["is_valid"] else "#FEE2E2"
                 fg_color = "#065F46" if r["is_valid"] else "#991B1B"
                 end_str = r["warranty_end_date"].strftime("%Y-%m-%d") if r["warranty_end_date"] else "بدون ضمان"
@@ -125,8 +127,8 @@ if HAS_QT:
                     self.table.setItem(row, col, item)
 
                 # Return action button
-                btn_return = QPushButton("↩️ مرتجع")
-                btn_return.setStyleSheet("background-color: #FEF3C7; color: #92400E; font-weight: bold; border: 1px solid #FCD34D; border-radius: 6px;")
+                btn_return = QPushButton("مرتجع")
+                variant(btn_return, "secondary")
                 s_item_id = r["sale_item_id"]
                 btn_return.clicked.connect(lambda _, sid=s_item_id: self._process_return(sid))
                 self.table.setCellWidget(row, 7, btn_return)
@@ -157,12 +159,9 @@ if HAS_QT:
                     refund_method="cash",
                 )
                 self.session.commit()
-                QMessageBox.information(
-                    self, "تم المرتجع بنجاح ✓",
-                    f"تم تسجيل إشعار مرتجع #{ret.return_no}\nقيمة المبلغ المردود: {format_money(ret.refund_amount)}"
-                )
+                show_toast(self, f"تم تسجيل إشعار مرتجع #{ret.return_no}\nقيمة المبلغ المردود: {format_money(ret.refund_amount)}")
                 self._do_search()
             except Exception as e:
                 self.session.rollback()
-                QMessageBox.critical(self, "خطأ في تسجيل المرتجع", str(e))
+                show_error(self, e)
 

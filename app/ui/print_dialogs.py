@@ -11,12 +11,14 @@ from PySide6.QtGui import QGuiApplication, QPageLayout, QPageSize, QPainter, QTe
 from PySide6.QtPrintSupport import QPrintDialog, QPrintPreviewDialog, QPrinter
 from PySide6.QtWidgets import QDialog, QLabel, QMessageBox, QPushButton, QVBoxLayout
 
+from app.ui.components import show_error
 from app.config import DATA_DIR
 from app.core.money import format_money
 from app.i18n import ar
 from app.printing.receipt import generate_warranty_invoice_pdf
 from app.printing.thermal import MARGIN_MM, RECEIPT_WIDTH_MM, receipt_html
 from app.services import settings_service
+from app.ui.design.style import style_label
 
 
 def _document(sale, cfg) -> QTextDocument:
@@ -111,7 +113,7 @@ class SaleCompleteDialog(QDialog):
         root.setSpacing(10)
         title = QLabel(f"{ar.SALE_DONE_TITLE}\n{ar.SALE_DONE_INVOICE}: {sale.invoice_no}")
         title.setAlignment(Qt.AlignCenter)
-        title.setStyleSheet("font-size: 16px; font-weight: 700; color: #059669;")
+        style_label(title, size="title", tone="success", bold=True)
         total = QLabel(f"{ar.SALE_DONE_TOTAL}: {format_money(sale.total)}   |   {ar.SALE_DONE_CHANGE_NOTE}: {format_money(sale.paid)}")
         total.setAlignment(Qt.AlignCenter)
         root.addWidget(title)
@@ -135,7 +137,7 @@ class SaleCompleteDialog(QDialog):
         try:
             fn()
         except Exception as exc:
-            QMessageBox.warning(self, ar.WARNING, f"{ar.PRINT_FAILED}\n{exc}")
+            show_error(self, exc)
 
     def print_receipt(self) -> None:
         self._safe(lambda: print_receipt(self.sale, self.cfg, self))

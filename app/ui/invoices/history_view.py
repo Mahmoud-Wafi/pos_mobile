@@ -9,6 +9,7 @@ from PySide6.QtWidgets import (
     QMessageBox, QPushButton, QSplitter, QTableWidget, QTableWidgetItem, QTextEdit, QVBoxLayout, QWidget,
 )
 
+from app.ui.components import confirm, show_error
 from app.core import clock
 from app.core.money import format_money
 from app.core.permissions import PERM_SALES_RETURN, PERM_SALES_VOID, PermissionDenied
@@ -189,7 +190,7 @@ class InvoiceHistoryWidget(QWidget):
             self.session.commit()
         except (PermissionDenied, sales_service.SaleError, ValueError) as exc:
             self.session.rollback()
-            QMessageBox.warning(self, ar.ERROR, str(exc))
+            show_error(self, exc)
         self.refresh()
 
     def _void(self) -> None:
@@ -199,12 +200,12 @@ class InvoiceHistoryWidget(QWidget):
         reason, ok = QInputDialog.getText(self, ar.HISTORY_VOID, ar.HISTORY_VOID_REASON)
         if not (ok and reason.strip()):
             return
-        if QMessageBox.question(self, ar.HISTORY_VOID, ar.HISTORY_VOID_CONFIRM) != QMessageBox.Yes:
+        if not confirm(self, ar.HISTORY_VOID, ar.HISTORY_VOID_CONFIRM, ar.HISTORY_VOID, destructive=True):
             return
         try:
             sales_service.void_sale(self.session, self.user, s.id, reason.strip())
             self.session.commit()
         except (PermissionDenied, sales_service.SaleError, ValueError) as exc:
             self.session.rollback()
-            QMessageBox.warning(self, ar.ERROR, str(exc))
+            show_error(self, exc)
         self.refresh()

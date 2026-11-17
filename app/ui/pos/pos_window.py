@@ -16,6 +16,7 @@ try:
 except ImportError:
     HAS_QT = False
 
+from app.ui.design.style import set_prop, style_label, variant
 from app.core.money import format_money, egp_to_piasters, parse_egp_input, piasters_to_input
 from app.i18n import ar
 from app.models.product import Product
@@ -24,6 +25,7 @@ from app.models.customer import Customer
 from app.services import settings_service, sales_service, shift_service, customer_service, inventory_service
 from app.ui.pos.payment_dialog import PaymentDialog
 from app.ui.approval_dialog import request_manager_approval
+from app.ui.components import confirm, icon_button, show_error, show_toast
 from app.ui.pos.choosers import (
     DeviceChooserDialog, HeldInvoicesDialog, LineEditDialog, ProductChooserDialog,
 )
@@ -59,13 +61,13 @@ if HAS_QT:
 
             # Shift alert banner (if shift is closed)
             self.shift_banner = QFrame()
-            self.shift_banner.setStyleSheet("background-color: #FEF3C7; border: 1px solid #FCD34D; border-radius: 8px; padding: 10px;")
+            set_prop(self.shift_banner, "banner", "warning")
             sb_layout = QHBoxLayout(self.shift_banner)
             sb_layout.setContentsMargins(8, 4, 8, 4)
-            self.lbl_shift_msg = QLabel("⚠️ تنبيه: لا توجد وردية مفتوحة حالياً للكاشير. يجب فتح الوردية للتمكن من البيع.")
-            self.lbl_shift_msg.setStyleSheet("color: #92400E; font-weight: bold;")
-            btn_open_shift = QPushButton("🔓 فتح الوردية الآن")
-            btn_open_shift.setStyleSheet("background-color: #D97706; color: #FFFFFF; font-weight: bold; border-radius: 6px; padding: 6px 14px;")
+            self.lbl_shift_msg = QLabel("تنبيه: لا توجد وردية مفتوحة حالياً للكاشير. يجب فتح الوردية للتمكن من البيع.")
+            style_label(self.lbl_shift_msg, tone="warning", bold=True)
+            btn_open_shift = QPushButton("فتح الوردية الآن")
+            variant(btn_open_shift, "secondary")
             btn_open_shift.clicked.connect(self._open_shift_dialog)
             sb_layout.addWidget(self.lbl_shift_msg)
             sb_layout.addStretch()
@@ -77,8 +79,8 @@ if HAS_QT:
             bar_l = QHBoxLayout(self.shift_bar)
             bar_l.setContentsMargins(4, 0, 4, 0)
             self.lbl_shift_status = QLabel("")
-            self.lbl_shift_status.setStyleSheet("color: #059669; font-weight: 700;")
-            self.btn_close_shift = QPushButton("🔒 " + ar.SHIFT_CLOSE)
+            style_label(self.lbl_shift_status, tone="success", bold=True)
+            self.btn_close_shift = QPushButton("" + ar.SHIFT_CLOSE)
             self.btn_close_shift.clicked.connect(self._close_shift_dialog)
             bar_l.addWidget(self.lbl_shift_status)
             bar_l.addStretch()
@@ -100,9 +102,9 @@ if HAS_QT:
 
             # Barcode / IMEI scanner input
             self.scan_edit = QLineEdit()
-            self.scan_edit.setPlaceholderText("🔍 امسح الباركود أو اكتب رقم السيريال (IMEI) أو اسم الصنف واضغط Enter...")
+            self.scan_edit.setPlaceholderText("امسح الباركود أو اكتب رقم السيريال (IMEI) أو اسم الصنف واضغط Enter...")
             self.scan_edit.setFixedHeight(44)
-            self.scan_edit.setStyleSheet("font-size: 14px; font-weight: bold;")
+            style_label(self.scan_edit, size="label", bold=True)
             self.scan_edit.returnPressed.connect(self._on_scan_or_search)
             top_bar.addWidget(self.scan_edit, 3)
 
@@ -132,14 +134,14 @@ if HAS_QT:
             self.cart_table.setAlternatingRowColors(True)
 
             header = self.cart_table.horizontalHeader()
-            header.setSectionResizeMode(0, QHeaderView.Fixed); self.cart_table.setColumnWidth(0, 45)   # #
+            header.setSectionResizeMode(0, QHeaderView.Fixed); self.cart_table.setColumnWidth(0, 40)   # #
             header.setSectionResizeMode(1, QHeaderView.Stretch)                                         # Name
-            header.setSectionResizeMode(2, QHeaderView.Fixed); self.cart_table.setColumnWidth(2, 170) # IMEI
-            header.setSectionResizeMode(3, QHeaderView.Fixed); self.cart_table.setColumnWidth(3, 80)  # Qty
-            header.setSectionResizeMode(4, QHeaderView.Fixed); self.cart_table.setColumnWidth(4, 120) # Price
-            header.setSectionResizeMode(5, QHeaderView.Fixed); self.cart_table.setColumnWidth(5, 90)  # Discount
-            header.setSectionResizeMode(6, QHeaderView.Fixed); self.cart_table.setColumnWidth(6, 130) # Total
-            header.setSectionResizeMode(7, QHeaderView.Fixed); self.cart_table.setColumnWidth(7, 70)  # Delete
+            header.setSectionResizeMode(2, QHeaderView.Fixed); self.cart_table.setColumnWidth(2, 140) # IMEI
+            header.setSectionResizeMode(3, QHeaderView.Fixed); self.cart_table.setColumnWidth(3, 60)  # Qty
+            header.setSectionResizeMode(4, QHeaderView.Fixed); self.cart_table.setColumnWidth(4, 100) # Price
+            header.setSectionResizeMode(5, QHeaderView.Fixed); self.cart_table.setColumnWidth(5, 80)  # Discount
+            header.setSectionResizeMode(6, QHeaderView.Fixed); self.cart_table.setColumnWidth(6, 110) # Total
+            header.setSectionResizeMode(7, QHeaderView.Fixed); self.cart_table.setColumnWidth(7, 52)  # Delete
 
             self.cart_table.doubleClicked.connect(self._edit_selected_line)
             self.cart_table.itemActivated.connect(self._edit_selected_line)
@@ -164,11 +166,11 @@ if HAS_QT:
             bot_bar = QHBoxLayout()
             bot_bar.setSpacing(10)
 
-            btn_new_inv = QPushButton("📄 فاتورة جديدة [F9]")
+            btn_new_inv = QPushButton("فاتورة جديدة [F9]")
             btn_new_inv.clicked.connect(self._new_invoice)
             bot_bar.addWidget(btn_new_inv)
 
-            btn_hold = QPushButton("⏸️ تعليق الفاتورة")
+            btn_hold = QPushButton("تعليق الفاتورة")
             btn_hold.clicked.connect(self._hold_invoice)
             bot_bar.addWidget(btn_hold)
 
@@ -178,7 +180,7 @@ if HAS_QT:
 
             bot_bar.addStretch()
 
-            btn_clear = QPushButton("❌ تفريغ السلة [Esc]")
+            btn_clear = QPushButton("تفريغ السلة [Esc]")
             btn_clear.clicked.connect(self._clear_cart)
             bot_bar.addWidget(btn_clear)
 
@@ -187,25 +189,25 @@ if HAS_QT:
 
             # ── Left / Sidebar: Invoice Summary & Big Checkout Button ──
             summary_card = QFrame()
-            summary_card.setStyleSheet("background-color: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 12px; padding: 16px;")
-            summary_card.setMinimumWidth(320)
-            summary_card.setMaximumWidth(360)
+            set_prop(summary_card, "card", True)
+            summary_card.setMinimumWidth(300)
+            summary_card.setMaximumWidth(330)
             s_layout = QVBoxLayout(summary_card)
             s_layout.setContentsMargins(12, 12, 12, 12)
             s_layout.setSpacing(14)
 
             # Invoice info
             self.lbl_inv_no = QLabel("رقم الفاتورة: —")
-            self.lbl_inv_no.setStyleSheet("font-size: 14px; font-weight: bold; color: #0F172A;")
+            style_label(self.lbl_inv_no, size="label", tone="text", bold=True)
             s_layout.addWidget(self.lbl_inv_no)
 
-            line = QFrame(); line.setFrameShape(QFrame.HLine); line.setStyleSheet("color: #E2E8F0;"); s_layout.addWidget(line)
+            line = QFrame(); line.setFrameShape(QFrame.HLine); set_prop(line, "hline", True); s_layout.addWidget(line)
 
             # Totals rows
             row_sub = QHBoxLayout()
             row_sub.addWidget(QLabel("المجموع الفرعي:"))
             self.lbl_subtotal = QLabel("0.00 ج.م")
-            self.lbl_subtotal.setStyleSheet("font-weight: bold;")
+            style_label(self.lbl_subtotal, bold=True)
             row_sub.addStretch(); row_sub.addWidget(self.lbl_subtotal)
             s_layout.addLayout(row_sub)
 
@@ -222,14 +224,14 @@ if HAS_QT:
 
             # Big Total Card
             total_box = QFrame()
-            total_box.setStyleSheet("background-color: #0F172A; border-radius: 10px; padding: 16px;")
+            set_prop(total_box, "total_box", True)
             tb_layout = QVBoxLayout(total_box)
             tb_layout.setAlignment(Qt.AlignCenter)
             tb_title = QLabel("صافي الإجمالي المطلوب")
-            tb_title.setStyleSheet("color: #94A3B8; font-size: 13px; font-weight: bold;")
+            style_label(tb_title, size="body", tone="muted", bold=True)
             tb_title.setAlignment(Qt.AlignCenter)
             self.lbl_big_total = QLabel("0.00 ج.م")
-            self.lbl_big_total.setStyleSheet("color: #38BDF8; font-size: 26px; font-weight: 800;")
+            style_label(self.lbl_big_total, size="h1", tone="total", bold=True)
             self.lbl_big_total.setAlignment(Qt.AlignCenter)
             tb_layout.addWidget(tb_title)
             tb_layout.addWidget(self.lbl_big_total)
@@ -238,30 +240,14 @@ if HAS_QT:
             s_layout.addStretch()
 
             # Checkout Button
-            self.btn_pay = QPushButton("💳  الدفع وإنهاء الفاتورة [F4]")
+            self.btn_pay = QPushButton(" الدفع وإنهاء الفاتورة [F4]")
             self.btn_pay.setFixedHeight(54)
-            self.btn_pay.setStyleSheet("""
-                QPushButton {
-                    background-color: #059669;
-                    color: #FFFFFF;
-                    font-size: 16px;
-                    font-weight: 800;
-                    border: none;
-                    border-radius: 10px;
-                }
-                QPushButton:hover {
-                    background-color: #047857;
-                }
-                QPushButton:disabled {
-                    background-color: #CBD5E1;
-                    color: #94A3B8;
-                }
-            """)
+            variant(self.btn_pay, "success")
             self.btn_pay.clicked.connect(self._on_checkout)
             s_layout.addWidget(self.btn_pay)
 
             splitter.addWidget(summary_card)
-            root_layout.addWidget(splitter)
+            root_layout.addWidget(splitter, 1)
 
         def _setup_shortcuts(self):
             QShortcut(QKeySequence("F2"), self, self._focus_search)
@@ -279,7 +265,7 @@ if HAS_QT:
                 self.shift_banner.setVisible(False)
                 self.shift_bar.setVisible(True)
                 st = shift_service.shift_status(self.session, self.user)
-                self.lbl_shift_status.setText(f"🟢 {ar.SHIFT_OPEN_STATUS} #{st['id']} — {st['opened_at']}")
+                self.lbl_shift_status.setText(f"{ar.SHIFT_OPEN_STATUS} #{st['id']} — {st['opened_at']}")
                 self.btn_pay.setEnabled(True)
             else:
                 self.shift_banner.setVisible(True)
@@ -293,7 +279,7 @@ if HAS_QT:
             self.customer_combo.clear()
             customers = customer_service.search_customers(self.session)
             for c in customers:
-                self.customer_combo.addItem(f"👤 {c.name}", c.id)
+                self.customer_combo.addItem(f"{c.name}", c.id)
 
         def _on_customer_changed(self):
             if self.current_sale:
@@ -316,7 +302,7 @@ if HAS_QT:
                 self._refresh_cart()
                 self._focus_search()
             except Exception as e:
-                QMessageBox.critical(self, "خطأ", str(e))
+                show_error(self, e)
 
         def _on_scan_or_search(self):
             query = self.scan_edit.text().strip()
@@ -337,7 +323,7 @@ if HAS_QT:
                     found = dlg.chosen
 
             if found is None:
-                QMessageBox.warning(self, "تنبيه", f"لم يتم العثور على أي صنف أو سيريال يطابق: {query}")
+                show_error(self, message=f"لم يتم العثور على أي صنف أو سيريال يطابق: {query}")
                 self._focus_search()
                 return
 
@@ -348,7 +334,7 @@ if HAS_QT:
                     in_cart = {it.device_id for it in self.current_sale.items if it.device_id}
                     dlg = DeviceChooserDialog(self.session, found, exclude_ids=in_cart, parent=self)
                     if dlg.device_count == 0:
-                        QMessageBox.warning(self, "تنبيه", f"لا توجد أجهزة متوفرة في المخزن للصنف '{found.name}'")
+                        show_error(self, message=f"لا توجد أجهزة متوفرة في المخزن للصنف '{found.name}'")
                     elif dlg.exec() == QDialog.Accepted and dlg.chosen:
                         self._add_to_cart(found, device=dlg.chosen)
                 else:
@@ -356,7 +342,7 @@ if HAS_QT:
                 self.scan_edit.clear()
                 self._refresh_cart()
             except Exception as e:
-                QMessageBox.critical(self, "خطأ في إضافة الصنف", str(e))
+                show_error(self, e)
 
             self._focus_search()
 
@@ -403,9 +389,7 @@ if HAS_QT:
                     self.cart_table.setItem(row, col, item)
 
                 # Delete Button
-                btn_del = QPushButton("🗑️")
-                btn_del.setFixedWidth(40)
-                btn_del.setStyleSheet("background-color: #FEE2E2; color: #DC2626; border: none; border-radius: 4px;")
+                btn_del = icon_button("trash-2", "حذف البند", "danger-soft")
                 item_id = it.id
                 btn_del.clicked.connect(lambda _, i=item_id: self._remove_item(i))
                 btn_del.setToolTip("حذف البند")
@@ -447,7 +431,7 @@ if HAS_QT:
                     device=data["device"], discount=data["discount"],
                 )
             except Exception as exc:
-                QMessageBox.warning(self, ar.ERROR, str(exc))
+                show_error(self, exc)
             self._undo_line = None
             self._refresh_cart()
 
@@ -471,7 +455,7 @@ if HAS_QT:
                     break
                 except DiscountLimitExceededError as exc:
                     if manager is not None:
-                        QMessageBox.warning(self, ar.ERROR, str(exc))
+                        show_error(self, exc)
                         return
                     manager = request_manager_approval(
                         self, self.session, self.user, PERM_SALES_DISCOUNT, str(exc)
@@ -479,7 +463,7 @@ if HAS_QT:
                     if manager is None:
                         return
                 except (ValueError, sales_service.SaleError) as exc:
-                    QMessageBox.warning(self, ar.ERROR, str(exc))
+                    show_error(self, exc)
                     return
             self._refresh_cart()
             self._focus_search()
@@ -522,7 +506,7 @@ if HAS_QT:
 
         def _on_checkout(self):
             if not self.current_sale or not self.current_sale.items:
-                QMessageBox.warning(self, "سلة فارغة", "يرجى إضافة أصناف إلى السلة أولاً")
+                show_error(self, message="يرجى إضافة أصناف إلى السلة أولاً")
                 return
 
             cust_name = self.customer_combo.currentText()
@@ -541,7 +525,7 @@ if HAS_QT:
                 except (PriceBelowMinimumError, CreditLimitExceededError, InsufficientStockError) as exc:
                     # Needs a manager: ask once, then retry the same sale with their approval.
                     if manager is not None:
-                        QMessageBox.critical(self, "خطأ في اعتماد الفاتورة", str(exc))
+                        show_error(self, exc)
                         return
                     manager = request_manager_approval(
                         self, self.session, self.user, PERM_SALES_BELOW_MIN_PRICE, str(exc)
@@ -550,21 +534,21 @@ if HAS_QT:
                         return
                 except Exception as exc:
                     self.session.rollback()
-                    QMessageBox.critical(self, "خطأ في اعتماد الفاتورة", str(exc))
+                    show_error(self, exc)
                     return
 
             if dlg.print_receipt:
                 from app.ui.print_dialogs import SaleCompleteDialog
                 SaleCompleteDialog(self.session, self.current_sale, self).exec()
             else:
-                QMessageBox.information(self, ar.SUCCESS, f"{ar.SALE_DONE_TITLE} #{self.current_sale.invoice_no}")
+                show_toast(self, f"{ar.SALE_DONE_TITLE} #{self.current_sale.invoice_no}")
             self._new_invoice()
 
         def _hold_invoice(self):
             if not self.current_sale or not self.current_sale.items:
                 return
             self.session.commit()
-            QMessageBox.information(self, "تم التعليق", f"تم تعليق الفاتورة #{self.current_sale.invoice_no}")
+            show_toast(self, f"تم تعليق الفاتورة #{self.current_sale.invoice_no}")
             self._new_invoice()
 
         def _resume_held_dialog(self):
@@ -586,8 +570,7 @@ if HAS_QT:
         def _clear_cart(self):
             if not self.current_sale or not self.current_sale.items:
                 return
-            reply = QMessageBox.question(self, "تأكيد", "هل تريد مسح الأصناف الحالية من السلة؟", QMessageBox.Yes | QMessageBox.No)
-            if reply == QMessageBox.Yes:
+            if confirm(self, "تفريغ السلة", "هل تريد مسح الأصناف الحالية من السلة؟", "مسح", destructive=True):
                 for it in list(self.current_sale.items):
                     sales_service.remove_line(self.session, self.user, self.current_sale, it.id)
                 self.session.expire(self.current_sale, ["items"])
@@ -601,7 +584,7 @@ if HAS_QT:
                 self._check_shift_and_init_sale()
                 return
             if self.current_sale and self.current_sale.items:
-                QMessageBox.warning(self, ar.WARNING, "أكمل الفاتورة الحالية أو علّقها قبل إغلاق الوردية")
+                show_error(self, message="أكمل الفاتورة الحالية أو علّقها قبل إغلاق الوردية")
                 return
             dlg = CloseShiftDialog(self.session, self.user, shift, parent=self)
             dlg.exec()
@@ -615,12 +598,12 @@ if HAS_QT:
                 try:
                     shift_service.open_shift(self.session, self.user, opening_cash=egp_to_piasters(amount))
                     self.session.commit()
-                    QMessageBox.information(self, "تم بنجاح", "تم فتح الوردية بنجاح ✓")
+                    show_toast(self, "تم فتح الوردية بنجاح ")
                     self._check_shift_and_init_sale()
                     self.shift_changed.emit()
                 except Exception as e:
                     self.session.rollback()
-                    QMessageBox.critical(self, "خطأ", str(e))
+                    show_error(self, e)
 
         def _add_quick_customer(self):
             name, ok = QInputDialog.getText(self, "إضافة عميل جديد", "اسم العميل:")
@@ -637,5 +620,5 @@ if HAS_QT:
                             break
                 except Exception as e:
                     self.session.rollback()
-                    QMessageBox.critical(self, "خطأ", str(e))
+                    show_error(self, e)
 

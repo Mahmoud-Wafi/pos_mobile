@@ -9,14 +9,19 @@ try:
         QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLabel,
         QPushButton, QStackedWidget, QStatusBar, QFrame, QMenu, QMessageBox,
     )
-    from PySide6.QtCore import Qt, QTimer, Signal
-    from PySide6.QtGui import QFont
+    from PySide6.QtCore import QSettings, QSize, Qt, QTimer, Signal
+    from PySide6.QtGui import QFont, QKeySequence, QShortcut
 
     HAS_QT = True
 except ImportError:
     HAS_QT = False
 
+from app.ui.components import show_error
+from app.config import APP_VERSION, DATA_DIR
+from app.core import clock
 from app.i18n import ar
+from app.ui.design import icons
+from app.ui.design.tokens import COLORS as C
 from app.ui.access import can_open
 from app.core.database import get_session
 from app.models.user import User
@@ -31,7 +36,14 @@ from app.ui.accounting.accounting_window import AccountingWidget
 from app.ui.customers.customers_window import CustomersWidget
 from app.ui.reports.reports_window import ReportsWidget
 from app.ui.settings.settings_window import SettingsWidget
+from app.ui.design.style import set_prop, style_label, variant
 
+
+NAV_ICONS = {
+    "dashboard": "layout-dashboard", "pos": "shopping-cart", "invoices": "receipt", "inventory": "package",
+    "returns": "undo-2", "purchases": "truck", "wallets": "wallet", "accounting": "landmark",
+    "customers": "users", "reports": "chart-column", "settings": "settings",
+}
 
 if HAS_QT:
     class MainWindow(QMainWindow):
@@ -53,8 +65,8 @@ if HAS_QT:
             self.perms = self.current_user.permission_codes()
 
             self.setWindowTitle(f"{ar.APP_TITLE} - الإصدار 1.0")
-            self.resize(1340, 860)
-            self.setMinimumSize(1080, 720)
+            self.setMinimumSize(1024, 680)
+            self._restore_geometry()
             self.setLayoutDirection(Qt.RightToLeft)
 
             self._build_ui()
@@ -65,26 +77,31 @@ if HAS_QT:
             root_layout.setContentsMargins(0, 0, 0, 0)
             root_layout.setSpacing(0)
 
-            # Top Header Bar
+            # Top Header Bar: brand, shift pill, clock, user menu
             header = QFrame()
             header.setObjectName("Header")
             header_layout = QHBoxLayout(header)
             header_layout.setContentsMargins(20, 10, 20, 10)
 
-            # Left side (in RTL, visually right): Brand
+            logo = QLabel()
+            logo.setPixmap(icons.pixmap("smartphone", C["text_inverse"], 28))
+            header_layout.addWidget(logo)
             brand_box = QVBoxLayout()
             brand_box.setSpacing(1)
-            title_label = QLabel(f"📱 {ar.APP_TITLE}")
-            title_label.setObjectName("AppTitle")
-            sub_label = QLabel("نظام متكامل للمبيعات، الأجهزة بالسيريال (IMEI)، والمحافظ الإلكترونية")
+            self.title_label = QLabel(self._shop_name())
+            self.title_label.setObjectName("AppTitle")
+            sub_label = QLabel(ar.APP_SUBTITLE)
             sub_label.setObjectName("AppSubtitle")
-            brand_box.addWidget(title_label)
+            brand_box.addWidget(self.title_label)
             brand_box.addWidget(sub_label)
             header_layout.addLayout(brand_box)
 
             header_layout.addStretch()
 
-            # Center/Right: Live Clock
+            self.shift_val = QLabel("")
+            self.shift_val.setObjectName("ShiftPill")
+            header_layout.addWidget(self.shift_val)
+
             self.time_label = QLabel()
             self.time_label.setObjectName("HeaderClock")
             header_layout.addWidget(self.time_label)
@@ -93,30 +110,30 @@ if HAS_QT:
             self.timer.timeout.connect(self._update_time)
             self.timer.start(1000)
 
-            # User profile card
             user_box = QHBoxLayout()
             user_box.setSpacing(10)
-
-            user_name = self.current_user.full_name if self.current_user else "مدير النظام"
-            user_label = QLabel(f"👤 {user_name}")
+            user_name = self.current_user.full_name if self.current_user else ""
+            user_label = QLabel(user_name)
             user_label.setObjectName("UserPill")
-
             role_name = self.current_user.role.name if (self.current_user and self.current_user.role) else "manager"
             role_display = {"manager": "مدير النظام", "cashier": "كاشير", "wallet_employee": "موظف محافظ"}.get(role_name, role_name)
             role_badge = QLabel(role_display)
             role_badge.setObjectName("RolePill")
-
             user_box.addWidget(user_label)
             user_box.addWidget(role_badge)
 
-            btn_menu = QPushButton("⋮")
-            btn_menu.setFixedSize(34, 34)
-            btn_menu.setToolTip(ar.USER_MENU_CHANGE_PASSWORD + " / " + ar.LOCK_NOW + " / " + ar.LOGOUT)
+            btn_menu = QPushButton()
+            btn_menu.setProperty("no_icon", True)
+            variant(btn_menu, "ghost")
+            btn_menu.setIcon(icons.icon("chevron-down", C["header_text"]))
+            btn_menu.setFixedSize(36, 36)
+            btn_menu.setAccessibleName(ar.USER_MENU_CHANGE_PASSWORD + " / " + ar.LOCK_NOW + " / " + ar.LOGOUT)
+            btn_menu.setToolTip(btn_menu.accessibleName())
             menu = QMenu(btn_menu)
-            menu.addAction(ar.USER_MENU_CHANGE_PASSWORD, self._open_change_password)
-            menu.addAction(ar.LOCK_NOW, self.lock_requested.emit)
+            menu.addAction(icons.icon("key-round"), ar.USER_MENU_CHANGE_PASSWORD, self._open_change_password)
+            menu.addAction(icons.icon("lock"), ar.LOCK_NOW, self.lock_requested.emit)
             menu.addSeparator()
-            menu.addAction(ar.LOGOUT, self._confirm_logout)
+            menu.addAction(icons.icon("log-out"), ar.LOGOUT, self._confirm_logout)
             btn_menu.setMenu(menu)
             user_box.addWidget(btn_menu)
             header_layout.addLayout(user_box)
@@ -128,7 +145,6 @@ if HAS_QT:
             body_layout.setContentsMargins(0, 0, 0, 0)
             body_layout.setSpacing(0)
 
-            # Sidebar
             sidebar = QFrame()
             sidebar.setObjectName("Sidebar")
             sidebar_layout = QVBoxLayout(sidebar)
@@ -142,61 +158,48 @@ if HAS_QT:
             self.nav_buttons: list[QPushButton] = []
 
             self.nav_items = [
-                ("dashboard", "📊  لوحة التحكم", self._show_dashboard),
-                ("pos", "🛒  " + ar.POS + " (المبيعات)", self._show_pos),
-                ("invoices", "🧾  " + ar.HISTORY, self._show_invoices),
-                ("inventory", "📦  " + ar.INVENTORY, self._show_inventory),
-                ("returns", "↩️  الضمان والمرتجعات", self._show_returns),
-                ("purchases", "📥  " + ar.PURCHASES + " والموردين", self._show_purchases),
-                ("wallets", "💳  " + ar.WALLETS + " والشحن", self._show_wallets),
-                ("accounting", "💰  " + ar.ACCOUNTING + " والورديات", self._show_accounting),
-                ("customers", "👥  " + ar.CUSTOMERS + " والديون", self._show_customers),
+                ("dashboard", ar.NAV_DASHBOARD, self._show_dashboard),
+                ("pos", ar.POS + " (المبيعات)", self._show_pos),
+                ("invoices", ar.HISTORY, self._show_invoices),
+                ("inventory", ar.INVENTORY, self._show_inventory),
+                ("returns", "الضمان والمرتجعات", self._show_returns),
+                ("purchases", ar.PURCHASES + " والموردين", self._show_purchases),
+                ("wallets", ar.WALLETS + " والشحن", self._show_wallets),
+                ("accounting", ar.ACCOUNTING + " والورديات", self._show_accounting),
+                ("customers", ar.CUSTOMERS + " والديون", self._show_customers),
             ]
-
-            for key, label, slot in self.nav_items:
-                btn = QPushButton(label)
-                btn.setProperty("class", "NavBtn")
-                btn.clicked.connect(slot)
-                btn.setVisible(can_open(self.perms, key))
-                sidebar_layout.addWidget(btn)
-                self.nav_buttons.append(btn)
-
-            sidebar_layout.addSpacing(16)
-            lbl_cat_sys = QLabel("الإدارة والتقارير")
-            lbl_cat_sys.setObjectName("SidebarCategory")
-            lbl_cat_sys.setVisible(can_open(self.perms, "reports") or can_open(self.perms, "settings"))
-            sidebar_layout.addWidget(lbl_cat_sys)
-
             self.sys_nav_items = [
-                ("reports", "📈  " + ar.REPORTS + " والأرباح", self._show_reports),
-                ("settings", "⚙️  " + ar.SETTINGS + " والنسخ الاحتياطي", self._show_settings),
+                ("reports", ar.REPORTS + " والأرباح", self._show_reports),
+                ("settings", ar.SETTINGS + " والنسخ الاحتياطي", self._show_settings),
             ]
-
-            for key, label, slot in self.sys_nav_items:
-                btn = QPushButton(label)
-                btn.setProperty("class", "NavBtn")
-                btn.clicked.connect(slot)
-                btn.setVisible(can_open(self.perms, key))
-                sidebar_layout.addWidget(btn)
-                self.nav_buttons.append(btn)
+            self._nav_by_key: dict[str, QPushButton] = {}
+            shortcut_no = 1
+            for group, items in ((None, self.nav_items), (ar.NAV_ADMIN, self.sys_nav_items)):
+                if group:
+                    sidebar_layout.addSpacing(16)
+                    lbl = QLabel(group)
+                    lbl.setObjectName("SidebarCategory")
+                    lbl.setVisible(can_open(self.perms, "reports") or can_open(self.perms, "settings"))
+                    sidebar_layout.addWidget(lbl)
+                for key, label, slot in items:
+                    visible = can_open(self.perms, key)
+                    btn = QPushButton(label)
+                    btn.setProperty("nav", True)
+                    btn.setProperty("active", False)
+                    btn.setIcon(icons.icon(NAV_ICONS[key], C["text_muted"], C["primary"]))
+                    btn.setIconSize(QSize(20, 20))
+                    btn.setCursor(Qt.PointingHandCursor)
+                    btn.clicked.connect(slot)
+                    btn.setVisible(visible)
+                    if visible and shortcut_no <= 9:
+                        btn.setToolTip(f"Ctrl+{shortcut_no}")
+                        QShortcut(QKeySequence(f"Ctrl+{shortcut_no}"), self, slot)
+                        shortcut_no += 1
+                    sidebar_layout.addWidget(btn)
+                    self.nav_buttons.append(btn)
+                    self._nav_by_key[key] = btn
 
             sidebar_layout.addStretch()
-
-            # Drawer / Shift quick status box at sidebar bottom
-            drawer_card = QFrame()
-            drawer_card.setStyleSheet(
-                "background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 10px; margin: 6px;"
-            )
-            d_layout = QVBoxLayout(drawer_card)
-            d_layout.setContentsMargins(6, 6, 6, 6)
-            d_layout.setSpacing(4)
-            d_title = QLabel("💵 حالة الوردية")
-            d_title.setStyleSheet("font-weight: bold; font-size: 11px; color: #475569;")
-            self.shift_val = QLabel("")
-            self.shift_val.setWordWrap(True)
-            d_layout.addWidget(d_title)
-            d_layout.addWidget(self.shift_val)
-            sidebar_layout.addWidget(drawer_card)
 
             body_layout.addWidget(sidebar)
 
@@ -271,10 +274,13 @@ if HAS_QT:
 
             self.setCentralWidget(root_widget)
 
-            # Status bar
+            # Status bar: DB state, last backup, user, version
             status = QStatusBar()
             self.setStatusBar(status)
-            status.showMessage("🟢 النظام يعمل بدون إنترنت (Offline Mode) - قاعدة البيانات SQLite مؤمنة بوضع WAL")
+            self.sb_db, self.sb_backup, self.sb_user, self.sb_version = QLabel(), QLabel(), QLabel(), QLabel()
+            for w in (self.sb_db, self.sb_backup, self.sb_user):
+                status.addWidget(w, 1)
+            status.addPermanentWidget(self.sb_version)
 
             # Show Dashboard by default
             self.refresh_shift_status()
@@ -284,32 +290,46 @@ if HAS_QT:
             from app.services import shift_service
 
             if not can_open(self.perms, "pos"):
-                self.shift_val.setText("—")
+                self.shift_val.setVisible(False)
                 return
             st = shift_service.shift_status(self.session, self.current_user)
             if st["is_open"]:
-                self.shift_val.setText(f"🟢 {ar.SHIFT_OPEN_STATUS} #{st['id']}\n{st['opened_at']}")
-                self.shift_val.setStyleSheet("font-size: 12px; font-weight: bold; color: #059669;")
+                self.shift_val.setText(f"{ar.SHIFT_OPEN_STATUS} #{st['id']}")
+                self.shift_val.setToolTip(str(st["opened_at"]))
+                set_prop(self.shift_val, "state", "open")
             else:
-                self.shift_val.setText(f"🔴 {ar.SHIFT_CLOSED_STATUS}")
-                self.shift_val.setStyleSheet("font-size: 12px; font-weight: bold; color: #DC2626;")
+                self.shift_val.setText(ar.SHIFT_CLOSED_STATUS)
+                self.shift_val.setToolTip("")
+                set_prop(self.shift_val, "state", "closed")
+            self._refresh_status_bar()
+
+        def _shop_name(self) -> str:
+            try:
+                from app.services import settings_service
+                return settings_service.get_all(self.session).get("shop_name") or ar.APP_TITLE
+            except Exception:
+                return ar.APP_TITLE
+
+        def _refresh_status_bar(self) -> None:
+            from app.core.backup import list_backups
+
+            try:
+                backups = list_backups()
+                last = clock.fmt_local(datetime.datetime.utcfromtimestamp(backups[0].stat().st_mtime)) if backups else ar.NO_BACKUP_YET
+            except Exception:
+                last = ar.NO_BACKUP_YET
+            self.sb_db.setText(ar.STATUS_DB_OK)
+            self.sb_backup.setText(f"{ar.STATUS_LAST_BACKUP}: {last}")
+            self.sb_user.setText(f"{ar.STATUS_USER}: {self.current_user.full_name}")
+            self.sb_version.setText(f"v{APP_VERSION}")
 
         def _update_time(self):
             now = datetime.datetime.now()
             self.time_label.setText(now.strftime("%Y-%m-%d   %I:%M:%S %p"))
 
         def _set_active_nav(self, key: str):
-            order = [k for k, _l, _s in self.nav_items] + [k for k, _l, _s in self.sys_nav_items]
-            active_index = order.index(key) if key in order else -1
-            for i, btn in enumerate(self.nav_buttons):
-                if i == active_index:
-                    btn.setStyleSheet(
-                        "background-color: #EFF6FF; color: #2563EB; font-weight: 700; border-right: 4px solid #2563EB;"
-                    )
-                else:
-                    btn.setStyleSheet(
-                        "background-color: transparent; color: #475569; font-weight: 600; border-right: none;"
-                    )
+            for k, btn in self._nav_by_key.items():
+                set_prop(btn, "active", k == key)
             self.refresh_shift_status()
 
         def _show_dashboard(self):
@@ -389,7 +409,7 @@ if HAS_QT:
         def _allow(self, screen: str) -> bool:
             if can_open(self.perms, screen):
                 return True
-            QMessageBox.warning(self, ar.WARNING, ar.ACCESS_DENIED_SCREEN)
+            show_error(self, message=ar.ACCESS_DENIED_SCREEN)
             return False
 
         def _confirm_logout(self):
@@ -412,7 +432,20 @@ if HAS_QT:
             self.timer.stop()
             self.close()
 
+        def _settings(self) -> QSettings:
+            return QSettings(str(DATA_DIR / "window.ini"), QSettings.IniFormat)
+
+        def _restore_geometry(self) -> None:
+            """Restore the last size/position; fall back to a size that fits 1366x768."""
+            geo = self._settings().value("main/geometry")
+            if geo is not None and self.restoreGeometry(geo):
+                return
+            screen = self.screen().availableGeometry() if self.screen() else None
+            w, h = (min(1340, screen.width()), min(860, screen.height())) if screen else (1340, 860)
+            self.resize(w, h)
+
         def closeEvent(self, event):
+            self._settings().setValue("main/geometry", self.saveGeometry())
             if hasattr(self, "session") and self.session:
                 self.session.close()
             event.accept()

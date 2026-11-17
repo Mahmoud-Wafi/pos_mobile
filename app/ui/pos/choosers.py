@@ -12,6 +12,7 @@ from app.core import clock
 from app.core.money import format_money, parse_egp_input, piasters_to_input
 from app.i18n import ar
 from app.services import inventory_service, sales_service
+from app.ui.design.style import style_label
 
 
 def _make_table(headers: list[str]) -> QTableWidget:
@@ -141,7 +142,7 @@ class LineEditDialog(QDialog):
         form.addRow(ar.CART_UNIT_PRICE, self.price)
         form.addRow(ar.CART_LINE_DISCOUNT, self.discount)
         hint = QLabel(ar.CART_PRICE_APPROVAL)
-        hint.setStyleSheet("color: #64748B; font-size: 11px;")
+        style_label(hint, size="caption", tone="muted")
         form.addRow(hint)
         btns = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         btns.accepted.connect(self._ok)

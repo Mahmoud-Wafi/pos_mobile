@@ -7,6 +7,7 @@ from PySide6.QtWidgets import QDialog, QFormLayout, QLabel, QLineEdit, QPushButt
 from app.core.money import format_money, parse_egp_input
 from app.i18n import ar
 from app.services import shift_service
+from app.ui.design.style import style_label
 
 
 class CloseShiftDialog(QDialog):
@@ -30,7 +31,7 @@ class CloseShiftDialog(QDialog):
 
         self.hint = QLabel(ar.SHIFT_CLOSE_BLIND_HINT)
         self.hint.setWordWrap(True)
-        self.hint.setStyleSheet("color: #475569;")
+        style_label(self.hint, tone="muted")
         self.root.addWidget(self.hint)
 
         self.form = QFormLayout()
@@ -42,7 +43,7 @@ class CloseShiftDialog(QDialog):
         self.root.addLayout(self.form)
 
         self.error_lbl = QLabel("")
-        self.error_lbl.setStyleSheet("color: #DC2626; font-weight: 600;")
+        style_label(self.error_lbl, tone="danger", bold=True)
         self.root.addWidget(self.error_lbl)
 
         self.btn = QPushButton(ar.SHIFT_CONFIRM_CLOSE)
@@ -76,7 +77,7 @@ class CloseShiftDialog(QDialog):
     def _show_result(self) -> None:
         sh = self.result_shift
         self.hint.setText(ar.SHIFT_RESULT_TITLE)
-        self.hint.setStyleSheet("font-size: 16px; font-weight: 700; color: #0F172A;")
+        style_label(self.hint, size="title", tone="text", bold=True)
         self.error_lbl.setText("")
         for w in (self.actual_edit, self.notes_edit):
             w.setEnabled(False)

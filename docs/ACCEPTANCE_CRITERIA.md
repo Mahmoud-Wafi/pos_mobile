@@ -51,13 +51,13 @@ Baseline before this work: 114 tests. Current: 164 passing (`QT_QPA_PLATFORM=off
 
 | # | Criterion | Status |
 |---|---|---|
-| 2.1 | `app/ui/design/tokens.py` defines colors (semantic names), spacing (4/8/12/16/24), radii (8/12) and a type scale (12/13/14/16/20/28). The global QSS is generated from the tokens. | [ ] |
-| 2.2 | Component library in `app/ui/components/`: Card, KpiCard, PageHeader, button variants (primary / secondary / danger / ghost), StatusPill, DataTable, SearchField, MoneyLineEdit, FormRow, Toast, ConfirmDialog, EmptyState. | [ ] |
-| 2.3 | At most about 15 inline `setStyleSheet` calls remain in `app/ui` (currently 291), and only for dynamic values. The sidebar active state is a QSS state, not an inline override. | [ ] |
-| 2.4 | Emoji used as icons are replaced by a bundled SVG set (Lucide or Tabler, MIT, license file included), tinted by state, with text labels kept. | [ ] |
-| 2.5 | App shell: header with shop name, shift pill and user menu; icon sidebar with the active mark on the right edge and `Ctrl+1…9` shortcuts; status bar with DB state, last backup, user and version. Window size and position are remembered. Works at 1366×768, 1920×1080 and 125%/150% scaling. | [ ] |
-| 2.6 | Success messages are auto-dismissing toasts. Errors are short Arabic messages with an optional details section and never show Python exception text. Destructive actions use `ConfirmDialog`. | [ ] |
-| 2.7 | Contrast meets WCAG AA (secondary text at least `#64748B` on white). Visible 2 px focus ring on buttons, inputs and tabs (the global `outline: none` is removed). Minimum control height 40 px, base font 13–14 px, never below 12 px. | [ ] |
+| 2.1 | `app/ui/design/tokens.py` defines colors (semantic names), spacing (4/8/12/16/24), radii (8/12) and a type scale (12/13/14/16/20/28). The global QSS is generated from the tokens. | [x] |
+| 2.2 | Component library in `app/ui/components/`: Card, KpiCard, PageHeader, button variants (primary / secondary / danger / ghost), StatusPill, DataTable, SearchField, MoneyLineEdit, FormRow, Toast, ConfirmDialog, EmptyState. | [x] |
+| 2.3 | At most about 15 inline `setStyleSheet` calls remain in `app/ui` (currently 291), and only for dynamic values. The sidebar active state is a QSS state, not an inline override. | [x] |
+| 2.4 | Emoji used as icons are replaced by a bundled SVG set (Lucide or Tabler, MIT, license file included), tinted by state, with text labels kept. | [x] |
+| 2.5 | App shell: header with shop name, shift pill and user menu; icon sidebar with the active mark on the right edge and `Ctrl+1…9` shortcuts; status bar with DB state, last backup, user and version. Window size and position are remembered. Works at 1366×768, 1920×1080 and 125%/150% scaling. | [~] |
+| 2.6 | Success messages are auto-dismissing toasts. Errors are short Arabic messages with an optional details section and never show Python exception text. Destructive actions use `ConfirmDialog`. | [~] |
+| 2.7 | Contrast meets WCAG AA (secondary text at least `#64748B` on white). Visible 2 px focus ring on buttons, inputs and tabs (the global `outline: none` is removed). Minimum control height 40 px, base font 13–14 px, never below 12 px. | [x] |
 
 ## Phase 3 — Sales flow
 

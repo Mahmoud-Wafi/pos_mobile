@@ -13,6 +13,7 @@ from PySide6.QtWidgets import (
     QTabWidget, QMessageBox, QFrame,
 )
 
+from app.ui.components import show_error
 from app.core.money import format_money
 from app.models.purchase import Purchase, Supplier, UsedDevicePurchase
 from app.services import purchase_service
@@ -20,6 +21,7 @@ from app.ui.purchases.purchase_invoice_dialog import PurchaseInvoiceDialog
 from app.ui.purchases.supplier_dialog import SupplierDialog
 from app.ui.purchases.supplier_payment_dialog import SupplierPaymentDialog
 from app.ui.purchases.used_device_dialog import UsedDeviceDialog
+from app.ui.design.style import variant
 
 
 class PurchasesWidget(QWidget):
@@ -36,43 +38,22 @@ class PurchasesWidget(QWidget):
         main_layout.setSpacing(12)
 
         self.tabs = QTabWidget()
-        self.tabs.setStyleSheet("""
-            QTabWidget::pane {
-                border: 1px solid #E2E8F0;
-                background-color: #FFFFFF;
-                border-radius: 8px;
-                padding: 12px;
-            }
-            QTabBar::tab {
-                background: #F1F5F9;
-                color: #475569;
-                font-weight: bold;
-                font-size: 13px;
-                padding: 10px 20px;
-                margin-left: 4px;
-                border-top-left-radius: 8px;
-                border-top-right-radius: 8px;
-            }
-            QTabBar::tab:selected {
-                background: #2563EB;
-                color: white;
-            }
-        """)
+
 
         # ── Tab 1: فواتير المشتريات ─────────────────────────
         self.tab_invoices = QWidget()
         self._setup_invoices_tab()
-        self.tabs.addTab(self.tab_invoices, "📦 فواتير المشتريات")
+        self.tabs.addTab(self.tab_invoices, "فواتير المشتريات")
 
         # ── Tab 2: الأجهزة المستعملة ────────────────────────
         self.tab_used = QWidget()
         self._setup_used_tab()
-        self.tabs.addTab(self.tab_used, "📱 الأجهزة المستعملة والإقرارات")
+        self.tabs.addTab(self.tab_used, "الأجهزة المستعملة والإقرارات")
 
         # ── Tab 3: الموردين والمدفوعات ───────────────────────
         self.tab_suppliers = QWidget()
         self._setup_suppliers_tab()
-        self.tabs.addTab(self.tab_suppliers, "🏢 الموردين والحسابات")
+        self.tabs.addTab(self.tab_suppliers, "الموردين والحسابات")
 
         main_layout.addWidget(self.tabs)
 
@@ -86,19 +67,19 @@ class PurchasesWidget(QWidget):
         # Bar
         bar = QHBoxLayout()
         self.inv_search_edit = QLineEdit()
-        self.inv_search_edit.setFixedHeight(38)
-        self.inv_search_edit.setPlaceholderText("🔍 بحث برقم الفاتورة أو اسم المورد...")
+        self.inv_search_edit.setMinimumHeight(40)
+        self.inv_search_edit.setPlaceholderText("بحث برقم الفاتورة أو اسم المورد...")
         self.inv_search_edit.textChanged.connect(self._filter_invoices)
         bar.addWidget(self.inv_search_edit, 1)
 
-        btn_refresh = QPushButton("🔄 تحديث")
-        btn_refresh.setFixedHeight(38)
+        btn_refresh = QPushButton("تحديث")
+        btn_refresh.setMinimumHeight(40)
         btn_refresh.clicked.connect(self.load_invoices)
         bar.addWidget(btn_refresh)
 
-        btn_new_inv = QPushButton("➕ فاتورة شراء جديدة")
-        btn_new_inv.setFixedHeight(38)
-        btn_new_inv.setStyleSheet("background-color: #2563EB; color: white; border-radius: 6px; font-weight: bold; padding: 0 16px;")
+        btn_new_inv = QPushButton("فاتورة شراء جديدة")
+        btn_new_inv.setMinimumHeight(40)
+        variant(btn_new_inv, "primary")
         btn_new_inv.clicked.connect(self._open_new_invoice_dialog)
         bar.addWidget(btn_new_inv)
         layout.addLayout(bar)
@@ -182,19 +163,19 @@ class PurchasesWidget(QWidget):
 
         bar = QHBoxLayout()
         self.used_search_edit = QLineEdit()
-        self.used_search_edit.setFixedHeight(38)
-        self.used_search_edit.setPlaceholderText("🔍 بحث باسم البائع، الرقم القومي، أو الهاتف...")
+        self.used_search_edit.setMinimumHeight(40)
+        self.used_search_edit.setPlaceholderText("بحث باسم البائع، الرقم القومي، أو الهاتف...")
         self.used_search_edit.textChanged.connect(self._filter_used)
         bar.addWidget(self.used_search_edit, 1)
 
-        btn_refresh = QPushButton("🔄 تحديث")
-        btn_refresh.setFixedHeight(38)
+        btn_refresh = QPushButton("تحديث")
+        btn_refresh.setMinimumHeight(40)
         btn_refresh.clicked.connect(self.load_used_purchases)
         bar.addWidget(btn_refresh)
 
-        btn_new_used = QPushButton("📱 شراء جهاز مستعمل جديد")
-        btn_new_used.setFixedHeight(38)
-        btn_new_used.setStyleSheet("background-color: #16A34A; color: white; border-radius: 6px; font-weight: bold; padding: 0 16px;")
+        btn_new_used = QPushButton("شراء جهاز مستعمل جديد")
+        btn_new_used.setMinimumHeight(40)
+        variant(btn_new_used, "success")
         btn_new_used.clicked.connect(self._open_new_used_dialog)
         bar.addWidget(btn_new_used)
         layout.addLayout(bar)
@@ -261,8 +242,8 @@ class PurchasesWidget(QWidget):
             price_item.setTextAlignment(Qt.AlignCenter)
             self.used_table.setItem(idx, 6, price_item)
 
-            btn_print = QPushButton("🖨️ طباعة")
-            btn_print.setStyleSheet("background-color: #EFF6FF; color: #2563EB; border: 1px solid #BFDBFE; border-radius: 4px; font-weight: bold;")
+            btn_print = QPushButton("طباعة")
+            variant(btn_print, "secondary")
             btn_print.clicked.connect(lambda _, rec_id=u.id: self._print_declaration(rec_id))
             self.used_table.setCellWidget(idx, 7, btn_print)
 
@@ -279,7 +260,7 @@ class PurchasesWidget(QWidget):
             elif sys.platform.startswith("darwin"):
                 subprocess.Popen(["open", str(pdf_path)])
         except Exception as e:
-            QMessageBox.critical(self, "خطأ", f"تعذر فتح أو طباعة الإقرار:\n{str(e)}")
+            show_error(self, message=f"تعذر فتح أو طباعة الإقرار:\n{str(e)}")
 
     # ── Tab 3 Implementation (Suppliers) ──────────────────────────────
 
@@ -290,19 +271,19 @@ class PurchasesWidget(QWidget):
 
         bar = QHBoxLayout()
         self.sup_search_edit = QLineEdit()
-        self.sup_search_edit.setFixedHeight(38)
-        self.sup_search_edit.setPlaceholderText("🔍 بحث باسم المورد أو رقم الهاتف...")
+        self.sup_search_edit.setMinimumHeight(40)
+        self.sup_search_edit.setPlaceholderText("بحث باسم المورد أو رقم الهاتف...")
         self.sup_search_edit.textChanged.connect(self._filter_suppliers)
         bar.addWidget(self.sup_search_edit, 1)
 
-        btn_refresh = QPushButton("🔄 تحديث")
-        btn_refresh.setFixedHeight(38)
+        btn_refresh = QPushButton("تحديث")
+        btn_refresh.setMinimumHeight(40)
         btn_refresh.clicked.connect(self.load_suppliers)
         bar.addWidget(btn_refresh)
 
-        btn_new_sup = QPushButton("➕ إضافة مورد جديد")
-        btn_new_sup.setFixedHeight(38)
-        btn_new_sup.setStyleSheet("background-color: #2563EB; color: white; border-radius: 6px; font-weight: bold; padding: 0 16px;")
+        btn_new_sup = QPushButton("إضافة مورد جديد")
+        btn_new_sup.setMinimumHeight(40)
+        variant(btn_new_sup, "primary")
         btn_new_sup.clicked.connect(self._open_new_supplier_dialog)
         bar.addWidget(btn_new_sup)
         layout.addLayout(bar)
@@ -366,8 +347,8 @@ class PurchasesWidget(QWidget):
 
             self.sup_table.setItem(idx, 4, QTableWidgetItem(s.notes or "—"))
 
-            btn_pay = QPushButton("💳 سداد دفعة")
-            btn_pay.setStyleSheet("background-color: #FEF3C7; color: #B45309; border: 1px solid #F59E0B; border-radius: 4px; font-weight: bold;")
+            btn_pay = QPushButton("سداد دفعة")
+            variant(btn_pay, "secondary")
             btn_pay.clicked.connect(lambda _, sup=s: self._pay_supplier_dialog(sup))
             self.sup_table.setCellWidget(idx, 5, btn_pay)
 

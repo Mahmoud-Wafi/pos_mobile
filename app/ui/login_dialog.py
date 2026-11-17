@@ -10,6 +10,7 @@ from app.core.database import get_session
 from app.core.security import verify_password
 from app.i18n import ar
 from app.services import auth_service
+from app.ui.design.style import style_label
 
 DEFAULT_PASSWORDS = {"admin123", "cashier123", "wallet123"}
 
@@ -34,10 +35,10 @@ class LoginDialog(QDialog):
         root.setSpacing(12)
 
         title = QLabel(ar.LOCK_SCREEN_TITLE if locked else ar.LOGIN_TITLE)
-        title.setStyleSheet("font-size: 20px; font-weight: 700; color: #0F172A;")
+        style_label(title, size="h2", tone="text", bold=True)
         title.setAlignment(Qt.AlignCenter)
         sub = QLabel(ar.LOGIN_SUBTITLE)
-        sub.setStyleSheet("color: #64748B;")
+        style_label(sub, tone="muted")
         sub.setAlignment(Qt.AlignCenter)
         root.addWidget(title)
         root.addWidget(sub)
@@ -53,7 +54,7 @@ class LoginDialog(QDialog):
         root.addLayout(form)
 
         self.error_lbl = QLabel("")
-        self.error_lbl.setStyleSheet("color: #DC2626; font-weight: 600;")
+        style_label(self.error_lbl, tone="danger", bold=True)
         self.error_lbl.setWordWrap(True)
         self.error_lbl.setAlignment(Qt.AlignCenter)
         root.addWidget(self.error_lbl)
@@ -121,7 +122,7 @@ class ForcePasswordDialog(QDialog):
         root.addLayout(form)
 
         self.error_lbl = QLabel("")
-        self.error_lbl.setStyleSheet("color: #DC2626; font-weight: 600;")
+        style_label(self.error_lbl, tone="danger", bold=True)
         self.error_lbl.setWordWrap(True)
         root.addWidget(self.error_lbl)
 

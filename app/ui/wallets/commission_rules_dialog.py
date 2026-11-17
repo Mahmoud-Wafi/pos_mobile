@@ -10,11 +10,15 @@ from PySide6.QtWidgets import (
 )
 
 from decimal import Decimal
+from app.ui.components import show_error, show_toast
 from app.core.money import parse_egp_input, parse_percent_to_bp
 from app.core.money import egp_to_piasters, format_money, piasters_to_egp
 from app.core.money import piasters_to_input
 from app.models.wallet import CommissionRule
 from app.services import wallet_service
+from app.ui.design.style import set_prop, style_label, variant
+from app.ui.design import icons
+from app.ui.design.tokens import COLORS
 
 
 class CommissionRulesDialog(QDialog):
@@ -25,40 +29,7 @@ class CommissionRulesDialog(QDialog):
         self.setWindowTitle("قواعد ونسب العمولات للمحافظ الإلكترونية")
         self.resize(850, 580)
         self.setModal(True)
-        self.setStyleSheet("""
-            QDialog {
-                background-color: #F8FAFC;
-            }
-            QLabel {
-                color: #0F172A;
-                font-size: 13px;
-                font-weight: 600;
-            }
-            QLineEdit, QComboBox {
-                background-color: #FFFFFF;
-                border: 1px solid #CBD5E1;
-                border-radius: 8px;
-                padding: 8px 12px;
-                font-size: 13px;
-                color: #0F172A;
-            }
-            QLineEdit:focus, QComboBox:focus {
-                border: 2px solid #2563EB;
-            }
-            QTableWidget {
-                background-color: #FFFFFF;
-                border: 1px solid #E2E8F0;
-                border-radius: 8px;
-            }
-            QHeaderView::section {
-                background-color: #F1F5F9;
-                color: #334155;
-                font-weight: bold;
-                padding: 8px;
-                border: none;
-                border-bottom: 1px solid #E2E8F0;
-            }
-        """)
+
         self._build_ui()
         self.load_rules()
 
@@ -69,16 +40,16 @@ class CommissionRulesDialog(QDialog):
 
         # Header
         hdr = QHBoxLayout()
-        icon = QLabel("⚙️")
-        icon.setStyleSheet("font-size: 26px;")
+        icon = QLabel()
+        icon.setPixmap(icons.pixmap("settings", COLORS["primary"], 28))
         hdr.addWidget(icon)
 
         t_box = QVBoxLayout()
         t_box.setSpacing(2)
         lbl_t = QLabel("قواعد حساب عمولات العمليات (إيداع، سحب، فواتير)")
-        lbl_t.setStyleSheet("font-size: 17px; font-weight: bold; color: #0F172A;")
+        style_label(lbl_t, size="title", tone="text", bold=True)
         lbl_sub = QLabel("يتم احتساب العمولة تلقائياً عند إدخال المبلغ بناءً على هذه الشرائح")
-        lbl_sub.setStyleSheet("font-size: 12px; color: #64748B; font-weight: normal;")
+        style_label(lbl_sub, size="caption", tone="muted")
         t_box.addWidget(lbl_t)
         t_box.addWidget(lbl_sub)
         hdr.addLayout(t_box)
@@ -87,7 +58,7 @@ class CommissionRulesDialog(QDialog):
 
         # Add Rule Quick Bar
         add_box = QFrame()
-        add_box.setStyleSheet("background-color: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 8px; padding: 10px;")
+        set_prop(add_box, "card", True)
         add_grid = QGridLayout(add_box)
         add_grid.setHorizontalSpacing(10)
         add_grid.setVerticalSpacing(6)
@@ -128,9 +99,9 @@ class CommissionRulesDialog(QDialog):
         self.pct_edit.setValidator(QDoubleValidator(0.0, 100.0, 2))
         add_grid.addWidget(self.pct_edit, 1, 5)
 
-        btn_add = QPushButton("➕ إضافة قاعدة")
-        btn_add.setFixedHeight(36)
-        btn_add.setStyleSheet("background-color: #2563EB; color: white; border-radius: 6px; font-weight: bold; padding: 0 14px;")
+        btn_add = QPushButton("إضافة قاعدة")
+        btn_add.setMinimumHeight(40)
+        variant(btn_add, "primary")
         btn_add.clicked.connect(self._add_rule)
         add_grid.addWidget(btn_add, 1, 6)
 
@@ -158,7 +129,7 @@ class CommissionRulesDialog(QDialog):
 
         btn_close = QPushButton("إغلاق")
         btn_close.setFixedHeight(40)
-        btn_close.setStyleSheet("background-color: #F1F5F9; color: #475569; border: 1px solid #CBD5E1; border-radius: 8px; font-weight: bold;")
+        variant(btn_close, "secondary")
         btn_close.clicked.connect(self.accept)
         layout.addWidget(btn_close)
 
@@ -192,8 +163,8 @@ class CommissionRulesDialog(QDialog):
             )
             self.session.commit()
             self.load_rules()
-            QMessageBox.information(self, "نجاح", "تم حفظ قاعدة العمولة بنجاح!")
+            show_toast(self, "تم حفظ قاعدة العمولة بنجاح!")
         except Exception as e:
             self.session.rollback()
-            QMessageBox.critical(self, "خطأ", f"تعذر إضافة القاعدة:\n{str(e)}")
+            show_error(self, message=f"تعذر إضافة القاعدة:\n{str(e)}")
 

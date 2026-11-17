@@ -243,3 +243,12 @@ HISTORY_COL_TOTAL = "الإجمالي"
 HISTORY_COL_STATUS = "الحالة"
 HISTORY_NO_RESULTS = "لا توجد فواتير مطابقة"
 SALE_STATUS_LABELS = {"posted": "مكتملة", "void": "ملغاة", "held": "معلقة"}
+
+# Shell / design system
+APP_SUBTITLE = "نظام متكامل للمبيعات، الأجهزة بالسيريال (IMEI)، والمحافظ الإلكترونية"
+NAV_DASHBOARD = "لوحة التحكم"
+NAV_ADMIN = "الإدارة والتقارير"
+STATUS_DB_OK = "قاعدة البيانات: تعمل (بدون إنترنت)"
+STATUS_LAST_BACKUP = "آخر نسخة احتياطية"
+STATUS_USER = "المستخدم"
+NO_BACKUP_YET = "لا توجد"

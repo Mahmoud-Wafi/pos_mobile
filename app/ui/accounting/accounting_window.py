@@ -18,6 +18,7 @@ from app.ui.accounting.daily_close_dialog import DailyCloseDialog
 from app.ui.accounting.expense_dialog import ExpenseDialog
 from app.ui.accounting.owner_draw_dialog import OwnerDrawDialog
 from app.ui.accounting.transfer_dialog import TransferDialog
+from app.ui.design.style import set_prop, style_label, variant
 
 
 class AccountingWidget(QWidget):
@@ -37,37 +38,37 @@ class AccountingWidget(QWidget):
         top_bar = QHBoxLayout()
         top_bar.setSpacing(10)
 
-        lbl_head = QLabel("💰 إدارة الخزينة والمصروفات والورديات")
-        lbl_head.setStyleSheet("font-size: 18px; font-weight: bold; color: #0F172A;")
+        lbl_head = QLabel("إدارة الخزينة والمصروفات والورديات")
+        style_label(lbl_head, size="h2", tone="text", bold=True)
         top_bar.addWidget(lbl_head)
         top_bar.addStretch()
 
-        btn_refresh = QPushButton("🔄 تحديث")
-        btn_refresh.setFixedHeight(38)
+        btn_refresh = QPushButton("تحديث")
+        btn_refresh.setMinimumHeight(40)
         btn_refresh.clicked.connect(self.load_all)
         top_bar.addWidget(btn_refresh)
 
-        btn_daily_close = QPushButton("📊 الإغلاق المالي اليومي")
-        btn_daily_close.setFixedHeight(38)
-        btn_daily_close.setStyleSheet("background-color: #EFF6FF; color: #2563EB; border: 1px solid #BFDBFE; border-radius: 6px; font-weight: bold; padding: 0 14px;")
+        btn_daily_close = QPushButton("الإغلاق المالي اليومي")
+        btn_daily_close.setMinimumHeight(40)
+        variant(btn_daily_close, "secondary")
         btn_daily_close.clicked.connect(self._open_daily_close)
         top_bar.addWidget(btn_daily_close)
 
-        btn_transfer = QPushButton("🔄 تحويل بين الحسابات")
-        btn_transfer.setFixedHeight(38)
-        btn_transfer.setStyleSheet("background-color: #FEF3C7; color: #B45309; border: 1px solid #F59E0B; border-radius: 6px; font-weight: bold; padding: 0 14px;")
+        btn_transfer = QPushButton("تحويل بين الحسابات")
+        btn_transfer.setMinimumHeight(40)
+        variant(btn_transfer, "secondary")
         btn_transfer.clicked.connect(self._open_transfer)
         top_bar.addWidget(btn_transfer)
 
-        btn_expense = QPushButton("💸 تسجيل مصروف")
-        btn_expense.setFixedHeight(38)
-        btn_expense.setStyleSheet("background-color: #DC2626; color: white; border-radius: 6px; font-weight: bold; padding: 0 16px;")
+        btn_expense = QPushButton("تسجيل مصروف")
+        btn_expense.setMinimumHeight(40)
+        variant(btn_expense, "danger")
         btn_expense.clicked.connect(self._open_expense)
         top_bar.addWidget(btn_expense)
 
-        btn_draw = QPushButton("💼 سحب مالك")
-        btn_draw.setFixedHeight(38)
-        btn_draw.setStyleSheet("background-color: #4F46E5; color: white; border-radius: 6px; font-weight: bold; padding: 0 14px;")
+        btn_draw = QPushButton("سحب مالك")
+        btn_draw.setMinimumHeight(40)
+        variant(btn_draw, "secondary")
         btn_draw.clicked.connect(self._open_owner_draw)
         top_bar.addWidget(btn_draw)
 
@@ -84,49 +85,28 @@ class AccountingWidget(QWidget):
         scroll_cards.setWidgetResizable(True)
         scroll_cards.setFixedHeight(115)
         scroll_cards.setFrameShape(QFrame.NoFrame)
-        scroll_cards.setStyleSheet("background: transparent;")
+        set_prop(scroll_cards, "transparent", True)
         scroll_cards.setWidget(self.cards_container)
         main_layout.addWidget(scroll_cards)
 
         # ── Tabs ────────────────────────────────────────────
         self.tabs = QTabWidget()
-        self.tabs.setStyleSheet("""
-            QTabWidget::pane {
-                border: 1px solid #E2E8F0;
-                background-color: #FFFFFF;
-                border-radius: 8px;
-                padding: 12px;
-            }
-            QTabBar::tab {
-                background: #F1F5F9;
-                color: #475569;
-                font-weight: bold;
-                font-size: 13px;
-                padding: 10px 20px;
-                margin-left: 4px;
-                border-top-left-radius: 8px;
-                border-top-right-radius: 8px;
-            }
-            QTabBar::tab:selected {
-                background: #2563EB;
-                color: white;
-            }
-        """)
+
 
         # Tab 1: Ledger
         self.tab_ledger = QWidget()
         self._setup_ledger_tab()
-        self.tabs.addTab(self.tab_ledger, "📑 حركات النقدية (Ledger)")
+        self.tabs.addTab(self.tab_ledger, "حركات النقدية (Ledger)")
 
         # Tab 2: Expenses
         self.tab_expenses = QWidget()
         self._setup_expenses_tab()
-        self.tabs.addTab(self.tab_expenses, "💸 المصروفات التشغيلية")
+        self.tabs.addTab(self.tab_expenses, "المصروفات التشغيلية")
 
         # Tab 3: Draws & Transfers
         self.tab_draws = QWidget()
         self._setup_draws_tab()
-        self.tabs.addTab(self.tab_draws, "💼 مسحوبات المالك والتحويلات")
+        self.tabs.addTab(self.tab_draws, "مسحوبات المالك والتحويلات")
 
         main_layout.addWidget(self.tabs, 1)
 
@@ -137,7 +117,7 @@ class AccountingWidget(QWidget):
 
         bar = QHBoxLayout()
         self.ledger_filter = QComboBox()
-        self.ledger_filter.setFixedHeight(36)
+        self.ledger_filter.setMinimumHeight(40)
         self.ledger_filter.addItem("جميع الحركات", "all")
         self.ledger_filter.addItem("الوارد فقط (Inflow)", "in")
         self.ledger_filter.addItem("المنصرف فقط (Outflow)", "out")
@@ -225,35 +205,29 @@ class AccountingWidget(QWidget):
 
         for acc in accounts:
             matched = accounting_service.verify_drawer_balance_integrity(self.session, acc.id)
-            status_text = "🟢 رصيد مطابق" if matched else "🔴 غير مطابق"
+            status_text = "رصيد مطابق" if matched else "غير مطابق"
 
             card = QFrame()
             card.setFixedWidth(240)
             card.setFixedHeight(100)
-            card.setStyleSheet("""
-                QFrame {
-                    background-color: #FFFFFF;
-                    border: 1px solid #CBD5E1;
-                    border-radius: 10px;
-                }
-            """)
+            set_prop(card, "card", True)
             c_layout = QVBoxLayout(card)
             c_layout.setContentsMargins(12, 8, 12, 8)
             c_layout.setSpacing(4)
 
             h_row = QHBoxLayout()
-            icon = icons.get(acc.type, "💰")
+            icon = icons.get(acc.type, "")
             lbl_name = QLabel(f"{icon} {acc.name}")
-            lbl_name.setStyleSheet("font-weight: bold; font-size: 13px; color: #0F172A;")
+            style_label(lbl_name, size="body", tone="text", bold=True)
             lbl_status = QLabel(status_text)
-            lbl_status.setStyleSheet("font-size: 11px;")
+            style_label(lbl_status, size="caption")
             h_row.addWidget(lbl_name)
             h_row.addStretch()
             h_row.addWidget(lbl_status)
             c_layout.addLayout(h_row)
 
             lbl_bal = QLabel(format_money(acc.balance))
-            lbl_bal.setStyleSheet("font-size: 19px; font-weight: bold; color: #2563EB;")
+            style_label(lbl_bal, size="h2", tone="primary", bold=True)
             c_layout.addWidget(lbl_bal)
 
             self.cards_layout.addWidget(card)

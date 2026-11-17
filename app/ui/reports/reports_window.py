@@ -15,8 +15,10 @@ from PySide6.QtWidgets import (
     QComboBox, QMessageBox, QFrame, QFileDialog,
 )
 
+from app.ui.components import show_error
 from app.core.money import format_money
 from app.services import report_service
+from app.ui.design.style import set_prop, style_label, variant
 
 
 class ReportsWidget(QWidget):
@@ -35,21 +37,21 @@ class ReportsWidget(QWidget):
 
         # ── Control & Filter Bar ────────────────────────────
         bar = QFrame()
-        bar.setStyleSheet("background-color: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 10px; padding: 12px;")
+        set_prop(bar, "card", True)
         bar_layout = QHBoxLayout(bar)
         bar_layout.setSpacing(12)
 
         # Report Type Selector
         bar_layout.addWidget(QLabel("نوع التقرير:"))
         self.report_type_combo = QComboBox()
-        self.report_type_combo.setFixedHeight(38)
+        self.report_type_combo.setMinimumHeight(40)
         self.report_type_combo.setMinimumWidth(220)
-        self.report_type_combo.addItem("🛒 تقرير المبيعات التفصيلي", "sales")
-        self.report_type_combo.addItem("📈 تقرير الأرباح والخسائر الشامل (P&L)", "profit")
-        self.report_type_combo.addItem("📦 تقرير تقييم وجرد المخزون", "stock")
-        self.report_type_combo.addItem("💳 تقرير المحافظ والعمولات", "wallet")
-        self.report_type_combo.addItem("👥 تقرير المديونيات وحسابات الآجل", "debts")
-        self.report_type_combo.addItem("💰 تقرير حركة الخزينة والنقدية", "cash")
+        self.report_type_combo.addItem("تقرير المبيعات التفصيلي", "sales")
+        self.report_type_combo.addItem("تقرير الأرباح والخسائر الشامل (P&L)", "profit")
+        self.report_type_combo.addItem("تقرير تقييم وجرد المخزون", "stock")
+        self.report_type_combo.addItem("تقرير المحافظ والعمولات", "wallet")
+        self.report_type_combo.addItem("تقرير المديونيات وحسابات الآجل", "debts")
+        self.report_type_combo.addItem("تقرير حركة الخزينة والنقدية", "cash")
         self.report_type_combo.currentIndexChanged.connect(self._on_type_changed)
         bar_layout.addWidget(self.report_type_combo)
 
@@ -57,7 +59,7 @@ class ReportsWidget(QWidget):
         self.lbl_from = QLabel("من تاريخ:")
         bar_layout.addWidget(self.lbl_from)
         self.date_from = QDateEdit()
-        self.date_from.setFixedHeight(38)
+        self.date_from.setMinimumHeight(40)
         self.date_from.setCalendarPopup(True)
         self.date_from.setDate(QDate.currentDate().addDays(-30))
         bar_layout.addWidget(self.date_from)
@@ -65,22 +67,22 @@ class ReportsWidget(QWidget):
         self.lbl_to = QLabel("إلى تاريخ:")
         bar_layout.addWidget(self.lbl_to)
         self.date_to = QDateEdit()
-        self.date_to.setFixedHeight(38)
+        self.date_to.setMinimumHeight(40)
         self.date_to.setCalendarPopup(True)
         self.date_to.setDate(QDate.currentDate())
         bar_layout.addWidget(self.date_to)
 
         # Run Button
-        btn_run = QPushButton("🔍 استخراج التقرير")
-        btn_run.setFixedHeight(38)
-        btn_run.setStyleSheet("background-color: #2563EB; color: white; border-radius: 6px; font-weight: bold; padding: 0 16px;")
+        btn_run = QPushButton("استخراج التقرير")
+        btn_run.setMinimumHeight(40)
+        variant(btn_run, "primary")
         btn_run.clicked.connect(self.run_report)
         bar_layout.addWidget(btn_run)
 
         # Export Excel Button
-        btn_export = QPushButton("📥 تصدير Excel (CSV)")
-        btn_export.setFixedHeight(38)
-        btn_export.setStyleSheet("background-color: #16A34A; color: white; border-radius: 6px; font-weight: bold; padding: 0 16px;")
+        btn_export = QPushButton("تصدير Excel (CSV)")
+        btn_export.setMinimumHeight(40)
+        variant(btn_export, "success")
         btn_export.clicked.connect(self.export_excel)
         bar_layout.addWidget(btn_export)
 
@@ -89,11 +91,11 @@ class ReportsWidget(QWidget):
 
         # ── KPI Summary Banner ──────────────────────────────
         self.kpi_banner = QFrame()
-        self.kpi_banner.setStyleSheet("background-color: #EFF6FF; border: 1px solid #BFDBFE; border-radius: 10px; padding: 12px;")
+        set_prop(self.kpi_banner, "banner", "info")
         self.kpi_layout = QHBoxLayout(self.kpi_banner)
         self.kpi_layout.setSpacing(20)
         self.lbl_summary = QLabel("جاري إعداد التقرير...")
-        self.lbl_summary.setStyleSheet("font-size: 14px; font-weight: bold; color: #1E3A8A;")
+        style_label(self.lbl_summary, size="label", tone="primary", bold=True)
         self.kpi_layout.addWidget(self.lbl_summary)
         self.kpi_layout.addStretch()
         main_layout.addWidget(self.kpi_banner)
@@ -104,21 +106,7 @@ class ReportsWidget(QWidget):
         self.table.setEditTriggers(QTableWidget.NoEditTriggers)
         self.table.setSelectionBehavior(QTableWidget.SelectRows)
         self.table.setAlternatingRowColors(True)
-        self.table.setStyleSheet("""
-            QTableWidget {
-                background-color: #FFFFFF;
-                border: 1px solid #E2E8F0;
-                border-radius: 10px;
-            }
-            QHeaderView::section {
-                background-color: #F8FAFC;
-                color: #334155;
-                font-weight: bold;
-                padding: 8px;
-                border: none;
-                border-bottom: 1px solid #E2E8F0;
-            }
-        """)
+
         main_layout.addWidget(self.table, 1)
 
     def _on_type_changed(self):
@@ -157,11 +145,11 @@ class ReportsWidget(QWidget):
 
             self.current_report_data = data
         except Exception as e:
-            QMessageBox.critical(self, "خطأ في استخراج التقرير", str(e))
+            show_error(self, e)
 
     def _render_sales(self, data: dict):
         self.lbl_summary.setText(
-            f"🛒 عدد الفواتير: {data['total_invoices']} | "
+            f"عدد الفواتير: {data['total_invoices']} | "
             f"إجمالي المبيعات: {format_money(data['total_net'])} | "
             f"المحصل: {format_money(data['total_paid'])} | "
             f"المتبقي (آجل): {format_money(data['total_remaining'])} | "
@@ -195,7 +183,7 @@ class ReportsWidget(QWidget):
         net = data["net_profit"]
         net_str = f"+{format_money(net)}" if net > 0 else format_money(net)
         self.lbl_summary.setText(
-            f"📈 إيرادات المبيعات: {format_money(data['sales_revenue'])} | "
+            f"إيرادات المبيعات: {format_money(data['sales_revenue'])} | "
             f"أرباح المبيعات: {format_money(data['sales_profit'])} | "
             f"أرباح المحافظ: {format_money(data['wallet_profit'])} | "
             f"المصروفات: -{format_money(data['total_expenses'])} | "
@@ -225,7 +213,7 @@ class ReportsWidget(QWidget):
 
     def _render_stock(self, data: dict):
         self.lbl_summary.setText(
-            f"📦 إجمالي الأصناف: {data['total_products']} | "
+            f"إجمالي الأصناف: {data['total_products']} | "
             f"الأصناف التي وصلت للحد الأدنى (نواقص): {data['low_stock_count']} صنف | "
             f"القيمة الإجمالية للمخزون بسعر التكلفة: {format_money(data['total_stock_cost_value']) if data['total_stock_cost_value'] else '—'} | "
             f"القيمة بسعر البيع: {format_money(data['total_stock_sale_value'])}"
@@ -244,7 +232,7 @@ class ReportsWidget(QWidget):
             self.table.setItem(idx, 4, QTableWidgetItem(str(r["quantity"])))
             self.table.setItem(idx, 5, QTableWidgetItem(str(r["min_stock"])))
 
-            st_item = QTableWidgetItem("⚠️ نقص مخزون" if r["is_low"] else "🟢 متوفر")
+            st_item = QTableWidgetItem("نقص مخزون" if r["is_low"] else "متوفر")
             if r["is_low"]:
                 st_item.setForeground(Qt.red)
             self.table.setItem(idx, 6, st_item)
@@ -257,7 +245,7 @@ class ReportsWidget(QWidget):
 
     def _render_wallet(self, data: dict):
         self.lbl_summary.setText(
-            f"💳 عدد العمليات: {data['total_operations']} | "
+            f"عدد العمليات: {data['total_operations']} | "
             f"إجمالي مبالغ العمليات: {format_money(data['total_amount'])} | "
             f"إجمالي العمولات: {format_money(data['total_commission'])} | "
             f"صافي أرباح المحافظ: {format_money(data['total_profit'])}"
@@ -280,7 +268,7 @@ class ReportsWidget(QWidget):
 
     def _render_debts(self, data: dict):
         self.lbl_summary.setText(
-            f"👥 ديون العملاء (لنا بالخارج): {format_money(data['total_receivables'])} (عدد {data['customers_count']} عميل) | "
+            f"ديون العملاء (لنا بالخارج): {format_money(data['total_receivables'])} (عدد {data['customers_count']} عميل) | "
             f"مستحقات الموردين (علينا): {format_money(data['total_payables'])} | "
             f"صافي المركز المالي للديون: {format_money(data['net_debt_position'])}"
         )
@@ -316,7 +304,7 @@ class ReportsWidget(QWidget):
 
     def _render_cash(self, data: dict):
         self.lbl_summary.setText(
-            f"💰 إجمالي المقبوضات: {format_money(data['total_in'])} | "
+            f"إجمالي المقبوضات: {format_money(data['total_in'])} | "
             f"إجمالي المدفوعات: {format_money(data['total_out'])} | "
             f"صافي التدفق النقدي: {format_money(data['net_cash_flow'])} | "
             f"الرصيد الفعلي الحالي بكافة الخزائن: {format_money(data['total_cash_now'])}"
@@ -332,11 +320,11 @@ class ReportsWidget(QWidget):
             b_item = QTableWidgetItem(format_money(bal))
             b_item.setTextAlignment(Qt.AlignCenter)
             self.table.setItem(idx, 1, b_item)
-            self.table.setItem(idx, 2, QTableWidgetItem("🟢 نشط"))
+            self.table.setItem(idx, 2, QTableWidgetItem("نشط"))
 
     def export_excel(self):
         if not self.current_report_data:
-            QMessageBox.warning(self, "تنبيه", "يرجى استخراج التقرير أولاً")
+            show_error(self, message="يرجى استخراج التقرير أولاً")
             return
 
         rep_name = self.report_type_combo.currentText().replace(" ", "_")
@@ -354,7 +342,7 @@ class ReportsWidget(QWidget):
             msg = QMessageBox(self)
             msg.setWindowTitle("تم التصدير بنجاح")
             msg.setText(f"تم تصدير التقرير بنجاح إلى:\n{dest_file}")
-            btn_open = msg.addButton("📂 فتح المجلد", QMessageBox.ActionRole)
+            btn_open = msg.addButton("فتح المجلد", QMessageBox.ActionRole)
             btn_ok = msg.addButton("حسناً", QMessageBox.AcceptRole)
             msg.exec()
 
@@ -367,5 +355,5 @@ class ReportsWidget(QWidget):
                 elif sys.platform.startswith("darwin"):
                     subprocess.Popen(["open", folder])
         except Exception as e:
-            QMessageBox.critical(self, "خطأ في التصدير", str(e))
+            show_error(self, e)
 

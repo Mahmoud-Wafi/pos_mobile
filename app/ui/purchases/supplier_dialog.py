@@ -9,9 +9,13 @@ from PySide6.QtWidgets import (
     QTextEdit, QPushButton, QMessageBox, QFrame,
 )
 
+from app.ui.components import show_error
 from app.core.money import egp_to_piasters, piasters_to_egp
 from app.models.purchase import Supplier
 from app.services import purchase_service
+from app.ui.design.style import set_prop, style_label, variant
+from app.ui.design import icons
+from app.ui.design.tokens import COLORS
 
 
 class SupplierDialog(QDialog):
@@ -23,28 +27,7 @@ class SupplierDialog(QDialog):
         self.setWindowTitle("تعديل بيانات مورد" if supplier else "إضافة مورد جديد")
         self.resize(500, 480)
         self.setModal(True)
-        self.setStyleSheet("""
-            QDialog {
-                background-color: #FFFFFF;
-            }
-            QLabel {
-                color: #0F172A;
-                font-size: 13px;
-                font-weight: 600;
-            }
-            QLineEdit, QTextEdit {
-                background-color: #F8FAFC;
-                border: 1px solid #CBD5E1;
-                border-radius: 8px;
-                padding: 10px 12px;
-                font-size: 13px;
-                color: #0F172A;
-            }
-            QLineEdit:focus, QTextEdit:focus {
-                background-color: #FFFFFF;
-                border: 2px solid #2563EB;
-            }
-        """)
+
         self._build_ui()
         if self.supplier:
             self._load_supplier_data()
@@ -56,16 +39,16 @@ class SupplierDialog(QDialog):
 
         # Header
         header = QHBoxLayout()
-        icon = QLabel("🏢")
-        icon.setStyleSheet("font-size: 28px;")
+        icon = QLabel()
+        icon.setPixmap(icons.pixmap("landmark", COLORS["primary"], 28))
         header.addWidget(icon)
 
         title_box = QVBoxLayout()
         title_box.setSpacing(2)
         lbl_title = QLabel("بيانات المورد التجاري" if not self.supplier else "تعديل بيانات المورد")
-        lbl_title.setStyleSheet("font-size: 17px; font-weight: bold; color: #0F172A;")
+        style_label(lbl_title, size="title", tone="text", bold=True)
         lbl_sub = QLabel("أدخل تفاصيل الاتصال والاسم التجاري للمورد")
-        lbl_sub.setStyleSheet("font-size: 12px; color: #64748B; font-weight: normal;")
+        style_label(lbl_sub, size="caption", tone="muted")
         title_box.addWidget(lbl_title)
         title_box.addWidget(lbl_sub)
         header.addLayout(title_box)
@@ -74,7 +57,7 @@ class SupplierDialog(QDialog):
 
         sep = QFrame()
         sep.setFrameShape(QFrame.HLine)
-        sep.setStyleSheet("color: #E2E8F0;")
+        set_prop(sep, "hline", True)
         layout.addWidget(sep)
 
         # Name
@@ -115,39 +98,13 @@ class SupplierDialog(QDialog):
 
         self.btn_cancel = QPushButton("إلغاء")
         self.btn_cancel.setFixedHeight(42)
-        self.btn_cancel.setStyleSheet("""
-            QPushButton {
-                background-color: #F1F5F9;
-                color: #475569;
-                border: 1px solid #CBD5E1;
-                border-radius: 8px;
-                font-size: 13px;
-                font-weight: 600;
-                padding: 0 20px;
-            }
-            QPushButton:hover {
-                background-color: #E2E8F0;
-            }
-        """)
+        variant(self.btn_cancel, "secondary")
         self.btn_cancel.clicked.connect(self.reject)
         btn_box.addWidget(self.btn_cancel)
 
-        self.btn_save = QPushButton("💾 حفظ بيانات المورد")
+        self.btn_save = QPushButton("حفظ بيانات المورد")
         self.btn_save.setFixedHeight(42)
-        self.btn_save.setStyleSheet("""
-            QPushButton {
-                background-color: #2563EB;
-                color: #FFFFFF;
-                border: none;
-                border-radius: 8px;
-                font-size: 13px;
-                font-weight: 600;
-                padding: 0 24px;
-            }
-            QPushButton:hover {
-                background-color: #1D4ED8;
-            }
-        """)
+        variant(self.btn_save, "primary")
         self.btn_save.clicked.connect(self._save)
         btn_box.addWidget(self.btn_save)
 
@@ -161,7 +118,7 @@ class SupplierDialog(QDialog):
     def _save(self):
         name = self.name_edit.text().strip()
         if not name:
-            QMessageBox.warning(self, "تنبيه", "يرجى كتابة اسم المورد أولاً")
+            show_error(self, message="يرجى كتابة اسم المورد أولاً")
             self.name_edit.setFocus()
             return
 
@@ -184,5 +141,5 @@ class SupplierDialog(QDialog):
             self.accept()
         except Exception as e:
             self.session.rollback()
-            QMessageBox.critical(self, "خطأ", f"تعذر حفظ المورد:\n{str(e)}")
+            show_error(self, message=f"تعذر حفظ المورد:\n{str(e)}")
 

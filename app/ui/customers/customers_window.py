@@ -14,6 +14,7 @@ from app.models.customer import Customer
 from app.services import customer_service
 from app.ui.customers.collect_payment_dialog import CollectPaymentDialog
 from app.ui.customers.customer_dialog import CustomerDialog
+from app.ui.design.style import set_prop, style_label, variant
 
 
 class CustomersWidget(QWidget):
@@ -34,26 +35,26 @@ class CustomersWidget(QWidget):
         top_bar = QHBoxLayout()
         top_bar.setSpacing(10)
 
-        lbl_head = QLabel("👥 إدارة العملاء وحسابات الآجل والديون")
-        lbl_head.setStyleSheet("font-size: 18px; font-weight: bold; color: #0F172A;")
+        lbl_head = QLabel("إدارة العملاء وحسابات الآجل والديون")
+        style_label(lbl_head, size="h2", tone="text", bold=True)
         top_bar.addWidget(lbl_head)
         top_bar.addStretch()
 
         self.search_edit = QLineEdit()
-        self.search_edit.setFixedHeight(38)
+        self.search_edit.setMinimumHeight(40)
         self.search_edit.setMinimumWidth(260)
-        self.search_edit.setPlaceholderText("🔍 بحث باسم العميل أو رقم الهاتف...")
+        self.search_edit.setPlaceholderText("بحث باسم العميل أو رقم الهاتف...")
         self.search_edit.textChanged.connect(self._filter_customers)
         top_bar.addWidget(self.search_edit)
 
-        btn_refresh = QPushButton("🔄 تحديث")
-        btn_refresh.setFixedHeight(38)
+        btn_refresh = QPushButton("تحديث")
+        btn_refresh.setMinimumHeight(40)
         btn_refresh.clicked.connect(self.load_customers)
         top_bar.addWidget(btn_refresh)
 
-        btn_add = QPushButton("➕ إضافة عميل جديد")
-        btn_add.setFixedHeight(38)
-        btn_add.setStyleSheet("background-color: #2563EB; color: white; border-radius: 6px; font-weight: bold; padding: 0 16px;")
+        btn_add = QPushButton("إضافة عميل جديد")
+        btn_add.setMinimumHeight(40)
+        variant(btn_add, "primary")
         btn_add.clicked.connect(self._open_new_customer)
         top_bar.addWidget(btn_add)
 
@@ -98,13 +99,13 @@ class CustomersWidget(QWidget):
         card = QFrame()
         card.setFixedWidth(240)
         card.setFixedHeight(75)
-        card.setStyleSheet("background-color: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 8px; padding: 8px 12px;")
+        set_prop(card, "card", True)
         layout = QVBoxLayout(card)
         layout.setContentsMargins(4, 4, 4, 4)
         layout.setSpacing(2)
 
         lbl_t = QLabel(title)
-        lbl_t.setStyleSheet("font-size: 11px; color: #64748B; font-weight: bold;")
+        style_label(lbl_t, size="caption", tone="muted", bold=True)
         layout.addWidget(lbl_t)
 
         lbl_v = QLabel(init_val)
@@ -161,13 +162,13 @@ class CustomersWidget(QWidget):
             a_layout.setContentsMargins(4, 2, 4, 2)
             a_layout.setSpacing(6)
 
-            btn_collect = QPushButton("💵 تحصيل")
-            btn_collect.setStyleSheet("background-color: #DCFCE7; color: #15803D; border: 1px solid #86EFAC; border-radius: 4px; font-weight: bold; font-size: 11px;")
+            btn_collect = QPushButton("تحصيل")
+            variant(btn_collect, "secondary")
             btn_collect.clicked.connect(lambda _, cust=c: self._open_collect(cust))
             a_layout.addWidget(btn_collect)
 
-            btn_edit = QPushButton("✏️ تعديل")
-            btn_edit.setStyleSheet("background-color: #F1F5F9; color: #475569; border: 1px solid #CBD5E1; border-radius: 4px; font-weight: bold; font-size: 11px;")
+            btn_edit = QPushButton("تعديل")
+            variant(btn_edit, "secondary")
             btn_edit.clicked.connect(lambda _, cust=c: self._open_edit(cust))
             a_layout.addWidget(btn_edit)
 

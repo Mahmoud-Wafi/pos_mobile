@@ -9,10 +9,14 @@ from PySide6.QtWidgets import (
     QPushButton, QMessageBox, QFrame, QTextEdit,
 )
 
+from app.ui.components import show_error
 from app.core.money import egp_to_piasters, format_money
 from app.core.money import piasters_to_input
 from app.models.customer import Customer
 from app.services import customer_service
+from app.ui.design.style import set_prop, style_label, variant
+from app.ui.design import icons
+from app.ui.design.tokens import COLORS
 
 
 class CustomerDialog(QDialog):
@@ -24,28 +28,7 @@ class CustomerDialog(QDialog):
         self.setWindowTitle("تعديل بيانات عميل" if customer else "إضافة عميل جديد")
         self.resize(480, 460)
         self.setModal(True)
-        self.setStyleSheet("""
-            QDialog {
-                background-color: #FFFFFF;
-            }
-            QLabel {
-                color: #0F172A;
-                font-size: 13px;
-                font-weight: 600;
-            }
-            QLineEdit, QTextEdit {
-                background-color: #F8FAFC;
-                border: 1px solid #CBD5E1;
-                border-radius: 8px;
-                padding: 10px 12px;
-                font-size: 13px;
-                color: #0F172A;
-            }
-            QLineEdit:focus, QTextEdit:focus {
-                background-color: #FFFFFF;
-                border: 2px solid #2563EB;
-            }
-        """)
+
         self._build_ui()
         if self.customer:
             self._load_data()
@@ -57,16 +40,16 @@ class CustomerDialog(QDialog):
 
         # Header
         hdr = QHBoxLayout()
-        icon = QLabel("👤")
-        icon.setStyleSheet("font-size: 28px;")
+        icon = QLabel()
+        icon.setPixmap(icons.pixmap("user", COLORS["primary"], 28))
         hdr.addWidget(icon)
 
         t_box = QVBoxLayout()
         t_box.setSpacing(2)
         lbl_t = QLabel("بيانات العميل وحساب الآجل" if not self.customer else "تعديل بيانات العميل")
-        lbl_t.setStyleSheet("font-size: 16px; font-weight: bold; color: #0F172A;")
+        style_label(lbl_t, size="title", tone="text", bold=True)
         lbl_sub = QLabel("تحديد حد الائتمان المسموح به ورقم الهاتف للمتابعة وإصدار الفواتير")
-        lbl_sub.setStyleSheet("font-size: 12px; color: #64748B; font-weight: normal;")
+        style_label(lbl_sub, size="caption", tone="muted")
         t_box.addWidget(lbl_t)
         t_box.addWidget(lbl_sub)
         hdr.addLayout(t_box)
@@ -75,7 +58,7 @@ class CustomerDialog(QDialog):
 
         sep = QFrame()
         sep.setFrameShape(QFrame.HLine)
-        sep.setStyleSheet("color: #E2E8F0;")
+        set_prop(sep, "hline", True)
         layout.addWidget(sep)
 
         # Name
@@ -114,33 +97,13 @@ class CustomerDialog(QDialog):
 
         btn_cancel = QPushButton("إلغاء")
         btn_cancel.setFixedHeight(42)
-        btn_cancel.setStyleSheet("""
-            QPushButton {
-                background-color: #F1F5F9;
-                color: #475569;
-                border: 1px solid #CBD5E1;
-                border-radius: 8px;
-                font-weight: 600;
-                padding: 0 18px;
-            }
-        """)
+        variant(btn_cancel, "secondary")
         btn_cancel.clicked.connect(self.reject)
         btn_box.addWidget(btn_cancel)
 
-        btn_save = QPushButton("💾 حفظ بيانات العميل")
+        btn_save = QPushButton("حفظ بيانات العميل")
         btn_save.setFixedHeight(42)
-        btn_save.setStyleSheet("""
-            QPushButton {
-                background-color: #2563EB;
-                color: white;
-                border-radius: 8px;
-                font-weight: bold;
-                padding: 0 24px;
-            }
-            QPushButton:hover {
-                background-color: #1D4ED8;
-            }
-        """)
+        variant(btn_save, "primary")
         btn_save.clicked.connect(self._save)
         btn_box.addWidget(btn_save)
 
@@ -155,7 +118,7 @@ class CustomerDialog(QDialog):
     def _save(self):
         name = self.name_edit.text().strip()
         if not name:
-            QMessageBox.warning(self, "تنبيه", "يرجى كتابة اسم العميل")
+            show_error(self, message="يرجى كتابة اسم العميل")
             self.name_edit.setFocus()
             return
 
@@ -163,7 +126,7 @@ class CustomerDialog(QDialog):
         try:
             limit_piasters = egp_to_piasters(self.credit_edit.text() or 0)
         except Exception:
-            QMessageBox.warning(self, "تنبيه", "صيغة حد الائتمان غير صحيحة")
+            show_error(self, message="صيغة حد الائتمان غير صحيحة")
             return
 
         notes = self.notes_edit.toPlainText().strip()
@@ -183,5 +146,5 @@ class CustomerDialog(QDialog):
             self.accept()
         except Exception as e:
             self.session.rollback()
-            QMessageBox.critical(self, "خطأ", f"تعذر حفظ العميل:\n{str(e)}")
+            show_error(self, message=f"تعذر حفظ العميل:\n{str(e)}")
 

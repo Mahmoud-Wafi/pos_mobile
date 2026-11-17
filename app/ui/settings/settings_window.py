@@ -12,8 +12,10 @@ from PySide6.QtWidgets import (
     QMessageBox, QFrame, QLineEdit, QGroupBox, QGridLayout,
 )
 
+from app.ui.components import confirm, show_error, show_toast
 from app.core.backup import BACKUP_DIR, create_backup, list_backups, restore_backup
 from app.services.auth_service import hash_password, verify_password
+from app.ui.design.style import style_label, variant
 
 
 class BackupSecurityTab(QWidget):
@@ -33,8 +35,8 @@ class BackupSecurityTab(QWidget):
         top_bar = QHBoxLayout()
         top_bar.setSpacing(12)
 
-        lbl_title = QLabel("⚙️ إعدادات النظام والنسخ الاحتياطي والأمان")
-        lbl_title.setStyleSheet("font-size: 20px; font-weight: bold; color: #0F172A;")
+        lbl_title = QLabel("إعدادات النظام والنسخ الاحتياطي والأمان")
+        style_label(lbl_title, size="h2", tone="text", bold=True)
         top_bar.addWidget(lbl_title)
         top_bar.addStretch()
 
@@ -44,8 +46,7 @@ class BackupSecurityTab(QWidget):
         content_layout.setSpacing(16)
 
         # ── Left Column: Backup Management ───────────────────
-        backup_group = QGroupBox("💾 إدارة النسخ الاحتياطي (Database Backups)")
-        backup_group.setStyleSheet("QGroupBox { font-weight: bold; color: #1E3A8A; font-size: 14px; }")
+        backup_group = QGroupBox("إدارة النسخ الاحتياطي (Database Backups)")
         bg_layout = QVBoxLayout(backup_group)
         bg_layout.setContentsMargins(12, 16, 12, 12)
         bg_layout.setSpacing(10)
@@ -54,20 +55,20 @@ class BackupSecurityTab(QWidget):
             "يقوم النظام بإنشاء نسخة احتياطية آمنة ومضغوطة من قاعدة البيانات لضمان عدم ضياع أي بيانات مبيعات أو فواتير."
         )
         desc.setWordWrap(True)
-        desc.setStyleSheet("color: #475569; font-size: 12px;")
+        style_label(desc, size="caption", tone="muted")
         bg_layout.addWidget(desc)
 
         btn_bar = QHBoxLayout()
         btn_bar.setSpacing(10)
 
-        btn_create = QPushButton("➕ إنشاء نسخة احتياطية الآن")
-        btn_create.setFixedHeight(38)
-        btn_create.setStyleSheet("background-color: #2563EB; color: white; font-weight: bold; border-radius: 6px; padding: 0 14px;")
+        btn_create = QPushButton("إنشاء نسخة احتياطية الآن")
+        btn_create.setMinimumHeight(40)
+        variant(btn_create, "primary")
         btn_create.clicked.connect(self._create_backup)
         btn_bar.addWidget(btn_create)
 
-        btn_refresh = QPushButton("🔄 تحديث القائمة")
-        btn_refresh.setFixedHeight(38)
+        btn_refresh = QPushButton("تحديث القائمة")
+        btn_refresh.setMinimumHeight(40)
         btn_refresh.clicked.connect(self.load_backups)
         btn_bar.addWidget(btn_refresh)
 
@@ -94,8 +95,7 @@ class BackupSecurityTab(QWidget):
         right_box.setSpacing(16)
 
         # Security Box
-        sec_group = QGroupBox("🔐 تغيير كلمة المرور")
-        sec_group.setStyleSheet("QGroupBox { font-weight: bold; color: #1E3A8A; font-size: 14px; }")
+        sec_group = QGroupBox("تغيير كلمة المرور")
         sec_layout = QVBoxLayout(sec_group)
         sec_layout.setContentsMargins(12, 16, 12, 12)
         sec_layout.setSpacing(8)
@@ -103,18 +103,18 @@ class BackupSecurityTab(QWidget):
         sec_layout.addWidget(QLabel("كلمة المرور الحالية:"))
         self.old_pass_edit = QLineEdit()
         self.old_pass_edit.setEchoMode(QLineEdit.Password)
-        self.old_pass_edit.setFixedHeight(34)
+        self.old_pass_edit.setMinimumHeight(40)
         sec_layout.addWidget(self.old_pass_edit)
 
         sec_layout.addWidget(QLabel("كلمة المرور الجديدة:"))
         self.new_pass_edit = QLineEdit()
         self.new_pass_edit.setEchoMode(QLineEdit.Password)
-        self.new_pass_edit.setFixedHeight(34)
+        self.new_pass_edit.setMinimumHeight(40)
         sec_layout.addWidget(self.new_pass_edit)
 
-        btn_save_pass = QPushButton("💾 تحديث كلمة المرور")
-        btn_save_pass.setFixedHeight(36)
-        btn_save_pass.setStyleSheet("background-color: #059669; color: white; font-weight: bold; border-radius: 6px;")
+        btn_save_pass = QPushButton("تحديث كلمة المرور")
+        btn_save_pass.setMinimumHeight(40)
+        variant(btn_save_pass, "success")
         btn_save_pass.clicked.connect(self._change_password)
         sec_layout.addWidget(btn_save_pass)
 
@@ -122,7 +122,6 @@ class BackupSecurityTab(QWidget):
 
         # System Info Box
         info_group = QGroupBox("ℹ️ معلومات النظام والترخيص")
-        info_group.setStyleSheet("QGroupBox { font-weight: bold; color: #1E3A8A; font-size: 14px; }")
         info_layout = QVBoxLayout(info_group)
         info_layout.setContentsMargins(12, 16, 12, 12)
         info_layout.setSpacing(6)
@@ -138,9 +137,9 @@ class BackupSecurityTab(QWidget):
         for label, val in infos:
             row = QHBoxLayout()
             lbl_k = QLabel(label)
-            lbl_k.setStyleSheet("color: #64748B; font-weight: bold;")
+            style_label(lbl_k, tone="muted", bold=True)
             lbl_v = QLabel(val)
-            lbl_v.setStyleSheet("color: #0F172A; font-weight: 600;")
+            style_label(lbl_v, tone="text", bold=True)
             row.addWidget(lbl_k)
             row.addStretch()
             row.addWidget(lbl_v)
@@ -161,47 +160,40 @@ class BackupSecurityTab(QWidget):
             self.table_backups.setItem(r, 1, QTableWidgetItem(f"{size_kb:.1f} KB"))
 
             btn_res = QPushButton("استعادة")
-            btn_res.setStyleSheet("background-color: #DC2626; color: white; font-weight: bold; border-radius: 4px; padding: 4px;")
+            variant(btn_res, "danger")
             btn_res.clicked.connect(lambda _, path=bp: self._confirm_restore(path))
             self.table_backups.setCellWidget(r, 2, btn_res)
 
     def _create_backup(self):
         try:
             bp = create_backup()
-            QMessageBox.information(self, "نجاح", f"تم إنشاء النسخة الاحتياطية بنجاح:\n{bp.name}")
+            show_toast(self, f"تم إنشاء النسخة الاحتياطية بنجاح:\n{bp.name}")
             self.load_backups()
         except Exception as e:
-            QMessageBox.critical(self, "خطأ", f"تعذر إنشاء النسخة الاحتياطية:\n{e}")
+            show_error(self, e)
 
     def _confirm_restore(self, backup_path: Path):
-        reply = QMessageBox.warning(
-            self,
-            "تأكيد الاستعادة",
-            f"تحذير: استعادة النسخة الاحتياطية ({backup_path.name}) ستقوم بحفظ نسخة أمان أولاً ثم استبدال قاعدة البيانات الحالية.\nهل أنت متأكد من المتابعة؟",
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No,
-        )
-        if reply == QMessageBox.Yes:
+        if confirm(self, "تأكيد الاستعادة", f"تحذير: استعادة النسخة الاحتياطية ({backup_path.name}) ستقوم بحفظ نسخة أمان أولاً ثم استبدال قاعدة البيانات الحالية.\nهل أنت متأكد من المتابعة؟", "استعادة", destructive=True):
             try:
                 restore_backup(backup_path)
-                QMessageBox.information(self, "نجاح", "تمت استعادة النسخة الاحتياطية بنجاح. يُرجى إعادة تشغيل التطبيق لتحديث الجداول.")
+                show_toast(self, "تمت استعادة النسخة الاحتياطية بنجاح. يُرجى إعادة تشغيل التطبيق لتحديث الجداول.")
             except Exception as e:
-                QMessageBox.critical(self, "خطأ", f"تعذر استعادة النسخة الاحتياطية:\n{e}")
+                show_error(self, e)
 
     def _change_password(self):
         old_pwd = self.old_pass_edit.text()
         new_pwd = self.new_pass_edit.text()
 
         if not old_pwd or not new_pwd:
-            QMessageBox.warning(self, "تنبيه", "يرجى إدخال كلمة المرور الحالية والجديدة")
+            show_error(self, message="يرجى إدخال كلمة المرور الحالية والجديدة")
             return
 
         if len(new_pwd) < 6:
-            QMessageBox.warning(self, "تنبيه", "كلمة المرور الجديدة يجب أن تكون 6 خانات على الأقل")
+            show_error(self, message="كلمة المرور الجديدة يجب أن تكون 6 خانات على الأقل")
             return
 
         if not verify_password(old_pwd, self.user.password_hash):
-            QMessageBox.warning(self, "خطأ", "كلمة المرور الحالية غير صحيحة")
+            show_error(self, message="كلمة المرور الحالية غير صحيحة")
             return
 
         try:
@@ -209,11 +201,10 @@ class BackupSecurityTab(QWidget):
             self.session.commit()
             self.old_pass_edit.clear()
             self.new_pass_edit.clear()
-            QMessageBox.information(self, "نجاح", "تم تغيير كلمة المرور بنجاح!")
+            show_toast(self, "تم تغيير كلمة المرور بنجاح!")
         except Exception as e:
             self.session.rollback()
-            QMessageBox.critical(self, "خطأ", f"تعذر حفظ كلمة المرور:\n{e}")
-
+            show_error(self, e)
 
 
 class SettingsWidget(QWidget):

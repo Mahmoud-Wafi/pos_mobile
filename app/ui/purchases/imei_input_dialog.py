@@ -9,6 +9,13 @@ from PySide6.QtWidgets import (
     QMessageBox, QFrame,
 )
 
+from app.ui.design.style import style_label, variant
+from app.ui.design import icons
+from app.ui.design.tokens import COLORS
+
+
+from app.ui.components import icon_button, show_error
+
 
 class IMEIInputDialog(QDialog):
     def __init__(self, product_name: str, required_count: int, existing_imeis: Optional[list[dict]] = None, parent=None):
@@ -19,28 +26,7 @@ class IMEIInputDialog(QDialog):
         self.setWindowTitle(f"إدخال أرقام السيريال (IMEI) — {product_name}")
         self.resize(580, 500)
         self.setModal(True)
-        self.setStyleSheet("""
-            QDialog {
-                background-color: #FFFFFF;
-            }
-            QLabel {
-                color: #0F172A;
-                font-size: 13px;
-                font-weight: 600;
-            }
-            QLineEdit {
-                background-color: #F8FAFC;
-                border: 1px solid #CBD5E1;
-                border-radius: 8px;
-                padding: 8px 12px;
-                font-size: 13px;
-                color: #0F172A;
-            }
-            QLineEdit:focus {
-                background-color: #FFFFFF;
-                border: 2px solid #2563EB;
-            }
-        """)
+
         self._build_ui()
         self._refresh_table()
 
@@ -51,16 +37,16 @@ class IMEIInputDialog(QDialog):
 
         # Header Info
         header = QHBoxLayout()
-        icon = QLabel("📱")
-        icon.setStyleSheet("font-size: 26px;")
+        icon = QLabel()
+        icon.setPixmap(icons.pixmap("smartphone", COLORS["primary"], 28))
         header.addWidget(icon)
 
         title_box = QVBoxLayout()
         title_box.setSpacing(2)
         lbl_title = QLabel(f"تسجيل سيريالات: {self.product_name}")
-        lbl_title.setStyleSheet("font-size: 16px; font-weight: bold; color: #0F172A;")
+        style_label(lbl_title, size="title", tone="text", bold=True)
         self.lbl_counter = QLabel(f"المطلوب إدخاله: {self.required_count} جهاز | المسجل حالياً: {len(self.imeis)}")
-        self.lbl_counter.setStyleSheet("font-size: 12px; color: #2563EB; font-weight: bold;")
+        style_label(self.lbl_counter, size="caption", tone="primary", bold=True)
         title_box.addWidget(lbl_title)
         title_box.addWidget(self.lbl_counter)
         header.addLayout(title_box)
@@ -81,20 +67,9 @@ class IMEIInputDialog(QDialog):
         self.imei2_edit.setPlaceholderText("IMEI 2 (اختياري)")
         scan_box.addWidget(self.imei2_edit, 4)
 
-        self.btn_add = QPushButton("➕ إضافة")
+        self.btn_add = QPushButton("إضافة")
         self.btn_add.setFixedHeight(40)
-        self.btn_add.setStyleSheet("""
-            QPushButton {
-                background-color: #2563EB;
-                color: white;
-                border-radius: 8px;
-                font-weight: 600;
-                padding: 0 16px;
-            }
-            QPushButton:hover {
-                background-color: #1D4ED8;
-            }
-        """)
+        variant(self.btn_add, "primary")
         self.btn_add.clicked.connect(self._add_imei)
         self.imei1_edit.returnPressed.connect(self._add_imei)
         self.imei2_edit.returnPressed.connect(self._add_imei)
@@ -113,21 +88,7 @@ class IMEIInputDialog(QDialog):
         self.table.horizontalHeader().setSectionResizeMode(2, QHeaderView.Stretch)
         self.table.horizontalHeader().setSectionResizeMode(3, QHeaderView.Fixed)
         self.table.setColumnWidth(3, 70)
-        self.table.setStyleSheet("""
-            QTableWidget {
-                background-color: #FFFFFF;
-                border: 1px solid #E2E8F0;
-                border-radius: 8px;
-            }
-            QHeaderView::section {
-                background-color: #F8FAFC;
-                color: #475569;
-                font-weight: bold;
-                padding: 6px;
-                border: none;
-                border-bottom: 1px solid #E2E8F0;
-            }
-        """)
+
         layout.addWidget(self.table)
 
         # Bottom buttons
@@ -136,33 +97,13 @@ class IMEIInputDialog(QDialog):
 
         btn_cancel = QPushButton("إلغاء")
         btn_cancel.setFixedHeight(40)
-        btn_cancel.setStyleSheet("""
-            QPushButton {
-                background-color: #F1F5F9;
-                color: #475569;
-                border: 1px solid #CBD5E1;
-                border-radius: 8px;
-                font-weight: 600;
-                padding: 0 16px;
-            }
-        """)
+        variant(btn_cancel, "secondary")
         btn_cancel.clicked.connect(self.reject)
         btn_box.addWidget(btn_cancel)
 
-        btn_save = QPushButton("✅ اعتماد السيريالات")
+        btn_save = QPushButton("اعتماد السيريالات")
         btn_save.setFixedHeight(40)
-        btn_save.setStyleSheet("""
-            QPushButton {
-                background-color: #16A34A;
-                color: white;
-                border-radius: 8px;
-                font-weight: bold;
-                padding: 0 24px;
-            }
-            QPushButton:hover {
-                background-color: #15803D;
-            }
-        """)
+        variant(btn_save, "success")
         btn_save.clicked.connect(self._confirm)
         btn_box.addWidget(btn_save)
 
@@ -173,21 +114,21 @@ class IMEIInputDialog(QDialog):
         val2 = self.imei2_edit.text().strip() or None
 
         if not val1:
-            QMessageBox.warning(self, "تنبيه", "يرجى مسح أو إدخال رقم IMEI 1")
+            show_error(self, message="يرجى مسح أو إدخال رقم IMEI 1")
             self.imei1_edit.setFocus()
             return
 
         if len(self.imeis) >= self.required_count:
-            QMessageBox.warning(self, "تنبيه", f"تم بالفعل إدخال كامل العدد المطلوب ({self.required_count} جهاز)")
+            show_error(self, message=f"تم بالفعل إدخال كامل العدد المطلوب ({self.required_count} جهاز)")
             return
 
         # Check in current list
         for item in self.imeis:
             if item["imei1"] == val1 or (item.get("imei2") and item["imei2"] == val1):
-                QMessageBox.warning(self, "تنبيه", f"رقم IMEI '{val1}' مكرر بالقائمة الحالية")
+                show_error(self, message=f"رقم IMEI '{val1}' مكرر بالقائمة الحالية")
                 return
             if val2 and (item["imei1"] == val2 or item.get("imei2") == val2):
-                QMessageBox.warning(self, "تنبيه", f"رقم IMEI 2 '{val2}' مكرر بالقائمة الحالية")
+                show_error(self, message=f"رقم IMEI 2 '{val2}' مكرر بالقائمة الحالية")
                 return
 
         self.imeis.append({"imei1": val1, "imei2": val2})
@@ -211,8 +152,7 @@ class IMEIInputDialog(QDialog):
             item_2.setTextAlignment(Qt.AlignCenter)
             self.table.setItem(idx, 2, item_2)
 
-            btn_del = QPushButton("❌")
-            btn_del.setStyleSheet("border: none; background: transparent; color: #EF4444; font-weight: bold;")
+            btn_del = icon_button("trash-2", "حذف", "danger-soft")
             btn_del.clicked.connect(lambda _, row=idx: self._delete_row(row))
             self.table.setCellWidget(idx, 3, btn_del)
 
@@ -220,9 +160,9 @@ class IMEIInputDialog(QDialog):
             f"المطلوب إدخاله: {self.required_count} جهاز | المسجل حالياً: {len(self.imeis)}"
         )
         if len(self.imeis) == self.required_count:
-            self.lbl_counter.setStyleSheet("font-size: 12px; color: #16A34A; font-weight: bold;")
+            style_label(self.lbl_counter, size="caption", tone="success", bold=True)
         else:
-            self.lbl_counter.setStyleSheet("font-size: 12px; color: #EA580C; font-weight: bold;")
+            style_label(self.lbl_counter, size="caption", tone="warning", bold=True)
 
     def _delete_row(self, row: int):
         if 0 <= row < len(self.imeis):
@@ -231,11 +171,7 @@ class IMEIInputDialog(QDialog):
 
     def _confirm(self):
         if len(self.imeis) != self.required_count:
-            QMessageBox.warning(
-                self,
-                "تنبيه",
-                f"العدد المسجل ({len(self.imeis)}) لا يطابق الكمية المطلوبة ({self.required_count} جهاز).\nيرجى إدخال جميع السيريالات أو تعديل كمية الصنف بالفاتورة."
-            )
+            show_error(self, message=f"العدد المسجل ({len(self.imeis)}) لا يطابق الكمية المطلوبة ({self.required_count} جهاز).\nيرجى إدخال جميع السيريالات أو تعديل كمية الصنف بالفاتورة.")
             return
         self.accept()
 

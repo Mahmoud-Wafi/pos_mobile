@@ -1,5 +1,7 @@
 """Modern Stocktake (physical inventory count) widget with clean card layout."""
 from __future__ import annotations
+from app.ui.components import show_error, show_toast
+from app.ui.design.style import set_prop, style_label
 
 try:
     from PySide6.QtWidgets import (
@@ -32,13 +34,13 @@ if HAS_QT:
 
             # Card 1: Input Form
             form_card = QFrame()
-            form_card.setStyleSheet("background-color: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 10px; padding: 16px;")
+            set_prop(form_card, "card", True)
             form_layout = QVBoxLayout(form_card)
 
-            card_title = QLabel("📋 تسجيل الجرد الفعلي للمخزون")
-            card_title.setStyleSheet("font-size: 15px; font-weight: bold; color: #0F172A;")
+            card_title = QLabel("تسجيل الجرد الفعلي للمخزون")
+            style_label(card_title, size="title", tone="text", bold=True)
             card_sub = QLabel("اختر الصنف وأدخل الكمية الفعلية الموجودة في المحل لتسجيل حركة تسوية آلية")
-            card_sub.setStyleSheet("font-size: 12px; color: #64748B; margin-bottom: 8px;")
+            style_label(card_sub, size="caption", tone="muted")
             form_layout.addWidget(card_title)
             form_layout.addWidget(card_sub)
 
@@ -47,18 +49,18 @@ if HAS_QT:
             grid.setVerticalSpacing(10)
 
             lbl_prod = QLabel("الصنف المراد جرده *")
-            lbl_prod.setStyleSheet("font-weight: 600; color: #334155;")
+            style_label(lbl_prod, tone="text", bold=True)
             self.product_combo = QComboBox()
             self._load_products()
 
             lbl_actual = QLabel("الكمية الفعلية الموجودة *")
-            lbl_actual.setStyleSheet("font-weight: 600; color: #334155;")
+            style_label(lbl_actual, tone="text", bold=True)
             self.actual_qty = QSpinBox()
             self.actual_qty.setRange(0, 99999)
             self.actual_qty.setSuffix(" قطعة")
 
             lbl_reason = QLabel("سبب أو بيان الجرد")
-            lbl_reason.setStyleSheet("font-weight: 600; color: #334155;")
+            style_label(lbl_reason, tone="text", bold=True)
             self.reason_edit = QLineEdit()
             self.reason_edit.setPlaceholderText("مثال: جرد نهاية الشهر، تسوية عجز...")
 
@@ -74,7 +76,7 @@ if HAS_QT:
 
             btn_box = QHBoxLayout()
             btn_box.addStretch()
-            self.btn_submit = QPushButton("💾 اعتماد وتسجيل الجرد")
+            self.btn_submit = QPushButton("اعتماد وتسجيل الجرد")
             self.btn_submit.setProperty("class", "PrimaryBtn")
             self.btn_submit.setFixedWidth(180)
             self.btn_submit.clicked.connect(self._do_stocktake)
@@ -84,8 +86,8 @@ if HAS_QT:
             layout.addWidget(form_card)
 
             # Card 2: History Table
-            history_title = QLabel("📜 سجل حركات التسوية والجرد الأخيرة:")
-            history_title.setStyleSheet("font-size: 14px; font-weight: bold; color: #0F172A;")
+            history_title = QLabel("سجل حركات التسوية والجرد الأخيرة:")
+            style_label(history_title, size="label", tone="text", bold=True)
             layout.addWidget(history_title)
 
             self.history_table = QTableWidget()
@@ -114,7 +116,7 @@ if HAS_QT:
 
         def _do_stocktake(self):
             if not self._products:
-                QMessageBox.warning(self, "تنبيه", "لا توجد منتجات غير IMEI للجرد")
+                show_error(self, message="لا توجد منتجات غير IMEI للجرد")
                 return
             product = self.product_combo.currentData()
             actual = self.actual_qty.value()
@@ -126,14 +128,14 @@ if HAS_QT:
                     QMessageBox.information(self, "معلومة", "الكمية الفعلية مطابقة لرصيد السيستم — لم يتطلب أي تسوية.")
                 else:
                     sign = "+" if mv.quantity > 0 else ""
-                    QMessageBox.information(self, "تم بنجاح", f"تم اعتماد الجرد وتسجيل حركة تسوية: {sign}{mv.quantity} قطعة")
+                    show_toast(self, f"تم اعتماد الجرد وتسجيل حركة تسوية: {sign}{mv.quantity} قطعة")
                 self._load_products()
                 self._load_history()
             except PermissionDenied as e:
-                QMessageBox.critical(self, "خطأ في الصلاحية", str(e))
+                show_error(self, e)
             except Exception as e:
                 self.session.rollback()
-                QMessageBox.critical(self, "خطأ", str(e))
+                show_error(self, e)
 
         def _load_history(self):
             from app.models.stock import StockMovement

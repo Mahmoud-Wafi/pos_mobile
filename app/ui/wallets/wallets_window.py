@@ -12,12 +12,14 @@ from PySide6.QtWidgets import (
     QComboBox, QMessageBox, QFrame, QGridLayout, QScrollArea,
 )
 
+from app.ui.components import show_error
 from app.core.money import egp_to_piasters, format_money, piasters_to_egp
 from app.models.wallet import Wallet, WalletTransaction
 from app.services import wallet_service
 from app.ui.wallets.commission_rules_dialog import CommissionRulesDialog
 from app.ui.wallets.wallet_audit_dialog import WalletAuditDialog
 from app.ui.wallets.wallet_dialog import WalletDialog
+from app.ui.design.style import set_prop, style_label, variant
 
 
 class WalletsWidget(QWidget):
@@ -38,31 +40,31 @@ class WalletsWidget(QWidget):
         top_bar = QHBoxLayout()
         top_bar.setSpacing(10)
 
-        lbl_head = QLabel("💳 إدارة المحافظ الإلكترونية وشبكات الدفع الفوري")
-        lbl_head.setStyleSheet("font-size: 18px; font-weight: bold; color: #0F172A;")
+        lbl_head = QLabel("إدارة المحافظ الإلكترونية وشبكات الدفع الفوري")
+        style_label(lbl_head, size="h2", tone="text", bold=True)
         top_bar.addWidget(lbl_head)
         top_bar.addStretch()
 
-        btn_refresh = QPushButton("🔄 تحديث")
-        btn_refresh.setFixedHeight(38)
+        btn_refresh = QPushButton("تحديث")
+        btn_refresh.setMinimumHeight(40)
         btn_refresh.clicked.connect(self.load_all)
         top_bar.addWidget(btn_refresh)
 
-        btn_rules = QPushButton("⚙️ قواعد العمولات")
-        btn_rules.setFixedHeight(38)
-        btn_rules.setStyleSheet("background-color: #EFF6FF; color: #2563EB; border: 1px solid #BFDBFE; border-radius: 6px; font-weight: bold; padding: 0 14px;")
+        btn_rules = QPushButton("قواعد العمولات")
+        btn_rules.setMinimumHeight(40)
+        variant(btn_rules, "secondary")
         btn_rules.clicked.connect(self._open_rules_dialog)
         top_bar.addWidget(btn_rules)
 
-        btn_audit = QPushButton("⚖️ جرد المحافظ")
-        btn_audit.setFixedHeight(38)
-        btn_audit.setStyleSheet("background-color: #FEF3C7; color: #B45309; border: 1px solid #F59E0B; border-radius: 6px; font-weight: bold; padding: 0 14px;")
+        btn_audit = QPushButton("جرد المحافظ")
+        btn_audit.setMinimumHeight(40)
+        variant(btn_audit, "secondary")
         btn_audit.clicked.connect(self._open_audit_dialog)
         top_bar.addWidget(btn_audit)
 
-        btn_new_wallet = QPushButton("➕ إضافة خط محفظة")
-        btn_new_wallet.setFixedHeight(38)
-        btn_new_wallet.setStyleSheet("background-color: #2563EB; color: white; border-radius: 6px; font-weight: bold; padding: 0 16px;")
+        btn_new_wallet = QPushButton("إضافة خط محفظة")
+        btn_new_wallet.setMinimumHeight(40)
+        variant(btn_new_wallet, "primary")
         btn_new_wallet.clicked.connect(self._open_new_wallet_dialog)
         top_bar.addWidget(btn_new_wallet)
 
@@ -79,13 +81,13 @@ class WalletsWidget(QWidget):
         scroll_cards.setWidgetResizable(True)
         scroll_cards.setFixedHeight(125)
         scroll_cards.setFrameShape(QFrame.NoFrame)
-        scroll_cards.setStyleSheet("background: transparent;")
+        set_prop(scroll_cards, "transparent", True)
         scroll_cards.setWidget(self.cards_container)
         main_layout.addWidget(scroll_cards)
 
         # ── Fast Operations Panel ───────────────────────────
         op_card = QFrame()
-        op_card.setStyleSheet("background-color: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 10px; padding: 14px;")
+        set_prop(op_card, "card", True)
         op_layout = QVBoxLayout(op_card)
         op_layout.setSpacing(12)
 
@@ -95,17 +97,17 @@ class WalletsWidget(QWidget):
 
         self.op_buttons = {}
         ops = [
-            ("cash_in", "📥 إيداع للعميل (Cash In)", "#2563EB"),
-            ("cash_out", "📤 سحب نقدي (Cash Out)", "#16A34A"),
-            ("bill", "🧾 دفع فواتير (Bill)", "#7C3AED"),
-            ("recharge", "📱 شحن رصيد (Recharge)", "#EA580C"),
-            ("fund", "💼 تمويل من الدرج (Fund)", "#0284C7"),
-            ("withdraw", "🏦 تفريغ للدرج (Withdraw)", "#0D9488"),
+            ("cash_in", "إيداع للعميل (Cash In)", "#2563EB"),
+            ("cash_out", "سحب نقدي (Cash Out)", "#16A34A"),
+            ("bill", "دفع فواتير (Bill)", "#7C3AED"),
+            ("recharge", "شحن رصيد (Recharge)", "#EA580C"),
+            ("fund", "تمويل من الدرج (Fund)", "#0284C7"),
+            ("withdraw", "تفريغ للدرج (Withdraw)", "#0D9488"),
         ]
 
         for op_id, op_label, color in ops:
             btn = QPushButton(op_label)
-            btn.setFixedHeight(36)
+            btn.setMinimumHeight(40)
             btn.setCheckable(True)
             btn.clicked.connect(lambda _, k=op_id: self._select_op_type(k))
             pills_layout.addWidget(btn)
@@ -154,27 +156,13 @@ class WalletsWidget(QWidget):
         grid.addWidget(QLabel("العمولة والربح المتوقع:"), 0, 4)
         self.lbl_comm_preview = QLabel("العمولة: 0.00 ج.م | الربح: 0.00 ج.م")
         self.lbl_comm_preview.setFixedHeight(40)
-        self.lbl_comm_preview.setStyleSheet(
-            "background-color: #EFF6FF; border: 1px solid #BFDBFE; border-radius: 8px; color: #1D4ED8; font-weight: bold; padding: 0 12px;"
-        )
+        set_prop(self.lbl_comm_preview, "banner", "info")
         grid.addWidget(self.lbl_comm_preview, 1, 4)
 
         # 6. Submit Button
-        self.btn_execute = QPushButton("🚀 تنفيذ العملية")
+        self.btn_execute = QPushButton("تنفيذ العملية")
         self.btn_execute.setFixedHeight(40)
-        self.btn_execute.setStyleSheet("""
-            QPushButton {
-                background-color: #2563EB;
-                color: white;
-                border-radius: 8px;
-                font-weight: bold;
-                font-size: 14px;
-                padding: 0 24px;
-            }
-            QPushButton:hover {
-                background-color: #1D4ED8;
-            }
-        """)
+        variant(self.btn_execute, "primary")
         self.btn_execute.clicked.connect(self._execute_operation)
         grid.addWidget(self.btn_execute, 1, 5)
 
@@ -183,19 +171,19 @@ class WalletsWidget(QWidget):
 
         # ── Transactions Ledger Table ───────────────────────
         table_card = QFrame()
-        table_card.setStyleSheet("background-color: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 10px; padding: 12px;")
+        set_prop(table_card, "card", True)
         t_layout = QVBoxLayout(table_card)
         t_layout.setSpacing(10)
 
         # Table Filter Header
         t_bar = QHBoxLayout()
         t_title = QLabel("سجل حركات وعمليات المحافظ الإلكترونية")
-        t_title.setStyleSheet("font-size: 15px; font-weight: bold; color: #0F172A;")
+        style_label(t_title, size="title", tone="text", bold=True)
         t_bar.addWidget(t_title)
         t_bar.addStretch()
 
         self.tx_filter_type = QComboBox()
-        self.tx_filter_type.setFixedHeight(36)
+        self.tx_filter_type.setMinimumHeight(40)
         self.tx_filter_type.addItem("جميع العمليات", "all")
         self.tx_filter_type.addItem("إيداع فقط", "cash_in")
         self.tx_filter_type.addItem("سحب فقط", "cash_out")
@@ -237,14 +225,10 @@ class WalletsWidget(QWidget):
         for k, btn in self.op_buttons.items():
             if k == op_id:
                 btn.setChecked(True)
-                btn.setStyleSheet(
-                    "background-color: #2563EB; color: white; border-radius: 6px; font-weight: bold; padding: 0 12px;"
-                )
+                variant(btn, "primary")
             else:
                 btn.setChecked(False)
-                btn.setStyleSheet(
-                    "background-color: #F1F5F9; color: #475569; border: 1px solid #CBD5E1; border-radius: 6px; font-weight: 600; padding: 0 12px;"
-                )
+                variant(btn, "secondary")
         self._recalc_commission_preview()
 
     def _recalc_commission_preview(self):
@@ -269,12 +253,12 @@ class WalletsWidget(QWidget):
     def _execute_operation(self):
         w: Optional[Wallet] = self.op_wallet_combo.currentData()
         if not w:
-            QMessageBox.warning(self, "تنبيه", "يرجى اختيار المحفظة")
+            show_error(self, message="يرجى اختيار المحفظة")
             return
 
         amt_text = self.op_amount_edit.text().strip()
         if not amt_text:
-            QMessageBox.warning(self, "تنبيه", "يرجى كتابة المبلغ")
+            show_error(self, message="يرجى كتابة المبلغ")
             self.op_amount_edit.setFocus()
             return
 
@@ -283,7 +267,7 @@ class WalletsWidget(QWidget):
             if amt_piasters <= 0:
                 raise ValueError()
         except Exception:
-            QMessageBox.warning(self, "تنبيه", "صيغة المبلغ غير صحيحة")
+            show_error(self, message="صيغة المبلغ غير صحيحة")
             self.op_amount_edit.setFocus()
             return
 
@@ -313,7 +297,7 @@ class WalletsWidget(QWidget):
             self.load_all()
         except Exception as e:
             self.session.rollback()
-            QMessageBox.critical(self, "خطأ في العملية", f"تعذر تنفيذ العملية:\n{str(e)}")
+            show_error(self, message=f"تعذر تنفيذ العملية:\n{str(e)}")
 
     def load_wallets_cards(self):
         # Clear layout
@@ -326,11 +310,11 @@ class WalletsWidget(QWidget):
         self.op_wallet_combo.clear()
 
         color_map = {
-            "vodafone": ("#EF4444", "#FEF2F2", "🔴"),
-            "orange": ("#F97316", "#FFF7ED", "🟠"),
-            "etisalat": ("#10B981", "#ECFDF5", "🟢"),
-            "we": ("#8B5CF6", "#F5F3FF", "🟣"),
-            "instapay": ("#6366F1", "#EEF2FF", "⚡"),
+            "vodafone": ("#EF4444", "#FEF2F2", ""),
+            "orange": ("#F97316", "#FFF7ED", ""),
+            "etisalat": ("#10B981", "#ECFDF5", ""),
+            "we": ("#8B5CF6", "#F5F3FF", ""),
+            "instapay": ("#6366F1", "#EEF2FF", ""),
         }
 
         for w in wallets:
@@ -342,13 +326,8 @@ class WalletsWidget(QWidget):
             card = QFrame()
             card.setFixedWidth(240)
             card.setFixedHeight(115)
-            card.setStyleSheet(f"""
-                QFrame {{
-                    background-color: #FFFFFF;
-                    border: 2px solid {primary};
-                    border-radius: 10px;
-                }}
-            """)
+            card.setObjectName("WalletCard")
+            card.setStyleSheet(f"QFrame#WalletCard {{ background-color: #FFFFFF; border: 2px solid {primary}; border-radius: 10px; }}")
             c_layout = QVBoxLayout(card)
             c_layout.setContentsMargins(10, 8, 10, 8)
             c_layout.setSpacing(4)
@@ -363,7 +342,7 @@ class WalletsWidget(QWidget):
 
             # Balance
             lbl_bal = QLabel(format_money(w.balance))
-            lbl_bal.setStyleSheet("font-size: 18px; font-weight: bold; color: #0F172A;")
+            style_label(lbl_bal, size="h2", tone="text", bold=True)
             c_layout.addWidget(lbl_bal)
 
             # Limit progress
@@ -371,7 +350,7 @@ class WalletsWidget(QWidget):
                 lbl_lim = QLabel(f"اليومي: {format_money(used_today)} / {format_money(w.daily_limit)}")
             else:
                 lbl_lim = QLabel(f"الاستخدام اليومي: {format_money(used_today)}")
-            lbl_lim.setStyleSheet("font-size: 11px; color: #64748B;")
+            style_label(lbl_lim, size="caption", tone="muted")
             c_layout.addWidget(lbl_lim)
 
             self.cards_layout.addWidget(card)
