@@ -66,13 +66,13 @@ Baseline before this work: 114 tests. Current: 164 passing (`QT_QPA_PLATFORM=off
 | 3.1 | A shift can be closed from the UI with a **blind count**: the expected cash is not visible until the count is confirmed. Then expected, actual and difference (surplus or shortage) are shown and stored. Only the shift's owner or a manager can close it. | [x] |
 | 3.2 | The sidebar shift card and the POS bar show the real shift state (open with id and time, or closed) and refresh on open and close. | [x] |
 | 3.3 | A printable shift summary can be produced after closing. | [ ] |
-| 3.4 | POS search: several matching products open a type-ahead list (name, price, stock) instead of silently taking the first. IMEI products with several in-stock units show a unit chooser (oldest first by default). | [ ] |
-| 3.5 | Cart rows allow quantity change for non-IMEI lines, line discount and price override (permission-gated, with manager approval where required) and remove with undo. Held invoices open in a drawer with a count badge. | [ ] |
-| 3.6 | A full sale can be completed with the keyboard only (scan → pay → confirm → focus returns to the scan field). The payment dialog has quick cash buttons, auto-filled remainder and a highlighted change due. | [ ] |
-| 3.7 | Invoice history screen: filter by date, customer, cashier, status, invoice number and IMEI; details panel; reprint; return; **void** (manager only, reason required, audited). | [ ] |
-| 3.8 | Arabic PDFs render correctly: Cairo font registered, text shaped and bidi-ordered. A test extracts the text of the A4 invoice and the used-device declaration and finds the Arabic. Shop name, address, phone, footer and warranty text come from settings. | [ ] |
-| 3.9 | Real printing: 80 mm thermal receipt through a print dialog or preview (ESC/POS optional), and A4 warranty invoice opened as a PDF. Printer choice is stored in settings. Reprint works from invoice history. | [ ] |
-| 3.10 | Print templates (UX-09): receipt with phone, address, local time, IMEI, totals, paid, change, remaining, footer and an optional invoice-number barcode; A4 invoice with per-item warranty; declaration with signature and thumbprint boxes. | [ ] |
+| 3.4 | POS search: several matching products open a type-ahead list (name, price, stock) instead of silently taking the first. IMEI products with several in-stock units show a unit chooser (oldest first by default). | [x] |
+| 3.5 | Cart rows allow quantity change for non-IMEI lines, line discount and price override (permission-gated, with manager approval where required) and remove with undo. Held invoices open in a drawer with a count badge. | [x] |
+| 3.6 | A full sale can be completed with the keyboard only (scan → pay → confirm → focus returns to the scan field). The payment dialog has quick cash buttons, auto-filled remainder and a highlighted change due. | [~] |
+| 3.7 | Invoice history screen: filter by date, customer, cashier, status, invoice number and IMEI; details panel; reprint; return; **void** (manager only, reason required, audited). | [x] |
+| 3.8 | Arabic PDFs render correctly: Cairo font registered, text shaped and bidi-ordered. A test extracts the text of the A4 invoice and the used-device declaration and finds the Arabic. Shop name, address, phone, footer and warranty text come from settings. | [x] |
+| 3.9 | Real printing: 80 mm thermal receipt through a print dialog or preview (ESC/POS optional), and A4 warranty invoice opened as a PDF. Printer choice is stored in settings. Reprint works from invoice history. | [~] |
+| 3.10 | Print templates (UX-09): receipt with phone, address, local time, IMEI, totals, paid, change, remaining, footer and an optional invoice-number barcode; A4 invoice with per-item warranty; declaration with signature and thumbprint boxes. | [~] |
 
 ## Phase 4 — Data and reports
 

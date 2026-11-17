@@ -54,3 +54,10 @@ Architectural and business-rule decisions made during development.
 
 ### D-012 — UI permission map is a hint, services still enforce
 **Decision**: `app/ui/access.py` decides which screens are shown per permission set; views a user cannot open are not even constructed.
+
+## D-013 — Cart editing, held invoices, invoice history
+- `sales_service.update_line` edits qty/price/line discount on an unposted sale; a price different from the catalogue or a discount above the cashier limit needs a manager (`manager_override`).
+- Empty drafts are never listed as held and are discarded when a new invoice starts; clearing the cart deletes the draft.
+- `remove_line` now expires `sale.items` (totals were summed over the deleted row before).
+- Invoice history is a separate screen (`invoices`); cashiers only see their own invoices (enforced in `search_sales`), void is manager-only.
+- Devices are offered oldest first (FIFO).

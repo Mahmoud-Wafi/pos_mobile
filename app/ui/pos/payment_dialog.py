@@ -17,6 +17,7 @@ except ImportError:
 from app.core.money import parse_egp_input
 from app.core.money import format_money, egp_to_piasters
 from app.core.money import piasters_to_input
+from app.i18n import ar
 
 
 if HAS_QT:
@@ -29,6 +30,7 @@ if HAS_QT:
             self.customer_name = customer_name
             self.payments_breakdown: list[dict] = []
             self.print_receipt = True
+            self._cash_touched = False
 
             self.setWindowTitle("نافذة الدفع وتحصيل الفاتورة [F4]")
             self.setMinimumWidth(540)
@@ -97,6 +99,7 @@ if HAS_QT:
             self.cash_edit = QLineEdit(piasters_to_input(self.total_piasters))
             self.cash_edit.setValidator(QDoubleValidator(0.0, 9999999.0, 2))
             self.cash_edit.textChanged.connect(self._recalculate)
+            self.cash_edit.textEdited.connect(lambda _t: setattr(self, "_cash_touched", True))
 
             # 2. Vodafone / Mobile Wallets
             lbl_wallet = QLabel("📱 محفظة إلكترونية (فودافون/أورنج):")
@@ -104,6 +107,7 @@ if HAS_QT:
             self.wallet_edit = QLineEdit("0")
             self.wallet_edit.setValidator(QDoubleValidator(0.0, 9999999.0, 2))
             self.wallet_edit.textChanged.connect(self._recalculate)
+            self.wallet_edit.textEdited.connect(self._autofill_cash)
 
             # 3. InstaPay / Bank
             lbl_bank = QLabel("🏦 انستاباي / بنك (InstaPay):")
@@ -111,6 +115,7 @@ if HAS_QT:
             self.bank_edit = QLineEdit("0")
             self.bank_edit.setValidator(QDoubleValidator(0.0, 9999999.0, 2))
             self.bank_edit.textChanged.connect(self._recalculate)
+            self.bank_edit.textEdited.connect(self._autofill_cash)
 
             # 4. Credit (آجل)
             lbl_credit = QLabel("⏳ آجل (على الحساب):")
@@ -118,6 +123,7 @@ if HAS_QT:
             self.credit_edit = QLineEdit("0")
             self.credit_edit.setValidator(QDoubleValidator(0.0, 9999999.0, 2))
             self.credit_edit.textChanged.connect(self._recalculate)
+            self.credit_edit.textEdited.connect(self._autofill_cash)
 
             grid.addWidget(lbl_cash, 0, 0)
             grid.addWidget(self.cash_edit, 1, 0)
@@ -132,6 +138,21 @@ if HAS_QT:
             grid.addWidget(self.credit_edit, 3, 1)
 
             layout.addLayout(grid)
+
+            # Quick cash buttons: exact amount + common notes
+            quick = QHBoxLayout()
+            quick.setSpacing(6)
+            btn_exact = QPushButton(ar.QUICK_EXACT)
+            btn_exact.setAutoDefault(False)
+            btn_exact.clicked.connect(lambda: self._set_cash(self._remainder_piasters_excluding_cash()))
+            quick.addWidget(btn_exact)
+            for note in (50, 100, 200, 500, 1000):
+                b = QPushButton(str(note))
+                b.setAutoDefault(False)
+                b.clicked.connect(lambda _=False, n=note: self._set_cash(n * 100))
+                quick.addWidget(b)
+            quick.addStretch()
+            layout.addLayout(quick)
 
             # Summary Footer (Remaining / Change)
             self.status_card = QFrame()
@@ -179,12 +200,39 @@ if HAS_QT:
                 }
             """)
             self.btn_confirm.clicked.connect(self._confirm)
+            self.btn_confirm.setDefault(True)
+            btn_cancel.setAutoDefault(False)
+            self.cash_edit.setFocus()
+            self.cash_edit.selectAll()
 
             btn_box.addWidget(btn_cancel)
             btn_box.addWidget(self.btn_confirm)
             layout.addLayout(btn_box)
 
             self._recalculate()
+
+        def _other_methods_piasters(self) -> int:
+            total = Decimal("0")
+            for e in (self.wallet_edit, self.bank_edit, self.credit_edit):
+                total += self._get_val(e)
+            return int(total * 100)
+
+        def _remainder_piasters_excluding_cash(self) -> int:
+            return max(0, self.total_piasters - self._other_methods_piasters())
+
+        def _set_cash(self, piasters: int) -> None:
+            self._cash_touched = True
+            self.cash_edit.setText(piasters_to_input(piasters))
+            self.btn_confirm.setFocus()
+
+        def _autofill_cash(self, _text: str = "") -> None:
+            """Cash takes whatever the other methods leave, until the cashier types it."""
+            if not self._cash_touched:
+                self.cash_edit.setText(piasters_to_input(self._remainder_piasters_excluding_cash()))
+
+        def _confirm_if_enabled(self) -> None:
+            if self.btn_confirm.isEnabled():
+                self._confirm()
 
         def _get_val(self, edit: QLineEdit) -> Decimal:
             try:
@@ -209,9 +257,9 @@ if HAS_QT:
                 self.status_card.setStyleSheet("background-color: #F0FDF4; border: 1px solid #BBF7D0; border-radius: 8px; padding: 10px;")
                 self.btn_confirm.setEnabled(True)
             elif diff > 0:
-                self.lbl_rem_title.setText("الباقي للعميل (فكة):")
+                self.lbl_rem_title.setText(ar.CHANGE_DUE + " (فكة):")
                 self.lbl_rem_val.setText(f"{diff:,.2f} ج.م")
-                self.lbl_rem_val.setStyleSheet("font-weight: bold; font-size: 16px; color: #0284C7;")
+                self.lbl_rem_val.setStyleSheet("font-weight: 800; font-size: 22px; color: #0284C7;")
                 self.status_card.setStyleSheet("background-color: #F0F9FF; border: 1px solid #BAE6FD; border-radius: 8px; padding: 10px;")
                 self.btn_confirm.setEnabled(True)
             else:

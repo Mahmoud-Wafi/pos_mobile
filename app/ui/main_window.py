@@ -24,6 +24,7 @@ from app.ui.dashboard.dashboard_widget import DashboardWidget
 from app.ui.inventory.inventory_window import InventoryWindow
 from app.ui.pos.pos_window import POSWindow
 from app.ui.pos.returns_window import ReturnsWindow
+from app.ui.invoices.history_view import InvoiceHistoryWidget
 from app.ui.purchases.purchases_window import PurchasesWidget
 from app.ui.wallets.wallets_window import WalletsWidget
 from app.ui.accounting.accounting_window import AccountingWidget
@@ -143,6 +144,7 @@ if HAS_QT:
             self.nav_items = [
                 ("dashboard", "📊  لوحة التحكم", self._show_dashboard),
                 ("pos", "🛒  " + ar.POS + " (المبيعات)", self._show_pos),
+                ("invoices", "🧾  " + ar.HISTORY, self._show_invoices),
                 ("inventory", "📦  " + ar.INVENTORY, self._show_inventory),
                 ("returns", "↩️  الضمان والمرتجعات", self._show_returns),
                 ("purchases", "📥  " + ar.PURCHASES + " والموردين", self._show_purchases),
@@ -219,6 +221,11 @@ if HAS_QT:
                 self.stack.addWidget(self.pos_view)
                 self.pos_view.shift_changed.connect(self.refresh_shift_status)
 
+            # 1b. Invoice history
+            self.invoices_view = InvoiceHistoryWidget(self.session, self.current_user) if can_open(self.perms, "invoices") else None
+            if self.invoices_view is not None:
+                self.stack.addWidget(self.invoices_view)
+
             # 2. Inventory View (Phase 2)
             self.inventory_view = InventoryWindow(self.session, self.current_user) if can_open(self.perms, "inventory") else None
             if self.inventory_view is not None:
@@ -291,7 +298,9 @@ if HAS_QT:
             now = datetime.datetime.now()
             self.time_label.setText(now.strftime("%Y-%m-%d   %I:%M:%S %p"))
 
-        def _set_active_nav(self, active_index: int):
+        def _set_active_nav(self, key: str):
+            order = [k for k, _l, _s in self.nav_items] + [k for k, _l, _s in self.sys_nav_items]
+            active_index = order.index(key) if key in order else -1
             for i, btn in enumerate(self.nav_buttons):
                 if i == active_index:
                     btn.setStyleSheet(
@@ -304,69 +313,76 @@ if HAS_QT:
             self.refresh_shift_status()
 
         def _show_dashboard(self):
-            self._set_active_nav(0)
+            self._set_active_nav("dashboard")
             self.dashboard_view.refresh_data()
             self.stack.setCurrentWidget(self.dashboard_view)
 
         def _show_pos(self):
             if not self._allow("pos"):
                 return
-            self._set_active_nav(1)
+            self._set_active_nav("pos")
             self.pos_view._check_shift_and_init_sale()
             self.stack.setCurrentWidget(self.pos_view)
+
+        def _show_invoices(self):
+            if not self._allow("invoices"):
+                return
+            self._set_active_nav("invoices")
+            self.invoices_view.refresh()
+            self.stack.setCurrentWidget(self.invoices_view)
 
         def _show_inventory(self):
             if not self._allow("inventory"):
                 return
-            self._set_active_nav(2)
+            self._set_active_nav("inventory")
             self.inventory_view.refresh()
             self.stack.setCurrentWidget(self.inventory_view)
 
         def _show_returns(self):
             if not self._allow("returns"):
                 return
-            self._set_active_nav(3)
+            self._set_active_nav("returns")
             self.stack.setCurrentWidget(self.returns_view)
 
         def _show_purchases(self):
             if not self._allow("purchases"):
                 return
-            self._set_active_nav(4)
+            self._set_active_nav("purchases")
             self.purchases_view.load_all()
             self.stack.setCurrentWidget(self.purchases_view)
 
         def _show_wallets(self):
             if not self._allow("wallets"):
                 return
-            self._set_active_nav(5)
+            self._set_active_nav("wallets")
             self.wallets_view.load_all()
             self.stack.setCurrentWidget(self.wallets_view)
 
         def _show_accounting(self):
             if not self._allow("accounting"):
                 return
-            self._set_active_nav(6)
+            self._set_active_nav("accounting")
             self.accounting_view.load_all()
             self.stack.setCurrentWidget(self.accounting_view)
 
         def _show_customers(self):
             if not self._allow("customers"):
                 return
-            self._set_active_nav(7)
+            self._set_active_nav("customers")
             self.customers_view.load_customers()
             self.stack.setCurrentWidget(self.customers_view)
 
         def _show_reports(self):
             if not self._allow("reports"):
                 return
-            self._set_active_nav(8)
+            self._set_active_nav("reports")
             self.reports_view.run_report()
             self.stack.setCurrentWidget(self.reports_view)
 
         def _show_settings(self):
             if not self._allow("settings"):
                 return
-            self._set_active_nav(9)
+            self._set_active_nav("settings")
             self.settings_view.load_backups()
             self.stack.setCurrentWidget(self.settings_view)
 

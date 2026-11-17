@@ -24,6 +24,9 @@ from app.models.customer import Customer
 from app.services import settings_service, sales_service, shift_service, customer_service, inventory_service
 from app.ui.pos.payment_dialog import PaymentDialog
 from app.ui.approval_dialog import request_manager_approval
+from app.ui.pos.choosers import (
+    DeviceChooserDialog, HeldInvoicesDialog, LineEditDialog, ProductChooserDialog,
+)
 from app.core.permissions import PERM_SALES_BELOW_MIN_PRICE, PERM_SALES_DISCOUNT
 from app.services.sales_service import (
     CreditLimitExceededError, DiscountLimitExceededError, InsufficientStockError, PriceBelowMinimumError,
@@ -138,7 +141,24 @@ if HAS_QT:
             header.setSectionResizeMode(6, QHeaderView.Fixed); self.cart_table.setColumnWidth(6, 130) # Total
             header.setSectionResizeMode(7, QHeaderView.Fixed); self.cart_table.setColumnWidth(7, 70)  # Delete
 
+            self.cart_table.doubleClicked.connect(self._edit_selected_line)
+            self.cart_table.itemActivated.connect(self._edit_selected_line)
             cart_layout.addWidget(self.cart_table)
+
+            self.undo_bar = QFrame()
+            self.undo_bar.setVisible(False)
+            ub = QHBoxLayout(self.undo_bar)
+            ub.setContentsMargins(8, 4, 8, 4)
+            ub.addWidget(QLabel(ar.CART_REMOVED))
+            btn_undo = QPushButton(ar.CART_UNDO)
+            btn_undo.clicked.connect(self._undo_remove)
+            ub.addWidget(btn_undo)
+            ub.addStretch()
+            cart_layout.addWidget(self.undo_bar)
+            self._undo_line = None
+            self._undo_timer = QTimer(self)
+            self._undo_timer.setSingleShot(True)
+            self._undo_timer.timeout.connect(lambda: self.undo_bar.setVisible(False))
 
             # Quick POS shortcuts toolbar at bottom of cart
             bot_bar = QHBoxLayout()
@@ -152,7 +172,7 @@ if HAS_QT:
             btn_hold.clicked.connect(self._hold_invoice)
             bot_bar.addWidget(btn_hold)
 
-            self.btn_resume = QPushButton("▶️ استرجاع المعلق")
+            self.btn_resume = QPushButton("▶️ المعلّقة")
             self.btn_resume.clicked.connect(self._resume_held_dialog)
             bot_bar.addWidget(self.btn_resume)
 
@@ -285,6 +305,8 @@ if HAS_QT:
         def _new_invoice(self):
             try:
                 cust_id = self.customer_combo.currentData()
+                if self.current_sale is not None:
+                    sales_service.discard_empty_draft(self.session, self.current_sale)
                 self.current_sale = sales_service.start_sale(
                     self.session, self.user, customer_id=cust_id
                 )
@@ -298,56 +320,60 @@ if HAS_QT:
 
         def _on_scan_or_search(self):
             query = self.scan_edit.text().strip()
-            if not query:
+            if not query or not self.current_sale:
                 return
 
-            # Find by Barcode or IMEI
+            # Exact barcode / IMEI first (scanner path: no dialogs for devices).
             found = inventory_service.find_by_barcode_or_imei(self.session, query)
-            if not found:
-                # Try search by partial name
-                prods = self.session.query(Product).filter(Product.name.ilike(f"%{query}%")).all()
-                if prods:
+            if found is None:
+                prods = inventory_service.search_products(self.session, query)
+                if len(prods) == 1:
                     found = prods[0]
+                elif prods:
+                    dlg = ProductChooserDialog(self.session, query, self)
+                    if dlg.exec() != QDialog.Accepted:
+                        self._focus_search()
+                        return
+                    found = dlg.chosen
 
-            if not found:
+            if found is None:
                 QMessageBox.warning(self, "تنبيه", f"لم يتم العثور على أي صنف أو سيريال يطابق: {query}")
                 self._focus_search()
                 return
 
             try:
                 if isinstance(found, Device):
-                    # It's an IMEI device!
-                    sales_service.add_line(
-                        self.session, self.user, self.current_sale,
-                        found.product, quantity=1, device=found
-                    )
+                    self._add_to_cart(found.product, device=found)
+                elif found.track_imei:
+                    in_cart = {it.device_id for it in self.current_sale.items if it.device_id}
+                    dlg = DeviceChooserDialog(self.session, found, exclude_ids=in_cart, parent=self)
+                    if dlg.device_count == 0:
+                        QMessageBox.warning(self, "تنبيه", f"لا توجد أجهزة متوفرة في المخزن للصنف '{found.name}'")
+                    elif dlg.exec() == QDialog.Accepted and dlg.chosen:
+                        self._add_to_cart(found, device=dlg.chosen)
                 else:
-                    # It's a product
-                    if found.track_imei:
-                        # Need to choose an available in_stock device
-                        devices = inventory_service.get_devices_for_product(self.session, found.id, status="in_stock")
-                        if not devices:
-                            QMessageBox.warning(self, "تنبيه", f"لا توجد أجهزة متوفرة في المخزن للصنف '{found.name}'")
-                            self._focus_search()
-                            return
-                        device = devices[0]
-                        sales_service.add_line(
-                            self.session, self.user, self.current_sale,
-                            found, quantity=1, device=device
-                        )
-                    else:
-                        sales_service.add_line(
-                            self.session, self.user, self.current_sale,
-                            found, quantity=1
-                        )
-
-                self.session.flush()
+                    self._add_to_cart(found)
                 self.scan_edit.clear()
                 self._refresh_cart()
             except Exception as e:
                 QMessageBox.critical(self, "خطأ في إضافة الصنف", str(e))
 
             self._focus_search()
+
+        def _add_to_cart(self, product, device=None):
+            """Add one unit; an accessory already in the cart gets its quantity bumped."""
+            if device is None:
+                for it in self.current_sale.items:
+                    if it.product_id == product.id and not it.device_id and it.discount == 0:
+                        sales_service.update_line(
+                            self.session, self.user, self.current_sale, it.id, quantity=it.quantity + 1
+                        )
+                        return
+            if device is not None and any(it.device_id == device.id for it in self.current_sale.items):
+                raise sales_service.SaleError("هذا الجهاز مضاف بالفعل في الفاتورة")
+            sales_service.add_line(
+                self.session, self.user, self.current_sale, product, quantity=1, device=device
+            )
 
         def _refresh_cart(self):
             if not self.current_sale:
@@ -382,14 +408,81 @@ if HAS_QT:
                 btn_del.setStyleSheet("background-color: #FEE2E2; color: #DC2626; border: none; border-radius: 4px;")
                 item_id = it.id
                 btn_del.clicked.connect(lambda _, i=item_id: self._remove_item(i))
+                btn_del.setToolTip("حذف البند")
                 self.cart_table.setCellWidget(row, 7, btn_del)
 
             self.lbl_subtotal.setText(format_money(self.current_sale.subtotal))
             self.lbl_big_total.setText(format_money(self.current_sale.total))
+            self._refresh_held_badge()
+
+        def _refresh_held_badge(self):
+            n = len(sales_service.list_held_sales(self.session))
+            # The invoice being edited is itself "held" in the DB; show only the others.
+            if self.current_sale is not None and self.current_sale.status == "held":
+                n = max(0, n - 1)
+            self.btn_resume.setText(f"▶️ المعلّقة ({n})" if n else "▶️ المعلّقة")
 
         def _remove_item(self, item_id: int):
+            item = next((i for i in self.current_sale.items if i.id == item_id), None)
+            if item is not None:
+                self._undo_line = {
+                    "product": item.product, "device": item.device, "quantity": item.quantity,
+                    "unit_price": item.unit_price, "discount": item.discount,
+                }
             sales_service.remove_line(self.session, self.user, self.current_sale, item_id)
             self._refresh_cart()
+            if item is not None:
+                self.undo_bar.setVisible(True)
+                self._undo_timer.start(8000)
+
+        def _undo_remove(self):
+            data = getattr(self, "_undo_line", None)
+            self.undo_bar.setVisible(False)
+            if not data or not self.current_sale:
+                return
+            try:
+                sales_service.add_line(
+                    self.session, self.user, self.current_sale, data["product"],
+                    quantity=data["quantity"], unit_price=data["unit_price"],
+                    device=data["device"], discount=data["discount"],
+                )
+            except Exception as exc:
+                QMessageBox.warning(self, ar.ERROR, str(exc))
+            self._undo_line = None
+            self._refresh_cart()
+
+        def _edit_selected_line(self, *_):
+            row = self.cart_table.currentRow()
+            if not self.current_sale or not (0 <= row < len(self.current_sale.items)):
+                return
+            item = self.current_sale.items[row]
+            dlg = LineEditDialog(item, can_set_qty=not item.device_id, parent=self)
+            if dlg.exec() != QDialog.Accepted or not dlg.values:
+                return
+            v = dlg.values
+            manager = None
+            while True:
+                try:
+                    sales_service.update_line(
+                        self.session, self.user, self.current_sale, item.id,
+                        quantity=v["quantity"] if not item.device_id else None,
+                        unit_price=v["unit_price"], discount=v["discount"], manager_override=manager,
+                    )
+                    break
+                except DiscountLimitExceededError as exc:
+                    if manager is not None:
+                        QMessageBox.warning(self, ar.ERROR, str(exc))
+                        return
+                    manager = request_manager_approval(
+                        self, self.session, self.user, PERM_SALES_DISCOUNT, str(exc)
+                    )
+                    if manager is None:
+                        return
+                except (ValueError, sales_service.SaleError) as exc:
+                    QMessageBox.warning(self, ar.ERROR, str(exc))
+                    return
+            self._refresh_cart()
+            self._focus_search()
 
         def _apply_discount_text(self, manager=None) -> None:
             disc_piasters = parse_egp_input(self.disc_edit.text() or "0")
@@ -475,23 +568,29 @@ if HAS_QT:
             self._new_invoice()
 
         def _resume_held_dialog(self):
-            held_sales = sales_service.list_held_sales(self.session)
-            if not held_sales:
-                QMessageBox.information(self, "معلومة", "لا توجد فواتير معلقة حالياً")
+            dlg = HeldInvoicesDialog(self.session, self.user, self)
+            if dlg.exec() != QDialog.Accepted or dlg.chosen is None:
+                self._refresh_held_badge()
                 return
-            items = [f"#{s.invoice_no} - {s.customer.name} ({format_money(s.total)})" for s in held_sales]
-            chosen, ok = QInputDialog.getItem(self, "استرجاع فاتورة معلقة", "اختر الفاتورة:", items, 0, False)
-            if ok and chosen:
-                idx = items.index(chosen)
-                self.current_sale = held_sales[idx]
-                self.lbl_inv_no.setText(f"رقم الفاتورة: {self.current_sale.invoice_no}")
-                self._refresh_cart()
+            if self.current_sale is not None and self.current_sale is not dlg.chosen:
+                if self.current_sale.items:
+                    self.session.commit()   # current invoice stays held in the list
+                else:
+                    sales_service.discard_empty_draft(self.session, self.current_sale)
+            self.current_sale = dlg.chosen
+            self.lbl_inv_no.setText(f"رقم الفاتورة: {self.current_sale.invoice_no}")
+            self.disc_edit.setText(piasters_to_input(self.current_sale.discount))
+            self._refresh_cart()
+            self._focus_search()
 
         def _clear_cart(self):
             if not self.current_sale or not self.current_sale.items:
                 return
             reply = QMessageBox.question(self, "تأكيد", "هل تريد مسح الأصناف الحالية من السلة؟", QMessageBox.Yes | QMessageBox.No)
             if reply == QMessageBox.Yes:
+                for it in list(self.current_sale.items):
+                    sales_service.remove_line(self.session, self.user, self.current_sale, it.id)
+                self.session.expire(self.current_sale, ["items"])
                 self._new_invoice()
 
         def _close_shift_dialog(self):

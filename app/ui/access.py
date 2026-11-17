@@ -12,6 +12,7 @@ from app.core import permissions as P
 NAV_PERMISSIONS: dict[str, set[str]] = {
     "dashboard": set(),
     "pos": {P.PERM_SALES_CREATE},
+    "invoices": {P.PERM_SALES_CREATE, P.PERM_SALES_RETURN, P.PERM_SALES_VOID},
     "inventory": {P.PERM_INVENTORY_VIEW},
     "returns": {P.PERM_SALES_RETURN},
     "purchases": {P.PERM_PURCHASES_VIEW, P.PERM_PURCHASES_CREATE},

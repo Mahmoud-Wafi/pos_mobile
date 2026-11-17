@@ -250,10 +250,27 @@ def get_all_products(session: Session, active_only: bool = True):
 
 
 def get_devices_for_product(session: Session, product_id: int, status: Optional[str] = None):
+    """Devices of a product, oldest first (FIFO: sell the oldest unit first)."""
     q = session.query(Device).filter(Device.product_id == product_id)
     if status:
         q = q.filter(Device.status == status)
-    return q.all()
+    return q.order_by(Device.created_at, Device.id).all()
+
+
+def search_products(session: Session, text: str, limit: int = 50) -> list[Product]:
+    """Type-ahead search over active products by name or barcode."""
+    text = (text or "").strip()
+    if not text:
+        return []
+    like = f"%{text}%"
+    return (
+        session.query(Product)
+        .filter(Product.is_active == True)  # noqa: E712
+        .filter((Product.name.ilike(like)) | (Product.barcode.like(like)))
+        .order_by(Product.name)
+        .limit(limit)
+        .all()
+    )
 
 
 # ── Stock adjustment & stocktake ─────────────────────────────────────────────
