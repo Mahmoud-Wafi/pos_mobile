@@ -1,5 +1,6 @@
 """Modern Product List widget with instant search, filters, badges, and clean dialogs."""
 from __future__ import annotations
+from app.core.permissions import PERM_COST_VIEW
 from app.i18n import ar
 
 from decimal import Decimal
@@ -80,6 +81,19 @@ if HAS_QT:
             self.btn_export.setMinimumHeight(40)
             self.btn_export.clicked.connect(self._export_excel)
             bar.addWidget(self.btn_export)
+            self.btn_edit = QPushButton(ar.INV_BTN_EDIT)
+            self.btn_edit.setMinimumHeight(40)
+            self.btn_edit.clicked.connect(self._edit_product)
+            bar.addWidget(self.btn_edit)
+            self.btn_toggle = QPushButton(f"{ar.INV_BTN_DEACTIVATE} / {ar.INV_BTN_ACTIVATE}")
+            self.btn_toggle.setMinimumHeight(40)
+            self.btn_toggle.clicked.connect(self._toggle_active)
+            bar.addWidget(self.btn_toggle)
+            self.btn_delete = QPushButton(ar.INV_BTN_DELETE)
+            self.btn_delete.setMinimumHeight(40)
+            variant(self.btn_delete, "danger")
+            self.btn_delete.clicked.connect(self._delete_product)
+            bar.addWidget(self.btn_delete)
             self.btn_labels = QPushButton(ar.LABEL_PRINT)
             self.btn_labels.setMinimumHeight(40)
             self.btn_labels.clicked.connect(self._print_labels)
@@ -100,6 +114,7 @@ if HAS_QT:
             self.table.verticalHeader().setVisible(False)
             self.table.verticalHeader().setDefaultSectionSize(46)
             self.table.setEditTriggers(QTableWidget.NoEditTriggers)
+            self.table.doubleClicked.connect(self._edit_product)
             self.table.setSelectionBehavior(QTableWidget.SelectRows)
             self.table.setAlternatingRowColors(True)
             self.table.setShowGrid(True)
@@ -195,6 +210,67 @@ if HAS_QT:
 
             self.footer_label.setText(f"إجمالي الأصناف المعروضة: {len(products)} صنف | مجموع الوحدات: {total_items} قطعة")
 
+        def _current_product(self):
+            row = self.table.currentRow()
+            shown = getattr(self, "_shown", [])
+            if 0 <= row < len(shown):
+                return shown[row]
+            show_error(self, message=ar.INV_SELECT_ROW)
+            return None
+
+        def _edit_product(self, *_):
+            p = self._current_product()
+            if p is not None and ProductDialog(self.session, self.user, product=p, parent=self).exec():
+                show_toast(self, ar.INV_SAVED)
+                self.load_data()
+
+        def _toggle_active(self):
+            p = self._current_product()
+            if p is None:
+                return
+            try:
+                inventory_service.update_product(self.session, self.user, p.id, {"is_active": not p.is_active})
+                self.session.commit()
+            except Exception as exc:
+                self.session.rollback()
+                show_error(self, exc)
+                return
+            self.load_data()
+
+        def _delete_product(self):
+            from app.ui.components import confirm
+            p = self._current_product()
+            if p is None or not confirm(self, ar.INV_BTN_DELETE, ar.INV_CONFIRM_DELETE_PRODUCT,
+                                        ar.INV_BTN_DELETE, destructive=True):
+                return
+            try:
+                inventory_service.delete_product(self.session, self.user, p.id)
+                self.session.commit()
+            except inventory_service.InventoryError as exc:
+                self.session.rollback()
+                if str(exc) == ar.PRODUCT_HAS_HISTORY and confirm(self, ar.INV_BTN_DEACTIVATE,
+                                                                  ar.INV_OFFER_DEACTIVATE, ar.INV_BTN_DEACTIVATE):
+                    self._toggle_active_for(p)
+                else:
+                    show_error(self, exc)
+                return
+            except Exception as exc:
+                self.session.rollback()
+                show_error(self, exc)
+                return
+            show_toast(self, ar.INV_DELETED)
+            self.load_data()
+
+        def _toggle_active_for(self, p):
+            try:
+                inventory_service.update_product(self.session, self.user, p.id, {"is_active": False})
+                self.session.commit()
+            except Exception as exc:
+                self.session.rollback()
+                show_error(self, exc)
+                return
+            self.load_data()
+
         def _print_labels(self):
             from PySide6.QtWidgets import QFileDialog, QInputDialog
             from app.services import label_service
@@ -243,14 +319,39 @@ if HAS_QT:
     class ProductDialog(QDialog):
         """Beautiful, professional dialog for adding products."""
 
-        def __init__(self, session, user, parent=None):
+        def __init__(self, session, user, product=None, parent=None):
             super().__init__(parent)
             self.session = session
             self.user = user
-            self.setWindowTitle(ar.PRODUCT_LIST_BD0915)
+            self.product = product
+            self.setWindowTitle(ar.INV_EDIT_PRODUCT if product else ar.PRODUCT_LIST_BD0915)
             self.setMinimumWidth(680)
 
             self._build_ui()
+            self._can_cost = PERM_COST_VIEW in user.permission_codes()
+            if not self._can_cost:
+                self.cost_edit.setVisible(False)
+                self.lbl_cost.setVisible(False)
+            if product is not None:
+                self._prefill(product)
+
+        def _prefill(self, p):
+            from app.core.money import piasters_to_input
+            from app.services import inventory_service as inv
+            self.name_edit.setText(p.name)
+            self.barcode_edit.setText(p.barcode or "")
+            self.type_combo.blockSignals(True)
+            self.type_combo.setCurrentIndex(max(0, self.type_combo.findData(p.type)))
+            self.type_combo.blockSignals(False)
+            self.sale_edit.setText(piasters_to_input(p.sale_price))
+            self.cost_edit.setText(piasters_to_input(p.cost_price))
+            self.min_price_edit.setText(piasters_to_input(p.min_price))
+            self.min_stock_edit.setText(str(p.min_stock))
+            self.warranty_edit.setText(str(p.warranty_days))
+            self.track_imei_check.setChecked(p.track_imei)
+            if inv.product_has_history(self.session, p):          # type / IMEI tracking are locked
+                self.type_combo.setEnabled(False)
+                self.track_imei_check.setEnabled(False)
 
         def _build_ui(self):
             main_layout = QVBoxLayout(self)
@@ -328,6 +429,7 @@ if HAS_QT:
 
             lbl_cost = QLabel(ar.PRODUCT_LIST_30B579)
             style_label(lbl_cost, tone="muted", bold=True)
+            self.lbl_cost = lbl_cost
             self.cost_edit = QLineEdit()
             self.cost_edit.setFixedHeight(40)
             self.cost_edit.setPlaceholderText(ar.DAILY_CLOSE_DIALOG_388B15)
@@ -466,7 +568,12 @@ if HAS_QT:
             }
 
             try:
-                inventory_service.create_product(self.session, self.user, data)
+                if self.product is not None:
+                    if not self._can_cost:
+                        data.pop("cost_price")
+                    inventory_service.update_product(self.session, self.user, self.product.id, data)
+                else:
+                    inventory_service.create_product(self.session, self.user, data)
                 self.session.commit()
                 self.accept()
             except PermissionDenied as e:

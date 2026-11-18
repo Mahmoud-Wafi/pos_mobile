@@ -314,3 +314,78 @@ def test_repairs_screen_flow(qtbot, db_session):
     assert w.table.rowCount() == 1
     w.table.setCurrentCell(0, 0)
     assert w._selected() is not None
+
+
+def _mgr(session, name="im"):
+    from app.core.security import hash_password
+    from app.models.user import Role, User
+    role = session.query(Role).filter_by(name="manager").first()
+    u = User(username=name, password_hash=hash_password("Passw0rd!"), full_name=name, role_id=role.id)
+    session.add(u)
+    session.commit()
+    return u
+
+
+def test_product_edit_dialog_saves_changes(qtbot, db_session):
+    from app.core.money import egp_to_piasters as egp
+    from app.services import inventory_service as inv
+    from app.ui.inventory.product_list import ProductDialog, ProductListWidget
+
+    s, mgr = db_session, _mgr(db_session)
+    p = inv.create_product(s, mgr, {"name": "Cable", "type": "accessory", "cost_price": egp("10"),
+                                    "sale_price": egp("50"), "min_price": egp("20"), "min_stock": 1,
+                                    "track_imei": False, "warranty_days": 0})
+    s.commit()
+    dlg = ProductDialog(s, mgr, product=p)
+    qtbot.addWidget(dlg)
+    assert dlg.name_edit.text() == "Cable" and dlg.sale_edit.text() in ("50", "50.00")
+    dlg.name_edit.setText("Cable 2m")
+    dlg.sale_edit.setText("65")
+    dlg._save()
+    assert p.name == "Cable 2m" and p.sale_price == egp("65")
+    w = ProductListWidget(s, mgr)
+    qtbot.addWidget(w)
+    assert w.btn_edit.text() and w.btn_delete.text() and w.btn_toggle.text()
+
+
+def test_cashier_does_not_see_cost_in_product_dialog(qtbot, db_session):
+    from app.core.security import hash_password
+    from app.models.user import Role, User
+    from app.ui.inventory.product_list import ProductDialog
+
+    s = db_session
+    role = s.query(Role).filter_by(name="cashier").first()
+    cashier = User(username="cc", password_hash=hash_password("Passw0rd!"), full_name="cc", role_id=role.id)
+    s.add(cashier)
+    s.commit()
+    dlg = ProductDialog(s, cashier)
+    qtbot.addWidget(dlg)
+    assert dlg.cost_edit.isHidden()
+
+
+def test_device_edit_dialog_and_actions(qtbot, db_session, monkeypatch):
+    from app.core.money import egp_to_piasters as egp
+    from app.services import inventory_service as inv
+    from app.ui.inventory import device_list
+    from app.ui.inventory.device_list import DeviceEditDialog, DeviceListWidget
+
+    s, mgr = db_session, _mgr(db_session, "dm")
+    phone = inv.create_product(s, mgr, {"name": "Phone", "type": "phone", "cost_price": egp("100"),
+                                        "sale_price": egp("200"), "min_price": egp("150"), "min_stock": 0,
+                                        "track_imei": True, "warranty_days": 365})
+    d1, d2 = inv.add_devices(s, mgr, phone, [{"imei1": "490154203237518"}, {"imei1": "352001111222333"}])
+    s.commit()
+    dlg = DeviceEditDialog(s, mgr, d1)
+    qtbot.addWidget(dlg)
+    dlg.notes.setText("box included")
+    dlg.condition.setCurrentIndex(dlg.condition.findData("used"))
+    dlg._save()
+    assert d1.notes == "box included" and d1.condition == "used"
+
+    w = DeviceListWidget(s, mgr)
+    qtbot.addWidget(w)
+    monkeypatch.setattr("app.ui.components.confirm", lambda *a, **k: True)
+    w.table.setCurrentCell(0, 0)
+    target = w._shown[0]
+    w._delete_device()
+    assert s.get(type(target), target.id) is None

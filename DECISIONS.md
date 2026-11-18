@@ -83,3 +83,10 @@ Architectural and business-rule decisions made during development.
 - Labels are PDFs (no printer driver code): the shop prints them to its label printer. IMEI labels carry no price.
 - Off-site copy: written under a temp name, verified, then renamed; failures never stop the local backup and show in the status bar.
 - The "ready" message opens `https://wa.me/...` in the user's browser; the app itself stays offline.
+
+## D-017 — Editing and deleting stock
+- The first versions only had create (and a service-level `update_product` with no screen). Products and devices can now be edited from their lists (button or double-click).
+- The stock ledger and the books must stay consistent, so "delete" is guarded: a product can be deleted only if it never had sales, purchases, devices or stock movements — otherwise it can be deactivated (hidden from POS). A device can be deleted only if it was added by mistake (in stock, no purchase/sale/used-intake link); its own ledger row goes with it. Any other in-stock device is taken out with «إخراج من المخزون» (status `damaged`, a -1 `adjust` movement and a required reason).
+- Type and IMEI tracking are locked once a product has history. A device's IMEI, condition and costs can only be edited while it is in stock; sold devices accept notes only.
+- Cost fields (product cost, device purchase/extra cost, the device list's cost column) need `cost.view`; a cashier no longer sees them.
+- Not covered yet: renaming/deleting categories and brands.

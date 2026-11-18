@@ -1,5 +1,8 @@
 # Changelog
 
+## Unreleased (branch `crud-inventory`)
+- Edit / delete / deactivate products and edit / delete / write off devices, with history-aware rules (D-017); cashiers no longer see cost fields.
+
 ## Unreleased (branch `features-next`)
 
 ### Added

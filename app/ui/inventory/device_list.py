@@ -2,7 +2,7 @@
 from __future__ import annotations
 from app.i18n import ar
 
-from app.ui.components import show_error
+from app.ui.components import show_error, show_toast
 from app.core.money import piasters_to_input
 
 from decimal import Decimal
@@ -80,6 +80,19 @@ if HAS_QT:
             self.btn_export.setMinimumHeight(40)
             self.btn_export.clicked.connect(self._export_excel)
             bar.addWidget(self.btn_export)
+            self.btn_edit = QPushButton(ar.INV_BTN_EDIT)
+            self.btn_edit.setMinimumHeight(40)
+            self.btn_edit.clicked.connect(self._edit_device)
+            bar.addWidget(self.btn_edit)
+            self.btn_writeoff = QPushButton(ar.INV_BTN_WRITE_OFF)
+            self.btn_writeoff.setMinimumHeight(40)
+            self.btn_writeoff.clicked.connect(self._write_off)
+            bar.addWidget(self.btn_writeoff)
+            self.btn_delete = QPushButton(ar.INV_BTN_DELETE)
+            self.btn_delete.setMinimumHeight(40)
+            variant(self.btn_delete, "danger")
+            self.btn_delete.clicked.connect(self._delete_device)
+            bar.addWidget(self.btn_delete)
             self.btn_labels = QPushButton(ar.LABEL_PRINT)
             self.btn_labels.setMinimumHeight(40)
             self.btn_labels.clicked.connect(self._print_labels)
@@ -107,6 +120,10 @@ if HAS_QT:
             self.table.setEditTriggers(QTableWidget.NoEditTriggers)
             self.table.setSelectionBehavior(QTableWidget.SelectRows)
             self.table.setAlternatingRowColors(True)
+            from app.core.permissions import PERM_COST_VIEW
+            if PERM_COST_VIEW not in self.user.permission_codes():
+                self.table.setColumnHidden(6, True)
+            self.table.doubleClicked.connect(self._edit_device)
 
             header = self.table.horizontalHeader()
             header.setSectionResizeMode(0, QHeaderView.Fixed); self.table.setColumnWidth(0, 50)
@@ -176,6 +193,56 @@ if HAS_QT:
 
             self.footer_label.setText(f"إجمالي الأجهزة المسجلة: {len(devices)} جهاز")
 
+        def _current_device(self):
+            row = self.table.currentRow()
+            shown = getattr(self, "_shown", [])
+            if 0 <= row < len(shown):
+                return shown[row]
+            show_error(self, message=ar.INV_SELECT_ROW)
+            return None
+
+        def _edit_device(self, *_):
+            from app.ui.components import show_toast
+            d = self._current_device()
+            if d is not None and DeviceEditDialog(self.session, self.user, d, parent=self).exec():
+                show_toast(self, ar.INV_SAVED)
+                self.load_data()
+
+        def _write_off(self):
+            from PySide6.QtWidgets import QInputDialog
+            from app.ui.components import show_toast
+            d = self._current_device()
+            if d is None:
+                return
+            reason, ok = QInputDialog.getText(self, ar.INV_BTN_WRITE_OFF, ar.DEVICE_REASON_REQUIRED)
+            if not ok:
+                return
+            try:
+                inventory_service.write_off_device(self.session, self.user, d.id, reason)
+                self.session.commit()
+            except Exception as exc:
+                self.session.rollback()
+                show_error(self, exc)
+                return
+            show_toast(self, ar.INV_SAVED)
+            self.load_data()
+
+        def _delete_device(self):
+            from app.ui.components import confirm, show_toast
+            d = self._current_device()
+            if d is None or not confirm(self, ar.INV_BTN_DELETE, ar.INV_CONFIRM_DELETE_DEVICE,
+                                        ar.INV_BTN_DELETE, destructive=True):
+                return
+            try:
+                inventory_service.delete_device(self.session, self.user, d.id)
+                self.session.commit()
+            except Exception as exc:
+                self.session.rollback()
+                show_error(self, exc)
+                return
+            show_toast(self, ar.INV_DELETED)
+            self.load_data()
+
         def _print_labels(self):
             from PySide6.QtWidgets import QFileDialog
             from app.services import label_service
@@ -216,6 +283,67 @@ if HAS_QT:
             dlg = AddDeviceDialog(self.session, self.user, parent=self)
             if dlg.exec() == QDialog.Accepted:
                 self.load_data()
+
+
+    class DeviceEditDialog(QDialog):
+        """Edit one device. Sold / written-off devices only allow notes (the service enforces it)."""
+
+        def __init__(self, session, user, device, parent=None):
+            super().__init__(parent)
+            from PySide6.QtWidgets import QFormLayout, QDialogButtonBox
+            from app.core.permissions import PERM_COST_VIEW
+            self.session, self.user, self.device = session, user, device
+            self._can_cost = PERM_COST_VIEW in user.permission_codes()
+            self.setWindowTitle(ar.INV_EDIT_DEVICE)
+            self.setLayoutDirection(Qt.RightToLeft)
+            self.setMinimumWidth(420)
+            form = QFormLayout(self)
+            self.imei1, self.imei2 = QLineEdit(device.imei1), QLineEdit(device.imei2 or "")
+            from app.ui.components.basic import attach_imei_check
+            attach_imei_check(self.imei1)
+            attach_imei_check(self.imei2, required=False)
+            self.condition = QComboBox()
+            self.condition.addItem(ar.DEVICE_CONDITION_NEW, "new")
+            self.condition.addItem(ar.DEVICE_CONDITION_USED, "used")
+            self.condition.setCurrentIndex(max(0, self.condition.findData(device.condition)))
+            self.purchase_cost = QLineEdit(piasters_to_input(device.purchase_cost))
+            self.extra_cost = QLineEdit(piasters_to_input(device.extra_cost))
+            self.notes = QLineEdit(device.notes or "")
+            form.addRow(ar.DEVICE_LIST_9F4371, self.imei1)
+            form.addRow(ar.DEVICE_LIST_3F6549, self.imei2)
+            form.addRow(ar.DEVICE_LIST_E1DCB7, self.condition)
+            if self._can_cost:
+                form.addRow(ar.DEVICE_COST_LABEL, self.purchase_cost)
+                form.addRow(ar.DEVICE_EXTRA_COST_LABEL, self.extra_cost)
+            form.addRow(ar.DEVICE_NOTES_LABEL, self.notes)
+            if device.status != "in_stock":
+                for w in (self.imei1, self.imei2, self.condition, self.purchase_cost, self.extra_cost):
+                    w.setEnabled(False)
+            btns = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+            btns.accepted.connect(self._save)
+            btns.rejected.connect(self.reject)
+            form.addRow(btns)
+
+        def _save(self):
+            from app.core.money import parse_egp_input
+            data = {"notes": self.notes.text()}
+            if self.device.status == "in_stock":
+                data.update(imei1=self.imei1.text(), imei2=self.imei2.text(), condition=self.condition.currentData())
+                if self._can_cost:
+                    try:
+                        data.update(purchase_cost=parse_egp_input(self.purchase_cost.text() or "0"),
+                                    extra_cost=parse_egp_input(self.extra_cost.text() or "0"))
+                    except ValueError:
+                        show_error(self, message=ar.INV_NEGATIVE_VALUE)
+                        return
+            try:
+                inventory_service.update_device(self.session, self.user, self.device.id, data)
+                self.session.commit()
+            except Exception as exc:
+                self.session.rollback()
+                show_error(self, exc)
+                return
+            self.accept()
 
 
     class AddDeviceDialog(QDialog):
