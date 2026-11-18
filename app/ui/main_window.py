@@ -323,7 +323,13 @@ if HAS_QT:
             except Exception:
                 last = ar.NO_BACKUP_YET
             self.sb_db.setText(ar.STATUS_DB_OK)
-            self.sb_backup.setText(f"{ar.STATUS_LAST_BACKUP}: {last}")
+            from app.core.backup import offsite_status
+
+            off = offsite_status()
+            extra = ""
+            if off is not None:
+                extra = f"  |  {ar.OFFSITE_STATUS_LABEL}: " + (ar.OFFSITE_STATUS_OK if off[0] == "ok" else ar.OFFSITE_STATUS_FAIL)
+            self.sb_backup.setText(f"{ar.STATUS_LAST_BACKUP}: {last}{extra}")
             self.sb_user.setText(f"{ar.STATUS_USER}: {self.current_user.full_name}")
             self.sb_version.setText(f"v{APP_VERSION}")
 

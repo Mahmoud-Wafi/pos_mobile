@@ -69,6 +69,11 @@ class BackupSecurityTab(QWidget):
         btn_create.clicked.connect(self._create_backup)
         btn_bar.addWidget(btn_create)
 
+        self.btn_offsite = QPushButton(ar.OFFSITE_COPY_NOW)
+        self.btn_offsite.setMinimumHeight(40)
+        self.btn_offsite.clicked.connect(self._copy_offsite)
+        btn_bar.addWidget(self.btn_offsite)
+
         btn_refresh = QPushButton(ar.LOW_STOCK_WIDGET_8EB2F5)
         btn_refresh.setMinimumHeight(40)
         btn_refresh.clicked.connect(self.load_backups)
@@ -168,6 +173,15 @@ class BackupSecurityTab(QWidget):
             variant(btn_res, "danger")
             btn_res.clicked.connect(lambda _, path=bp: self._confirm_restore(path))
             self.table_backups.setCellWidget(r, 2, btn_res)
+
+    def _copy_offsite(self):
+        try:
+            backup_service.copy_offsite_now(self.session, self.user)
+        except Exception as e:
+            self.session.rollback()
+            show_error(self, e)
+            return
+        show_toast(self, ar.OFFSITE_COPIED)
 
     def _create_backup(self):
         try:

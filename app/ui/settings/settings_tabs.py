@@ -51,6 +51,7 @@ class ShopSettingsTab(QWidget):
         ("idle_lock_minutes", ar.SET_IDLE_LOCK),
         ("backup_retention", ar.SET_BACKUP_RETENTION),
         ("auto_backup", ar.SET_AUTO_BACKUP),
+        ("offsite_backup_dir", ar.SET_OFFSITE_DIR),
     ]
 
     def __init__(self, session, user, parent=None):

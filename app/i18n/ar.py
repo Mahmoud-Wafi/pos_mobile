@@ -913,3 +913,16 @@ WALLETS_WINDOW_495C62 = 'إضافة خط محفظة'
 WALLETS_WINDOW_A56017 = 'جرد المحافظ'
 WALLETS_WINDOW_797860 = 'قواعد العمولات'
 WALLETS_WINDOW_E7E7A0 = 'إدارة المحافظ الإلكترونية وشبكات الدفع الفوري'
+
+# --- off-site backup ---
+OFFSITE_NOT_SET = "لم يتم تحديد مجلد النسخ الخارجي"
+OFFSITE_FAILED = "تعذر نسخ النسخة الاحتياطية إلى المجلد الخارجي. تأكد أن الفلاش أو المجلد متصل ومتاح للكتابة."
+OFFSITE_BAD_FOLDER = "مجلد النسخ الخارجي غير موجود أو غير قابل للكتابة"
+SET_OFFSITE_DIR = "مجلد النسخ الاحتياطي الخارجي (فلاش / مجلد سحابي)"
+OFFSITE_STATUS_LABEL = "النسخ الخارجي"
+OFFSITE_STATUS_OK = "تم"
+OFFSITE_STATUS_FAIL = "فشل — راجع الإعدادات"
+OFFSITE_STATUS_NONE = "غير مفعّل"
+OFFSITE_COPY_NOW = "نسخ إلى المجلد الخارجي الآن"
+OFFSITE_COPIED = "تم نسخ النسخة الاحتياطية إلى المجلد الخارجي"
+OFFSITE_BROWSE = "اختيار مجلد…"

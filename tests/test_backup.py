@@ -7,11 +7,14 @@ Scenario:
   4. Verify the restored DB contains the original data.
 """
 import json
+import time
 import sqlite3
 import zipfile
 from pathlib import Path
 
 import pytest
+
+from app.core import backup
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 
@@ -242,3 +245,45 @@ class TestService:
                 backup_service.create(s, cashier)
             assert backup_service.retention(s) == 14
         eng.dispose()
+
+
+# ── off-site copy ────────────────────────────────────────────────────────────
+
+def test_offsite_copy_is_verified_and_pruned(seeded_db, tmp_path):
+    db_path, backup_dir = seeded_db
+    off = tmp_path / "usb"
+    for _ in range(3):
+        z = backup.create_backup(db_path, backup_dir, prefix="shop")
+        time.sleep(1.1)
+        out = backup.copy_offsite(z, off, keep=2, backup_dir=backup_dir)
+        assert out.exists()
+        backup.verify_backup(out)
+    assert len(backup.list_backups(off)) == 2          # pruned to the retention
+    assert not list(off.glob(".part_*"))
+    state, _when, _detail = backup.offsite_status(backup_dir)
+    assert state == "ok"
+
+
+def test_offsite_failure_is_recorded_not_raised_by_auto_backup(seeded_db, tmp_path):
+    db_path, backup_dir = seeded_db
+    blocker = tmp_path / "file_not_folder"
+    blocker.write_text("x")
+    z = backup.run_auto_backup(5, force=True, db_path=db_path, backup_dir=backup_dir,
+                               offsite_dir=str(blocker / "sub"))
+    assert z is not None and z.exists()                # the local backup still happened
+    assert backup.offsite_status(backup_dir)[0] == "fail"
+
+
+def test_offsite_setting_validates_folder(db_session, tmp_path):
+    from app.core.security import hash_password
+    from app.models.user import Role, User
+    from app.services import settings_service
+
+    role = db_session.query(Role).filter_by(name="manager").first()
+    mgr = User(username="mm", password_hash=hash_password("Passw0rd!"), full_name="m", role_id=role.id)
+    db_session.add(mgr)
+    db_session.commit()
+    with pytest.raises(settings_service.SettingsError):
+        settings_service.update(db_session, mgr, {"offsite_backup_dir": str(tmp_path / "missing")})
+    settings_service.update(db_session, mgr, {"offsite_backup_dir": str(tmp_path)})
+    assert settings_service.get(db_session, "offsite_backup_dir") == str(tmp_path)
