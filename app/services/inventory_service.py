@@ -20,10 +20,13 @@ from sqlalchemy.orm import Session
 from app.core.audit import log_action
 from app.core.money import weighted_average_cost
 from app.core.permissions import (
-    PERM_INVENTORY_EDIT, PERM_INVENTORY_VIEW, PERM_INVENTORY_ADJUST,
+    PERM_COST_VIEW, PERM_INVENTORY_EDIT, PERM_INVENTORY_VIEW, PERM_INVENTORY_ADJUST,
     require_permission,
 )
+from app.i18n import ar
 from app.models.product import Brand, Category, Product
+from app.models.purchase import PurchaseItem, UsedDevicePurchase
+from app.models.sale import SaleItem
 from app.models.stock import Device, Stock, StockMovement
 from app.models.user import User
 
@@ -46,6 +49,10 @@ class InvalidProductType(Exception):
 
 class InsufficientStock(Exception):
     pass
+
+
+class InventoryError(Exception):
+    """Business error with an Arabic message."""
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -144,21 +151,76 @@ def create_product(session: Session, user: User, data: dict) -> Product:
     return product
 
 
+def product_has_history(session: Session, product: Product) -> bool:
+    """True when the product appears in sales, purchases, devices or the stock ledger."""
+    pid = product.id
+    return bool(
+        session.query(SaleItem.id).filter(SaleItem.product_id == pid).first()
+        or session.query(PurchaseItem.id).filter(PurchaseItem.product_id == pid).first()
+        or session.query(Device.id).filter(Device.product_id == pid).first()
+        or session.query(StockMovement.id).filter(StockMovement.product_id == pid).first()
+    )
+
+
 def update_product(session: Session, user: User, product_id: int, data: dict) -> Product:
+    """Edit a product. Cost needs ``cost.view``; type / IMEI tracking are locked once it has history."""
     require_permission(user.permission_codes(), PERM_INVENTORY_EDIT, user.username)
     product = session.get(Product, product_id)
     if product is None:
         raise ProductNotFound(f"المنتج {product_id} غير موجود")
-    old = {"name": product.name, "sale_price": product.sale_price}
-    for field in ("name", "barcode", "category_id", "brand_id", "sale_price",
-                  "min_price", "min_stock", "warranty_days", "is_active"):
+    if "name" in data and not str(data["name"]).strip():
+        raise InventoryError(ar.PRODUCT_NAME_REQUIRED)
+    for money in ("sale_price", "min_price", "cost_price", "min_stock", "warranty_days"):
+        if money in data and int(data[money]) < 0:
+            raise InventoryError(ar.INV_NEGATIVE_VALUE)
+    if "cost_price" in data:
+        require_permission(user.permission_codes(), PERM_COST_VIEW, user.username)
+    if ("type" in data and data["type"] != product.type) or \
+            ("track_imei" in data and bool(data["track_imei"]) != product.track_imei):
+        if product_has_history(session, product):
+            raise InventoryError(ar.PRODUCT_TYPE_LOCKED)
+        if "type" in data and data["type"] not in ("phone", "accessory", "card"):
+            raise InvalidProductType(f"نوع المنتج غير صحيح: {data['type']}")
+    barcode = data.get("barcode")
+    if barcode:
+        clash = session.query(Product.id).filter(Product.barcode == barcode, Product.id != product.id).first()
+        if clash:
+            raise InventoryError(ar.PRODUCT_BARCODE_TAKEN)
+    old = {"name": product.name, "sale_price": product.sale_price, "cost_price": product.cost_price}
+    for field in ("name", "barcode", "type", "category_id", "brand_id", "sale_price", "min_price",
+                  "cost_price", "min_stock", "warranty_days", "track_imei", "is_active"):
         if field in data:
-            setattr(product, field, data[field])
+            value = data[field]
+            if field == "name":
+                value = str(value).strip()
+            if field == "barcode":
+                value = value or None
+            setattr(product, field, value)
     log_action(session, "update_product", user_id=user.id,
                table_name="products", record_id=product.id,
-               old_value=old, new_value=data)
+               old_value=old, new_value={k: v for k, v in data.items()})
     session.flush()
     return product
+
+
+def delete_product(session: Session, user: User, product_id: int) -> None:
+    """Permanently delete a product that was never used. Anything with history must be deactivated instead."""
+    require_permission(user.permission_codes(), PERM_INVENTORY_EDIT, user.username)
+    product = session.get(Product, product_id)
+    if product is None:
+        raise ProductNotFound(f"المنتج {product_id} غير موجود")
+    if product_has_history(session, product):
+        raise InventoryError(ar.PRODUCT_HAS_HISTORY)
+    stock = session.query(Stock).filter_by(product_id=product.id).first()
+    if stock is not None and stock.quantity:
+        raise InventoryError(ar.PRODUCT_HAS_HISTORY)
+    name = product.name
+    if stock is not None:
+        session.delete(stock)
+    session.delete(product)
+    log_action(session, "delete_product", user_id=user.id, table_name="products", record_id=product_id,
+               old_value={"name": name})
+    session.flush()
 
 
 # ── Devices / IMEI ────────────────────────────────────────────────────────────
@@ -224,6 +286,98 @@ def add_devices(session: Session, user: User, product: Product, devices_data: li
                table_name="devices", record_id=product.id,
                new_value={"count": len(created), "imeis": [d.imei1 for d in created]})
     return created
+
+
+def _sync_stock_quantity(session: Session, product: Product) -> None:
+    stock = _ensure_stock_row(session, product)
+    stock.quantity = session.query(func.count(Device.id)).filter(
+        Device.product_id == product.id, Device.status == "in_stock").scalar() or 0
+
+
+def _device_has_history(session: Session, device: Device) -> bool:
+    """Linked to a purchase, a sale or a used-device intake (so it is part of the books)."""
+    return bool(device.purchase_id or device.sale_item_id or device.status != "in_stock"
+                or session.query(UsedDevicePurchase.id).filter(UsedDevicePurchase.device_id == device.id).first()
+                or session.query(SaleItem.id).filter(SaleItem.device_id == device.id).first())
+
+
+def update_device(session: Session, user: User, device_id: int, data: dict) -> Device:
+    """Edit a device. Sold / returned devices only accept notes; IMEI and costs only while in stock."""
+    require_permission(user.permission_codes(), PERM_INVENTORY_EDIT, user.username)
+    device = session.get(Device, device_id)
+    if device is None:
+        raise InventoryError(ar.DEVICE_NOT_FOUND)
+    editable_all = device.status == "in_stock"
+    locked = {"imei1", "imei2", "condition", "purchase_cost", "extra_cost"} & set(data)
+    if locked and not editable_all:
+        raise InventoryError(ar.DEVICE_LOCKED)
+    if ("purchase_cost" in data or "extra_cost" in data):
+        require_permission(user.permission_codes(), PERM_COST_VIEW, user.username)
+        if int(data.get("purchase_cost", 0)) < 0 or int(data.get("extra_cost", 0)) < 0:
+            raise InventoryError(ar.INV_NEGATIVE_VALUE)
+    old = {"imei1": device.imei1, "imei2": device.imei2, "condition": device.condition}
+    for field in ("imei1", "imei2"):
+        if field in data:
+            value = (str(data[field]).strip() if data[field] else None)
+            if field == "imei1" and not value:
+                raise InventoryError(ar.DEVICE_IMEI_REQUIRED)
+            if value and value != getattr(device, field):
+                _check_imei_unique(session, value)
+            setattr(device, field, value)
+    if "condition" in data:
+        if data["condition"] not in ("new", "used"):
+            raise InventoryError(ar.INV_NEGATIVE_VALUE)
+        device.condition = data["condition"]
+    for field in ("purchase_cost", "extra_cost"):
+        if field in data:
+            setattr(device, field, int(data[field]))
+    if "notes" in data:
+        device.notes = (data["notes"] or "").strip() or None
+    log_action(session, "update_device", user_id=user.id, table_name="devices", record_id=device.id,
+               old_value=old, new_value={k: v for k, v in data.items()})
+    session.flush()
+    return device
+
+
+def delete_device(session: Session, user: User, device_id: int) -> None:
+    """Delete a device that was added by mistake (in stock, never bought, sold or taken in).
+
+    Its own ledger row goes with it, so the stock count stays right. Anything else must be written off.
+    """
+    require_permission(user.permission_codes(), PERM_INVENTORY_EDIT, user.username)
+    device = session.get(Device, device_id)
+    if device is None:
+        raise InventoryError(ar.DEVICE_NOT_FOUND)
+    if _device_has_history(session, device):
+        raise InventoryError(ar.DEVICE_HAS_HISTORY)
+    product, imei = device.product, device.imei1
+    session.query(StockMovement).filter(StockMovement.device_id == device.id).delete()
+    session.delete(device)
+    session.flush()
+    _sync_stock_quantity(session, product)
+    log_action(session, "delete_device", user_id=user.id, table_name="devices", record_id=device_id,
+               old_value={"imei1": imei, "product": product.name})
+
+
+def write_off_device(session: Session, user: User, device_id: int, reason: str) -> Device:
+    """Take an in-stock device out of stock (damaged / lost) while keeping its history."""
+    require_permission(user.permission_codes(), PERM_INVENTORY_EDIT, user.username)
+    device = session.get(Device, device_id)
+    if device is None:
+        raise InventoryError(ar.DEVICE_NOT_FOUND)
+    if device.status != "in_stock":
+        raise InventoryError(ar.DEVICE_LOCKED)
+    if not (reason or "").strip():
+        raise InventoryError(ar.DEVICE_REASON_REQUIRED)
+    device.status = "damaged"
+    device.notes = ((device.notes + "\n") if device.notes else "") + f"{ar.DEVICE_WRITTEN_OFF}: {reason.strip()}"
+    _add_movement(session, device.product, "adjust", -1, user_id=user.id, device=device,
+                  note=f"{ar.DEVICE_WRITTEN_OFF}: {reason.strip()}")
+    session.flush()
+    _sync_stock_quantity(session, device.product)
+    log_action(session, "write_off_device", user_id=user.id, table_name="devices", record_id=device.id,
+               new_value={"reason": reason.strip(), "imei1": device.imei1})
+    return device
 
 
 # ── Stock lookup ──────────────────────────────────────────────────────────────
