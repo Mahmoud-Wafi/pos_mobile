@@ -1,5 +1,6 @@
 """Modern Device / IMEI list widget with search, status badges, and clean dialog."""
 from __future__ import annotations
+from app.i18n import ar
 
 from app.ui.components import show_error
 from app.core.money import piasters_to_input
@@ -27,13 +28,13 @@ if HAS_QT:
     from app.core.money import format_money, egp_to_piasters
     from app.core.permissions import PermissionDenied
 
-    HEADERS = ["#", "اسم الجهاز / الموديل", "IMEI 1 (السيريال الأول)", "IMEI 2 (السيريال الثاني)", "الحالة بالمخزن", "الحالة الفنية", "التكلفة الإجمالية"]
+    HEADERS = ["#", ar.DEVICE_LIST_D18270, ar.DEVICE_LIST_9F4371, ar.DEVICE_LIST_3F6549, ar.DEVICE_LIST_E887F5, ar.DEVICE_LIST_E1DCB7, ar.DEVICE_LIST_592F9D]
 
     STATUS_CONFIG = {
-        "in_stock": ("في المخزون", "#ECFDF5", "#065F46"),
-        "sold": ("مباع", "#EFF6FF", "#1E40AF"),
-        "returned": ("مرتجع", "#FEF3C7", "#92400E"),
-        "damaged": ("تالف", "#FEE2E2", "#991B1B"),
+        "in_stock": (ar.DEVICE_LIST_99F6F9, "#ECFDF5", "#065F46"),
+        "sold": (ar.DEVICE_LIST_3655DA, "#EFF6FF", "#1E40AF"),
+        "returned": (ar.HISTORY_RETURN, "#FEF3C7", "#92400E"),
+        "damaged": (ar.DEVICE_LIST_250573, "#FEE2E2", "#991B1B"),
     }
 
     class DeviceListWidget(QWidget):
@@ -54,7 +55,7 @@ if HAS_QT:
             bar.setSpacing(10)
 
             self.search_edit = QLineEdit()
-            self.search_edit.setPlaceholderText("ابحث برقم الـ IMEI أو اسم الجهاز...")
+            self.search_edit.setPlaceholderText(ar.DEVICE_LIST_1EDD35)
             self.search_edit.setMinimumWidth(300)
             self.search_edit.setFixedHeight(40)
             self.search_edit.textChanged.connect(self._filter_devices)
@@ -62,30 +63,30 @@ if HAS_QT:
 
             self.filter_status = QComboBox()
             self.filter_status.setFixedHeight(40)
-            self.filter_status.addItem("جميع الحالات", "all")
-            self.filter_status.addItem("في المخزون فقط", "in_stock")
-            self.filter_status.addItem("المباعة فقط", "sold")
-            self.filter_status.addItem("المرتجعة فقط", "returned")
+            self.filter_status.addItem(ar.DEVICE_LIST_A4028D, "all")
+            self.filter_status.addItem(ar.DEVICE_LIST_160CF3, "in_stock")
+            self.filter_status.addItem(ar.DEVICE_LIST_2C6AC8, "sold")
+            self.filter_status.addItem(ar.DEVICE_LIST_422EC2, "returned")
             self.filter_status.currentIndexChanged.connect(self._filter_devices)
             bar.addWidget(self.filter_status)
 
             bar.addStretch()
 
-            self.btn_import = QPushButton("استيراد Excel")
+            self.btn_import = QPushButton(ar.IMPORT_BUTTON)
             self.btn_import.setMinimumHeight(40)
             self.btn_import.clicked.connect(self._import_excel)
             bar.addWidget(self.btn_import)
-            self.btn_export = QPushButton("تصدير Excel")
+            self.btn_export = QPushButton(ar.EXPORT_BUTTON)
             self.btn_export.setMinimumHeight(40)
             self.btn_export.clicked.connect(self._export_excel)
             bar.addWidget(self.btn_export)
 
-            self.btn_refresh = QPushButton("تحديث")
+            self.btn_refresh = QPushButton(ar.REFRESH)
             self.btn_refresh.setFixedHeight(40)
             self.btn_refresh.clicked.connect(self.load_data)
             bar.addWidget(self.btn_refresh)
 
-            self.btn_add = QPushButton("تسجيل جهاز جديد (IMEI)")
+            self.btn_add = QPushButton(ar.DEVICE_LIST_CC7227)
             self.btn_add.setObjectName("PrimaryBtn")
             self.btn_add.setFixedHeight(40)
             self.btn_add.clicked.connect(self._add_device)
@@ -146,7 +147,7 @@ if HAS_QT:
             self.table.setRowCount(len(devices))
             for row, d in enumerate(devices):
                 status_ar, bg_col, fg_col = STATUS_CONFIG.get(d.status, (d.status, "#F1F5F9", "#0F172A"))
-                cond_ar = "جديد" if d.condition == "new" else "مستعمل"
+                cond_ar = ar.DEVICE_CONDITION_NEW if d.condition == "new" else ar.DEVICE_CONDITION_USED
 
                 cols = [
                     (str(d.id), Qt.AlignCenter, None, None, None),
@@ -179,11 +180,11 @@ if HAS_QT:
             from PySide6.QtWidgets import QFileDialog
             from app.services import import_export_service as ie
             from app.ui.components import show_error, show_toast
-            dest, _ = QFileDialog.getSaveFileName(self, "تصدير Excel", "devices.xlsx", "Excel (*.xlsx);;CSV (*.csv)")
+            dest, _ = QFileDialog.getSaveFileName(self, ar.EXPORT_BUTTON, "devices.xlsx", "Excel (*.xlsx);;CSV (*.csv)")
             if dest:
                 try:
                     ie.export_devices(self.session, self.user, dest)
-                    show_toast(self, "تم حفظ الملف")
+                    show_toast(self, ar.EXPORT_DONE)
                 except Exception as exc:
                     show_error(self, exc)
 
@@ -200,7 +201,7 @@ if HAS_QT:
             super().__init__(parent)
             self.session = session
             self.user = user
-            self.setWindowTitle("تسجيل جهاز هاتف جديد (IMEI)")
+            self.setWindowTitle(ar.DEVICE_LIST_A96D0E)
             self.setMinimumWidth(620)
 
             self._build_ui()
@@ -218,9 +219,9 @@ if HAS_QT:
 
             header_text = QVBoxLayout()
             header_text.setSpacing(2)
-            title = QLabel("إضافة جهاز هاتف جديد بالسيريال (IMEI)")
+            title = QLabel(ar.DEVICE_LIST_AE5015)
             style_label(title, size="h2", tone="text", bold=True)
-            subtitle = QLabel("امسح بالباركود أو اكتب أرقام IMEI 1 و IMEI 2 لتتبع الجهاز والضمان")
+            subtitle = QLabel(ar.DEVICE_LIST_C8762A)
             style_label(subtitle, size="caption", tone="muted")
             header_text.addWidget(title)
             header_text.addWidget(subtitle)
@@ -230,12 +231,12 @@ if HAS_QT:
             main_layout.addLayout(header_box)
 
             # ─── Group 1: اختيار الموديل ───
-            grp_model = QGroupBox("1. نوع وموديل الهاتف")
+            grp_model = QGroupBox(ar.DEVICE_LIST_0FCB3C)
             grid_model = QGridLayout(grp_model)
             grid_model.setHorizontalSpacing(14)
             grid_model.setVerticalSpacing(10)
 
-            lbl_prod = QLabel("موديل الهاتف المصرح بالمخزن: *")
+            lbl_prod = QLabel(ar.DEVICE_LIST_E11BED)
             style_label(lbl_prod, bold=True)
             self.product_combo = QComboBox()
             self.product_combo.setFixedHeight(40)
@@ -245,22 +246,22 @@ if HAS_QT:
             main_layout.addWidget(grp_model)
 
             # ─── Group 2: أرقام السيريال ───
-            grp_imei = QGroupBox("2. أرقام السيريال (IMEI)")
+            grp_imei = QGroupBox(ar.DEVICE_LIST_F77BFD)
             grid_imei = QGridLayout(grp_imei)
             grid_imei.setHorizontalSpacing(14)
             grid_imei.setVerticalSpacing(10)
 
-            lbl_i1 = QLabel("رقم IMEI 1 (الشريحة الأولى): *")
+            lbl_i1 = QLabel(ar.DEVICE_LIST_2E2947)
             style_label(lbl_i1, tone="info", bold=True)
             self.imei1_edit = QLineEdit()
             self.imei1_edit.setFixedHeight(40)
-            self.imei1_edit.setPlaceholderText("15 رقماً (امسح الباركود على العلبة)")
+            self.imei1_edit.setPlaceholderText(ar.DEVICE_LIST_C266B5)
 
-            lbl_i2 = QLabel("رقم IMEI 2 (الشريحة الثانية - اختياري):")
+            lbl_i2 = QLabel(ar.DEVICE_LIST_8B7CEA)
             style_label(lbl_i2, bold=True)
             self.imei2_edit = QLineEdit()
             self.imei2_edit.setFixedHeight(40)
-            self.imei2_edit.setPlaceholderText("اختياري إن وجد")
+            self.imei2_edit.setPlaceholderText(ar.DEVICE_LIST_9FA171)
 
             grid_imei.addWidget(lbl_i1, 0, 0)
             grid_imei.addWidget(lbl_i2, 0, 1)
@@ -270,30 +271,30 @@ if HAS_QT:
             main_layout.addWidget(grp_imei)
 
             # ─── Group 3: الحالة والتكلفة ───
-            grp_cost = QGroupBox("3. الحالة الفنية وتكلفة الشراء")
+            grp_cost = QGroupBox(ar.DEVICE_LIST_FD5405)
             grid_cost = QGridLayout(grp_cost)
             grid_cost.setHorizontalSpacing(14)
             grid_cost.setVerticalSpacing(10)
 
-            lbl_cond = QLabel("حالة الجهاز الفنية:")
+            lbl_cond = QLabel(ar.DEVICE_LIST_F66554)
             style_label(lbl_cond, bold=True)
             self.condition_combo = QComboBox()
             self.condition_combo.setFixedHeight(40)
-            self.condition_combo.addItem("جديد بالكرتونة", "new")
-            self.condition_combo.addItem("مستعمل بحالة ممتازة", "used")
+            self.condition_combo.addItem(ar.DEVICE_LIST_2FC602, "new")
+            self.condition_combo.addItem(ar.DEVICE_LIST_A3C97D, "used")
 
-            lbl_cost = QLabel("سعر الشراء / التكلفة (ج.م):")
+            lbl_cost = QLabel(ar.DEVICE_LIST_E1A045)
             style_label(lbl_cost, bold=True)
             self.cost_edit = QLineEdit()
             self.cost_edit.setFixedHeight(40)
-            self.cost_edit.setPlaceholderText("0.00 ج.م")
+            self.cost_edit.setPlaceholderText(ar.DAILY_CLOSE_DIALOG_388B15)
             self.cost_edit.setValidator(QDoubleValidator(0.0, 9999999.0, 2))
 
-            lbl_extra = QLabel("تكاليف إضافية (صيانة/إكسسوار):")
+            lbl_extra = QLabel(ar.DEVICE_LIST_ADF72C)
             style_label(lbl_extra, bold=True)
             self.extra_cost_edit = QLineEdit("0")
             self.extra_cost_edit.setFixedHeight(40)
-            self.extra_cost_edit.setPlaceholderText("0.00 ج.م")
+            self.extra_cost_edit.setPlaceholderText(ar.DAILY_CLOSE_DIALOG_388B15)
             self.extra_cost_edit.setValidator(QDoubleValidator(0.0, 9999999.0, 2))
 
             grid_cost.addWidget(lbl_cond, 0, 0)
@@ -304,7 +305,7 @@ if HAS_QT:
             grid_cost.addWidget(self.cost_edit, 1, 1)
             grid_cost.addWidget(self.extra_cost_edit, 1, 2)
 
-            lbl_notes = QLabel("ملاحظات إضافية عن الجهاز:")
+            lbl_notes = QLabel(ar.DEVICE_LIST_35BE9F)
             style_label(lbl_notes, bold=True)
             self.notes_edit = QLineEdit()
             self.notes_edit.setFixedHeight(40)
@@ -322,13 +323,13 @@ if HAS_QT:
             btn_layout.setSpacing(12)
             btn_layout.addStretch()
 
-            btn_cancel = QPushButton("إلغاء الأمر")
+            btn_cancel = QPushButton(ar.DEVICE_LIST_69A551)
             btn_cancel.setFixedHeight(44)
             btn_cancel.setMinimumWidth(120)
             variant(btn_cancel, "secondary")
             btn_cancel.clicked.connect(self.reject)
 
-            btn_save = QPushButton(" تسجيل الجهاز في المخزن")
+            btn_save = QPushButton(ar.DEVICE_LIST_7956E2)
             btn_save.setObjectName("PrimaryBtn")
             btn_save.setFixedHeight(44)
             btn_save.setMinimumWidth(220)
@@ -353,13 +354,13 @@ if HAS_QT:
 
         def _save(self):
             if not self._products:
-                show_error(self, message="لا توجد هواتف مسجلة. أضف صنف هاتف أولاً.")
+                show_error(self, message=ar.DEVICE_LIST_9BE0F3)
                 return
 
             product = self.product_combo.currentData()
             imei1 = self.imei1_edit.text().strip()
             if not imei1:
-                show_error(self, message="رقم IMEI 1 مطلوب لتسجيل الجهاز")
+                show_error(self, message=ar.DEVICE_LIST_F5623C)
                 self.imei1_edit.setFocus()
                 return
 

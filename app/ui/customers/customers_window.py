@@ -1,5 +1,6 @@
 """Customers and receivables management view."""
 from __future__ import annotations
+from app.i18n import ar
 
 from typing import Optional
 from PySide6.QtCore import Qt
@@ -35,7 +36,7 @@ class CustomersWidget(QWidget):
         top_bar = QHBoxLayout()
         top_bar.setSpacing(10)
 
-        lbl_head = QLabel("إدارة العملاء وحسابات الآجل والديون")
+        lbl_head = QLabel(ar.CUSTOMERS_WINDOW_0B7170)
         style_label(lbl_head, size="h2", tone="text", bold=True)
         top_bar.addWidget(lbl_head)
         top_bar.addStretch()
@@ -43,16 +44,16 @@ class CustomersWidget(QWidget):
         self.search_edit = QLineEdit()
         self.search_edit.setMinimumHeight(40)
         self.search_edit.setMinimumWidth(260)
-        self.search_edit.setPlaceholderText("بحث باسم العميل أو رقم الهاتف...")
+        self.search_edit.setPlaceholderText(ar.CUSTOMERS_WINDOW_CB84AF)
         self.search_edit.textChanged.connect(self._filter_customers)
         top_bar.addWidget(self.search_edit)
 
-        btn_refresh = QPushButton("تحديث")
+        btn_refresh = QPushButton(ar.REFRESH)
         btn_refresh.setMinimumHeight(40)
         btn_refresh.clicked.connect(self.load_customers)
         top_bar.addWidget(btn_refresh)
 
-        btn_add = QPushButton("إضافة عميل جديد")
+        btn_add = QPushButton(ar.CUSTOMER_DIALOG_2E94C6)
         btn_add.setMinimumHeight(40)
         variant(btn_add, "primary")
         btn_add.clicked.connect(self._open_new_customer)
@@ -65,11 +66,11 @@ class CustomersWidget(QWidget):
         kpi_bar.setSpacing(12)
 
         # Card 1: Total Receivables
-        self.card_receivables = self._create_kpi_card("إجمالي ديون العملاء (الآجل):", "0.00 ج.م", "#DC2626")
+        self.card_receivables = self._create_kpi_card(ar.CUSTOMERS_WINDOW_0A188B, ar.DAILY_CLOSE_DIALOG_388B15, "#DC2626")
         kpi_bar.addWidget(self.card_receivables)
 
         # Card 2: Customers Count
-        self.card_count = self._create_kpi_card("إجمالي عدد العملاء المسجلين:", "0 عميل", "#2563EB")
+        self.card_count = self._create_kpi_card(ar.CUSTOMERS_WINDOW_04D3CC, ar.CUSTOMERS_WINDOW_A9562B, "#2563EB")
         kpi_bar.addWidget(self.card_count)
 
         kpi_bar.addStretch()
@@ -79,7 +80,7 @@ class CustomersWidget(QWidget):
         self.table = QTableWidget()
         self.table.setColumnCount(7)
         self.table.setHorizontalHeaderLabels([
-            "#", "اسم العميل", "رقم الهاتف", "المديونية الحالية", "حد الائتمان", "ملاحظات", "إجراءات"
+            "#", ar.CUSTOMERS_WINDOW_2B9848, ar.SET_SHOP_PHONE, ar.CUSTOMERS_WINDOW_7B2734, ar.CUSTOMERS_WINDOW_F966E1, ar.CUSTOMERS_WINDOW_3C4208, ar.CUSTOMERS_WINDOW_901EFE
         ])
         self.table.verticalHeader().setVisible(False)
         self.table.setEditTriggers(QTableWidget.NoEditTriggers)
@@ -150,7 +151,7 @@ class CustomersWidget(QWidget):
                 bal_item.setForeground(Qt.green)
             self.table.setItem(idx, 3, bal_item)
 
-            limit_item = QTableWidgetItem(format_money(c.credit_limit) if c.credit_limit else "بلا حد")
+            limit_item = QTableWidgetItem(format_money(c.credit_limit) if c.credit_limit else ar.CUSTOMERS_WINDOW_6FC9DB)
             limit_item.setTextAlignment(Qt.AlignCenter)
             self.table.setItem(idx, 4, limit_item)
 
@@ -162,12 +163,12 @@ class CustomersWidget(QWidget):
             a_layout.setContentsMargins(4, 2, 4, 2)
             a_layout.setSpacing(6)
 
-            btn_collect = QPushButton("تحصيل")
+            btn_collect = QPushButton(ar.CUSTOMERS_WINDOW_369D90)
             variant(btn_collect, "secondary")
             btn_collect.clicked.connect(lambda _, cust=c: self._open_collect(cust))
             a_layout.addWidget(btn_collect)
 
-            btn_edit = QPushButton("تعديل")
+            btn_edit = QPushButton(ar.EDIT)
             variant(btn_edit, "secondary")
             btn_edit.clicked.connect(lambda _, cust=c: self._open_edit(cust))
             a_layout.addWidget(btn_edit)
@@ -186,7 +187,7 @@ class CustomersWidget(QWidget):
 
     def _open_collect(self, customer: Customer):
         if customer.balance <= 0:
-            QMessageBox.information(self, "تنبيه", "هذا العميل ليس عليه أي مديونية مستحقة حالياً.")
+            QMessageBox.information(self, ar.CUSTOMERS_WINDOW_5540CE, ar.CUSTOMERS_WINDOW_EE7C5C)
             return
         dlg = CollectPaymentDialog(self.session, self.user, customer=customer, parent=self)
         if dlg.exec() == CollectPaymentDialog.Accepted:

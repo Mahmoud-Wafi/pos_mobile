@@ -1,5 +1,6 @@
 """Accounting and cash accounts management screen."""
 from __future__ import annotations
+from app.i18n import ar
 
 import datetime
 from typing import Optional
@@ -38,35 +39,35 @@ class AccountingWidget(QWidget):
         top_bar = QHBoxLayout()
         top_bar.setSpacing(10)
 
-        lbl_head = QLabel("إدارة الخزينة والمصروفات والورديات")
+        lbl_head = QLabel(ar.ACCOUNTING_WINDOW_CFA988)
         style_label(lbl_head, size="h2", tone="text", bold=True)
         top_bar.addWidget(lbl_head)
         top_bar.addStretch()
 
-        btn_refresh = QPushButton("تحديث")
+        btn_refresh = QPushButton(ar.REFRESH)
         btn_refresh.setMinimumHeight(40)
         btn_refresh.clicked.connect(self.load_all)
         top_bar.addWidget(btn_refresh)
 
-        btn_daily_close = QPushButton("الإغلاق المالي اليومي")
+        btn_daily_close = QPushButton(ar.ACCOUNTING_WINDOW_098A62)
         btn_daily_close.setMinimumHeight(40)
         variant(btn_daily_close, "secondary")
         btn_daily_close.clicked.connect(self._open_daily_close)
         top_bar.addWidget(btn_daily_close)
 
-        btn_transfer = QPushButton("تحويل بين الحسابات")
+        btn_transfer = QPushButton(ar.ACCOUNTING_WINDOW_58CDEB)
         btn_transfer.setMinimumHeight(40)
         variant(btn_transfer, "secondary")
         btn_transfer.clicked.connect(self._open_transfer)
         top_bar.addWidget(btn_transfer)
 
-        btn_expense = QPushButton("تسجيل مصروف")
+        btn_expense = QPushButton(ar.ACCOUNTING_WINDOW_194506)
         btn_expense.setMinimumHeight(40)
         variant(btn_expense, "danger")
         btn_expense.clicked.connect(self._open_expense)
         top_bar.addWidget(btn_expense)
 
-        btn_draw = QPushButton("سحب مالك")
+        btn_draw = QPushButton(ar.ACCOUNTING_WINDOW_401832)
         btn_draw.setMinimumHeight(40)
         variant(btn_draw, "secondary")
         btn_draw.clicked.connect(self._open_owner_draw)
@@ -96,17 +97,17 @@ class AccountingWidget(QWidget):
         # Tab 1: Ledger
         self.tab_ledger = QWidget()
         self._setup_ledger_tab()
-        self.tabs.addTab(self.tab_ledger, "حركات النقدية (Ledger)")
+        self.tabs.addTab(self.tab_ledger, ar.ACCOUNTING_WINDOW_97BD58)
 
         # Tab 2: Expenses
         self.tab_expenses = QWidget()
         self._setup_expenses_tab()
-        self.tabs.addTab(self.tab_expenses, "المصروفات التشغيلية")
+        self.tabs.addTab(self.tab_expenses, ar.ACCOUNTING_WINDOW_9798B9)
 
         # Tab 3: Draws & Transfers
         self.tab_draws = QWidget()
         self._setup_draws_tab()
-        self.tabs.addTab(self.tab_draws, "مسحوبات المالك والتحويلات")
+        self.tabs.addTab(self.tab_draws, ar.ACCOUNTING_WINDOW_93FEBE)
 
         main_layout.addWidget(self.tabs, 1)
 
@@ -118,10 +119,10 @@ class AccountingWidget(QWidget):
         bar = QHBoxLayout()
         self.ledger_filter = QComboBox()
         self.ledger_filter.setMinimumHeight(40)
-        self.ledger_filter.addItem("جميع الحركات", "all")
-        self.ledger_filter.addItem("الوارد فقط (Inflow)", "in")
-        self.ledger_filter.addItem("المنصرف فقط (Outflow)", "out")
-        self.ledger_filter.addItem("التحويلات الداخلية", "transfer")
+        self.ledger_filter.addItem(ar.ACCOUNTING_WINDOW_1E7388, "all")
+        self.ledger_filter.addItem(ar.ACCOUNTING_WINDOW_308012, "in")
+        self.ledger_filter.addItem(ar.ACCOUNTING_WINDOW_2FB65B, "out")
+        self.ledger_filter.addItem(ar.ACCOUNTING_WINDOW_BA9922, "transfer")
         self.ledger_filter.currentIndexChanged.connect(self.load_ledger)
         bar.addWidget(self.ledger_filter)
         bar.addStretch()
@@ -130,7 +131,7 @@ class AccountingWidget(QWidget):
         self.ledger_table = QTableWidget()
         self.ledger_table.setColumnCount(8)
         self.ledger_table.setHorizontalHeaderLabels([
-            "#", "الحساب", "نوع الحركة", "المبلغ", "التصنيف", "المستخدم", "التاريخ", "البيان / ملاحظات"
+            "#", ar.ACCOUNTING_WINDOW_0869F7, ar.ACCOUNTING_WINDOW_BAB7C3, ar.ACCOUNTING_WINDOW_FABA46, ar.ACCOUNTING_WINDOW_CF1432, ar.AUDIT_USER, ar.RECEIPT_DATE, ar.ACCOUNTING_WINDOW_4746F9
         ])
         self.ledger_table.verticalHeader().setVisible(False)
         self.ledger_table.setEditTriggers(QTableWidget.NoEditTriggers)
@@ -155,7 +156,7 @@ class AccountingWidget(QWidget):
         self.exp_table = QTableWidget()
         self.exp_table.setColumnCount(7)
         self.exp_table.setHorizontalHeaderLabels([
-            "#", "بند المصروف", "المبلغ", "الخزينة المسحوب منها", "المسجل", "التاريخ", "البيان"
+            "#", ar.ACCOUNTING_WINDOW_61AAAF, ar.ACCOUNTING_WINDOW_FABA46, ar.ACCOUNTING_WINDOW_2027B5, ar.ACCOUNTING_WINDOW_268672, ar.RECEIPT_DATE, ar.IMPORT_COL_NAME
         ])
         self.exp_table.verticalHeader().setVisible(False)
         self.exp_table.setEditTriggers(QTableWidget.NoEditTriggers)
@@ -179,7 +180,7 @@ class AccountingWidget(QWidget):
         self.draws_table = QTableWidget()
         self.draws_table.setColumnCount(6)
         self.draws_table.setHorizontalHeaderLabels([
-            "#", "المبلغ المسحوب", "الخزينة المسحوب منها", "المستخدم", "التاريخ", "البيان / ملاحظات"
+            "#", ar.ACCOUNTING_WINDOW_98D124, ar.ACCOUNTING_WINDOW_2027B5, ar.AUDIT_USER, ar.RECEIPT_DATE, ar.ACCOUNTING_WINDOW_4746F9
         ])
         self.draws_table.verticalHeader().setVisible(False)
         self.draws_table.setEditTriggers(QTableWidget.NoEditTriggers)
@@ -205,7 +206,7 @@ class AccountingWidget(QWidget):
 
         for acc in accounts:
             matched = accounting_service.verify_drawer_balance_integrity(self.session, acc.id)
-            status_text = "رصيد مطابق" if matched else "غير مطابق"
+            status_text = ar.ACCOUNTING_WINDOW_CB7EFC if matched else ar.ACCOUNTING_WINDOW_63D57D
 
             card = QFrame()
             card.setFixedWidth(240)
@@ -252,10 +253,10 @@ class AccountingWidget(QWidget):
             self.ledger_table.setItem(idx, 1, QTableWidgetItem(t.account.name if t.account else "—"))
 
             type_ar = {
-                "in": "وارد (+)",
-                "out": "منصرف (-)",
-                "transfer_in": "تحويل وارد",
-                "transfer_out": "تحويل صادر",
+                "in": ar.ACCOUNTING_WINDOW_CAA8CE,
+                "out": ar.ACCOUNTING_WINDOW_C863F5,
+                "transfer_in": ar.ACCOUNTING_WINDOW_2B8D0C,
+                "transfer_out": ar.ACCOUNTING_WINDOW_A04F14,
             }.get(t.type, t.type)
             type_item = QTableWidgetItem(type_ar)
             type_item.setTextAlignment(Qt.AlignCenter)

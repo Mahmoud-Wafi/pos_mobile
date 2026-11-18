@@ -1,5 +1,6 @@
 """Gives text buttons a Lucide icon from keywords in their label (icon is added when the button is shown)."""
 from __future__ import annotations
+from app.i18n import ar
 
 from PySide6.QtCore import QEvent, QObject, QSize
 from PySide6.QtWidgets import QPushButton
@@ -9,13 +10,13 @@ from app.ui.design.tokens import COLORS as C
 
 # first match wins
 KEYWORDS: list[tuple[str, str]] = [
-    ("حذف", "trash-2"), ("مسح", "trash-2"), ("تفريغ", "trash-2"),
-    ("طباعة", "printer"), ("معاينة", "eye"), ("بحث", "search"),
-    ("تحديث", "rotate-cw"), ("تعديل", "pencil"), ("تعليق", "pause"), ("استرجاع", "play"),
-    ("إلغاء", "x"), ("إغلاق", "x"), ("حفظ", "save"), ("تسجيل", "save"),
-    ("تأكيد", "check"), ("موافقة", "check"), ("اعتماد", "check"), ("دفع", "banknote"), ("تحصيل", "banknote"),
-    ("تصدير", "download"), ("استيراد", "upload"), ("نسخة", "database"),
-    ("إضافة", "plus"), ("جديد", "plus"), ("+", "plus"),
+    (ar.DELETE, "trash-2"), (ar.AUTO_ICONS_EC2CE8, "trash-2"), (ar.AUTO_ICONS_399328, "trash-2"),
+    (ar.AUTO_ICONS_88C5D1, "printer"), (ar.AUTO_ICONS_0D4DE2, "eye"), (ar.SEARCH, "search"),
+    (ar.REFRESH, "rotate-cw"), (ar.EDIT, "pencil"), (ar.AUTO_ICONS_0215AF, "pause"), (ar.HELD_RESUME, "play"),
+    (ar.CANCEL, "x"), (ar.CLOSE, "x"), (ar.SAVE, "save"), (ar.AUTO_ICONS_C9276C, "save"),
+    (ar.CONFIRM, "check"), (ar.APPROVAL_GRANT, "check"), (ar.AUTO_ICONS_51CC4E, "check"), (ar.AUTO_ICONS_0B0845, "banknote"), (ar.CUSTOMERS_WINDOW_369D90, "banknote"),
+    (ar.AUTO_ICONS_E4D731, "download"), (ar.AUTO_ICONS_37A021, "upload"), (ar.AUTO_ICONS_58F836, "database"),
+    (ar.AUTO_ICONS_B9508A, "plus"), (ar.DEVICE_CONDITION_NEW, "plus"), ("+", "plus"),
 ]
 _DARK_VARIANTS = {"primary", "success", "danger"}
 

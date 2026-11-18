@@ -33,7 +33,7 @@ if HAS_QT:
             self.print_receipt = True
             self._cash_touched = False
 
-            self.setWindowTitle("نافذة الدفع وتحصيل الفاتورة [F4]")
+            self.setWindowTitle(ar.PAYMENT_DIALOG_C0A2B0)
             self.setMinimumWidth(540)
 
             self._build_ui()
@@ -45,7 +45,7 @@ if HAS_QT:
 
             # Header
             header = QHBoxLayout()
-            title = QLabel("تحصيل قيمة الفاتورة")
+            title = QLabel(ar.PAYMENT_DIALOG_CF2C55)
             style_label(title, size="h2", tone="text", bold=True)
             header.addWidget(title)
             header.addStretch()
@@ -59,7 +59,7 @@ if HAS_QT:
             total_card = QFrame()
             set_prop(total_card, "banner", "success")
             t_box = QHBoxLayout(total_card)
-            t_lbl = QLabel("المبلغ المطلوب تحصيله:")
+            t_lbl = QLabel(ar.PAYMENT_DIALOG_2FE9C2)
             style_label(t_lbl, size="title", tone="success", bold=True)
             self.val_total = QLabel(format_money(self.total_piasters))
             style_label(self.val_total, size="h2", tone="success", bold=True)
@@ -74,7 +74,7 @@ if HAS_QT:
             grid.setVerticalSpacing(10)
 
             # 1. Cash (default gets full amount)
-            lbl_cash = QLabel("نقداً (كاش - الدرج):")
+            lbl_cash = QLabel(ar.PAYMENT_DIALOG_6B7806)
             style_label(lbl_cash, tone="success", bold=True)
             self.cash_edit = QLineEdit(piasters_to_input(self.total_piasters))
             self.cash_edit.setValidator(QDoubleValidator(0.0, 9999999.0, 2))
@@ -82,7 +82,7 @@ if HAS_QT:
             self.cash_edit.textEdited.connect(lambda _t: setattr(self, "_cash_touched", True))
 
             # 2. Vodafone / Mobile Wallets
-            lbl_wallet = QLabel("محفظة إلكترونية (فودافون/أورنج):")
+            lbl_wallet = QLabel(ar.PAYMENT_DIALOG_924455)
             style_label(lbl_wallet, tone="info", bold=True)
             self.wallet_edit = QLineEdit("0")
             self.wallet_edit.setValidator(QDoubleValidator(0.0, 9999999.0, 2))
@@ -90,7 +90,7 @@ if HAS_QT:
             self.wallet_edit.textEdited.connect(self._autofill_cash)
 
             # 3. InstaPay / Bank
-            lbl_bank = QLabel("انستاباي / بنك (InstaPay):")
+            lbl_bank = QLabel(ar.PAYMENT_DIALOG_8353AE)
             style_label(lbl_bank, tone="primary", bold=True)
             self.bank_edit = QLineEdit("0")
             self.bank_edit.setValidator(QDoubleValidator(0.0, 9999999.0, 2))
@@ -98,7 +98,7 @@ if HAS_QT:
             self.bank_edit.textEdited.connect(self._autofill_cash)
 
             # 4. Credit (آجل)
-            lbl_credit = QLabel("آجل (على الحساب):")
+            lbl_credit = QLabel(ar.PAYMENT_DIALOG_D41A2A)
             style_label(lbl_credit, tone="warning", bold=True)
             self.credit_edit = QLineEdit("0")
             self.credit_edit.setValidator(QDoubleValidator(0.0, 9999999.0, 2))
@@ -138,9 +138,9 @@ if HAS_QT:
             self.status_card = QFrame()
             set_prop(self.status_card, "card", True)
             s_box = QHBoxLayout(self.status_card)
-            self.lbl_rem_title = QLabel("المتبقي / الباقي للعميل:")
+            self.lbl_rem_title = QLabel(ar.PAYMENT_DIALOG_9BF0D0)
             style_label(self.lbl_rem_title, bold=True)
-            self.lbl_rem_val = QLabel("0.00 ج.م")
+            self.lbl_rem_val = QLabel(ar.DAILY_CLOSE_DIALOG_388B15)
             style_label(self.lbl_rem_val, size="title", tone="success", bold=True)
             s_box.addWidget(self.lbl_rem_title)
             s_box.addStretch()
@@ -148,7 +148,7 @@ if HAS_QT:
             layout.addWidget(self.status_card)
 
             # Options
-            self.chk_print = QCheckBox("طباعة إيصال الفاتورة بعد الحفظ مباشرة")
+            self.chk_print = QCheckBox(ar.PAYMENT_DIALOG_797C25)
             self.chk_print.setChecked(True)
             layout.addWidget(self.chk_print)
 
@@ -157,12 +157,12 @@ if HAS_QT:
             btn_box.setSpacing(12)
             btn_box.addStretch()
 
-            btn_cancel = QPushButton("إلغاء [Esc]")
+            btn_cancel = QPushButton(ar.PAYMENT_DIALOG_22777A)
             btn_cancel.setFixedHeight(44)
             btn_cancel.setMinimumWidth(110)
             btn_cancel.clicked.connect(self.reject)
 
-            self.btn_confirm = QPushButton("تأكيد الدفع وطباعة الفاتورة [Enter]")
+            self.btn_confirm = QPushButton(ar.PAYMENT_DIALOG_B23609)
             self.btn_confirm.setFixedHeight(44)
             self.btn_confirm.setMinimumWidth(240)
             variant(self.btn_confirm, "success")
@@ -218,20 +218,20 @@ if HAS_QT:
             diff = total_entered - total_required
 
             if diff == 0:
-                self.lbl_rem_title.setText("المبلغ مدفوع بالكامل:")
+                self.lbl_rem_title.setText(ar.PAYMENT_DIALOG_3432A6)
                 self.lbl_rem_val.setText("مطابق 100% ")
                 style_label(self.lbl_rem_val, size="title", tone="success", bold=True)
                 set_prop(self.status_card, "banner", "success")
                 self.btn_confirm.setEnabled(True)
             elif diff > 0:
-                self.lbl_rem_title.setText(ar.CHANGE_DUE + " (فكة):")
+                self.lbl_rem_title.setText(ar.CHANGE_DUE + ar.PAYMENT_DIALOG_F548D9)
                 self.lbl_rem_val.setText(f"{diff:,.2f} ج.م")
                 style_label(self.lbl_rem_val, size="h2", tone="info", bold=True)
                 set_prop(self.status_card, "banner", "info")
                 self.btn_confirm.setEnabled(True)
             else:
                 deficit = abs(diff)
-                self.lbl_rem_title.setText("مبلغ غير مغطى (عجز):")
+                self.lbl_rem_title.setText(ar.PAYMENT_DIALOG_A829C0)
                 self.lbl_rem_val.setText(f"-{deficit:,.2f} ج.م")
                 style_label(self.lbl_rem_val, size="title", tone="danger", bold=True)
                 set_prop(self.status_card, "banner", "danger")

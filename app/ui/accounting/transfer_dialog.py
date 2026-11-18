@@ -1,5 +1,6 @@
 """Dialog for transferring cash between accounts (e.g. Drawer -> Safe, Safe -> Bank)."""
 from __future__ import annotations
+from app.i18n import ar
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QDoubleValidator
@@ -22,7 +23,7 @@ class TransferDialog(QDialog):
         super().__init__(parent)
         self.session = session
         self.user = user
-        self.setWindowTitle("تحويل نقدية بين الحسابات")
+        self.setWindowTitle(ar.TRANSFER_DIALOG_A45046)
         self.resize(480, 420)
         self.setModal(True)
 
@@ -42,9 +43,9 @@ class TransferDialog(QDialog):
 
         t_box = QVBoxLayout()
         t_box.setSpacing(2)
-        lbl_t = QLabel("تحويل رصيد داخلي")
+        lbl_t = QLabel(ar.TRANSFER_DIALOG_8F62F9)
         style_label(lbl_t, size="title", tone="text", bold=True)
-        lbl_sub = QLabel("نقل الأموال بين الدرج والخزنة أو الحساب البنكي بحركة مزدوجة مؤمنة")
+        lbl_sub = QLabel(ar.TRANSFER_DIALOG_744014)
         style_label(lbl_sub, size="caption", tone="muted")
         t_box.addWidget(lbl_t)
         t_box.addWidget(lbl_sub)
@@ -58,30 +59,30 @@ class TransferDialog(QDialog):
         layout.addWidget(sep)
 
         # From Account
-        layout.addWidget(QLabel("من حساب (المرسل): *"))
+        layout.addWidget(QLabel(ar.TRANSFER_DIALOG_E0797A))
         self.from_combo = QComboBox()
         self.from_combo.setFixedHeight(42)
         layout.addWidget(self.from_combo)
 
         # To Account
-        layout.addWidget(QLabel("إلى حساب (المستلم): *"))
+        layout.addWidget(QLabel(ar.TRANSFER_DIALOG_15BE4F))
         self.to_combo = QComboBox()
         self.to_combo.setFixedHeight(42)
         layout.addWidget(self.to_combo)
 
         # Amount
-        layout.addWidget(QLabel("مبلغ التحويل (ج.م): *"))
+        layout.addWidget(QLabel(ar.TRANSFER_DIALOG_4619D6))
         self.amount_edit = QLineEdit()
         self.amount_edit.setFixedHeight(42)
-        self.amount_edit.setPlaceholderText("0.00 ج.م")
+        self.amount_edit.setPlaceholderText(ar.DAILY_CLOSE_DIALOG_388B15)
         self.amount_edit.setValidator(QDoubleValidator(0.01, 9999999.0, 2))
         layout.addWidget(self.amount_edit)
 
         # Notes
-        layout.addWidget(QLabel("سبب أو بيان التحويل:"))
+        layout.addWidget(QLabel(ar.TRANSFER_DIALOG_790957))
         self.note_edit = QLineEdit()
         self.note_edit.setFixedHeight(40)
-        self.note_edit.setPlaceholderText("مثال: توريد نقدية المساء من الدرج إلى الخزنة...")
+        self.note_edit.setPlaceholderText(ar.TRANSFER_DIALOG_DAE0D4)
         layout.addWidget(self.note_edit)
 
         layout.addStretch()
@@ -90,13 +91,13 @@ class TransferDialog(QDialog):
         btn_box = QHBoxLayout()
         btn_box.setSpacing(12)
 
-        btn_cancel = QPushButton("إلغاء")
+        btn_cancel = QPushButton(ar.CANCEL)
         btn_cancel.setFixedHeight(42)
         variant(btn_cancel, "secondary")
         btn_cancel.clicked.connect(self.reject)
         btn_box.addWidget(btn_cancel)
 
-        btn_transfer = QPushButton("تأكيد التحويل")
+        btn_transfer = QPushButton(ar.TRANSFER_DIALOG_5C8600)
         btn_transfer.setFixedHeight(42)
         variant(btn_transfer, "primary")
         btn_transfer.clicked.connect(self._transfer)
@@ -121,12 +122,12 @@ class TransferDialog(QDialog):
         to_id = self.to_combo.currentData()
 
         if from_id == to_id:
-            show_error(self, message="لا يمكن التحويل من وإلى نفس الحساب")
+            show_error(self, message=ar.TRANSFER_DIALOG_B2AFB0)
             return
 
         amt_str = self.amount_edit.text().strip()
         if not amt_str:
-            show_error(self, message="يرجى إدخال مبلغ التحويل")
+            show_error(self, message=ar.TRANSFER_DIALOG_30CF4A)
             self.amount_edit.setFocus()
             return
 
@@ -135,7 +136,7 @@ class TransferDialog(QDialog):
             if amt_piasters <= 0:
                 raise ValueError()
         except Exception:
-            show_error(self, message="صيغة المبلغ غير صحيحة")
+            show_error(self, message=ar.EXPENSE_DIALOG_51D7FD)
             self.amount_edit.setFocus()
             return
 

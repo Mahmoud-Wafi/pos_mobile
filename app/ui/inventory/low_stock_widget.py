@@ -1,5 +1,6 @@
 """Modern Low stock alert widget with warning badges."""
 from __future__ import annotations
+from app.i18n import ar
 from app.ui.design.style import style_label
 
 try:
@@ -17,7 +18,7 @@ if HAS_QT:
     from app.services import inventory_service
     from app.core.money import format_money
 
-    HEADERS = ["#", "اسم المنتج", "النوع", "الكمية المتبقية", "حد الطلب الأدنى", "مقدار العجز"]
+    HEADERS = ["#", ar.LOW_STOCK_WIDGET_1AB391, ar.LOW_STOCK_WIDGET_A70B01, ar.LOW_STOCK_WIDGET_CB2518, ar.LOW_STOCK_WIDGET_B6E0B5, ar.LOW_STOCK_WIDGET_94E097]
 
     class LowStockWidget(QWidget):
         def __init__(self, session, user, parent=None):
@@ -33,12 +34,12 @@ if HAS_QT:
             layout.setSpacing(12)
 
             bar = QHBoxLayout()
-            title = QLabel("الأصناف التي وصلت لحد الطلب أو نفدت من المخزن")
+            title = QLabel(ar.LOW_STOCK_WIDGET_0F0986)
             style_label(title, size="label", tone="warning", bold=True)
             bar.addWidget(title)
             bar.addStretch()
 
-            self.btn_refresh = QPushButton("تحديث القائمة")
+            self.btn_refresh = QPushButton(ar.LOW_STOCK_WIDGET_8EB2F5)
             self.btn_refresh.clicked.connect(self.load_data)
             bar.addWidget(self.btn_refresh)
             layout.addLayout(bar)
@@ -72,13 +73,13 @@ if HAS_QT:
                 deficit = p.min_stock - qty
                 is_zero = qty == 0
 
-                type_ar = {"phone": "هاتف", "accessory": "إكسسوار", "card": "كارت"}.get(p.type, p.type)
+                type_ar = {"phone": ar.LOW_STOCK_WIDGET_B0D973, "accessory": ar.LOW_STOCK_WIDGET_99E818, "card": ar.LOW_STOCK_WIDGET_99AFB1}.get(p.type, p.type)
 
                 cols = [
                     (str(p.id), Qt.AlignCenter, None, None, None),
                     (p.name, Qt.AlignRight | Qt.AlignVCenter, None, True, None),
                     (type_ar, Qt.AlignCenter, "#64748B", False, None),
-                    (f"{qty} قطعة" if qty > 0 else "نفد المخزون", Qt.AlignCenter, "#991B1B" if is_zero else "#92400E", True, "#FEE2E2" if is_zero else "#FEF3C7"),
+                    (f"{qty} قطعة" if qty > 0 else ar.LOW_STOCK_WIDGET_01F4FA, Qt.AlignCenter, "#991B1B" if is_zero else "#92400E", True, "#FEE2E2" if is_zero else "#FEF3C7"),
                     (f"{p.min_stock} قطعة", Qt.AlignCenter, "#334155", False, None),
                     (f"-{deficit} قطعة", Qt.AlignCenter, "#DC2626", True, None),
                 ]

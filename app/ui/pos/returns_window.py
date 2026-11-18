@@ -1,5 +1,6 @@
 """Returns & Warranty Lookup Window."""
 from __future__ import annotations
+from app.i18n import ar
 
 try:
     from PySide6.QtWidgets import (
@@ -19,7 +20,7 @@ from app.services import sales_service
 from app.ui.design.style import set_prop, style_label, variant
 
 
-HEADERS = ["رقم الفاتورة", "اسم العميل", "الصنف / الموديل", "السيريال (IMEI)", "حالة الضمان", "الأيام المتبقية", "تاريخ انتهاء الضمان", "إجراء"]
+HEADERS = [ar.SALE_DONE_INVOICE, ar.CUSTOMERS_WINDOW_2B9848, ar.RETURNS_WINDOW_C4F854, ar.COL_IMEI, ar.RETURNS_WINDOW_82D91A, ar.RETURNS_WINDOW_BFC686, ar.RETURNS_WINDOW_24B433, ar.RETURNS_WINDOW_155E71]
 
 
 if HAS_QT:
@@ -42,21 +43,21 @@ if HAS_QT:
             set_prop(search_card, "card", True)
             s_layout = QVBoxLayout(search_card)
 
-            title = QLabel("استعلام عن الضمان ومرتجعات المبيعات")
+            title = QLabel(ar.RETURNS_WINDOW_C7C8CF)
             style_label(title, size="title", tone="text", bold=True)
-            sub = QLabel("ابحث برقم السيريال (IMEI) أو رقم الفاتورة أو هاتف العميل لفحص سريان الضمان أو تسجيل مرتجع")
+            sub = QLabel(ar.RETURNS_WINDOW_B088E2)
             style_label(sub, size="caption", tone="muted")
             s_layout.addWidget(title)
             s_layout.addWidget(sub)
 
             bar = QHBoxLayout()
             self.search_edit = QLineEdit()
-            self.search_edit.setPlaceholderText("اكتب رقم السيريال (IMEI) أو رقم الفاتورة (INV-...) واضغط Enter...")
+            self.search_edit.setPlaceholderText(ar.RETURNS_WINDOW_9D4672)
             self.search_edit.setFixedHeight(44)
             self.search_edit.returnPressed.connect(self._do_search)
             bar.addWidget(self.search_edit)
 
-            btn_search = QPushButton("بحث")
+            btn_search = QPushButton(ar.SEARCH)
             btn_search.setFixedHeight(44)
             btn_search.setMinimumWidth(100)
             btn_search.setObjectName("PrimaryBtn")
@@ -98,14 +99,14 @@ if HAS_QT:
             self.table.setRowCount(len(results))
 
             if not results:
-                QMessageBox.information(self, "نتيجة البحث", "لم يتم العثور على أي فاتورة أو جهاز يطابق هذا البحث")
+                QMessageBox.information(self, ar.RETURNS_WINDOW_548487, ar.RETURNS_WINDOW_314F43)
                 return
 
             for row, r in enumerate(results):
-                status_text = "ساري ومفعل " if r["is_valid"] else "منتهي الصلاحية "
+                status_text = ar.RETURNS_WINDOW_AD12C7 if r["is_valid"] else ar.RETURNS_WINDOW_2E7E5D
                 bg_color = "#ECFDF5" if r["is_valid"] else "#FEE2E2"
                 fg_color = "#065F46" if r["is_valid"] else "#991B1B"
-                end_str = r["warranty_end_date"].strftime("%Y-%m-%d") if r["warranty_end_date"] else "بدون ضمان"
+                end_str = r["warranty_end_date"].strftime("%Y-%m-%d") if r["warranty_end_date"] else ar.RETURNS_WINDOW_B7E4F8
 
                 cols = [
                     (r["invoice_no"], Qt.AlignCenter),
@@ -127,14 +128,14 @@ if HAS_QT:
                     self.table.setItem(row, col, item)
 
                 # Return action button
-                btn_return = QPushButton("مرتجع")
+                btn_return = QPushButton(ar.HISTORY_RETURN)
                 variant(btn_return, "secondary")
                 s_item_id = r["sale_item_id"]
                 btn_return.clicked.connect(lambda _, sid=s_item_id: self._process_return(sid))
                 self.table.setCellWidget(row, 7, btn_return)
 
         def _process_return(self, sale_item_id: int):
-            reason, ok = QInputDialog.getText(self, "تسجيل مرتجع", "سبب إرجاع الصنف:")
+            reason, ok = QInputDialog.getText(self, ar.RETURNS_WINDOW_E04EEC, ar.RETURNS_WINDOW_FF5F3B)
             if not (ok and reason.strip()):
                 return
 
@@ -144,8 +145,8 @@ if HAS_QT:
                 return
 
             reply = QMessageBox.question(
-                self, "إعادة للمخزن",
-                "هل الصنف بحالة جيدة ويصلح لإعادة إدخاله للمخزن وبيعه مرة أخرى؟",
+                self, ar.RETURNS_WINDOW_4C58AD,
+                ar.RETURNS_WINDOW_63CB57,
                 QMessageBox.Yes | QMessageBox.No
             )
             restock = (reply == QMessageBox.Yes)

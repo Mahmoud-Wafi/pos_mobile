@@ -1,5 +1,6 @@
 """Inventory module UI — tab container for products, devices, low-stock, stocktake."""
 from __future__ import annotations
+from app.i18n import ar
 
 try:
     from PySide6.QtWidgets import QWidget, QVBoxLayout, QTabWidget
@@ -35,10 +36,10 @@ if HAS_QT:
             self.low_stock = LowStockWidget(self.session, self.user)
             self.stocktake = StocktakeWidget(self.session, self.user)
 
-            self.tabs.addTab(self.product_list, "المنتجات")
-            self.tabs.addTab(self.device_list, "الأجهزة / IMEI")
-            self.tabs.addTab(self.low_stock, "مخزون منخفض")
-            self.tabs.addTab(self.stocktake, "جرد المخزون")
+            self.tabs.addTab(self.product_list, ar.IMPORT_KIND_PRODUCTS)
+            self.tabs.addTab(self.device_list, ar.INVENTORY_WINDOW_6B8164)
+            self.tabs.addTab(self.low_stock, ar.INVENTORY_WINDOW_EA847C)
+            self.tabs.addTab(self.stocktake, ar.INVENTORY_WINDOW_8018FE)
 
             layout.addWidget(self.tabs)
 

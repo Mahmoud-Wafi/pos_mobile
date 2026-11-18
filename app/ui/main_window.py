@@ -119,7 +119,7 @@ if HAS_QT:
             user_label = QLabel(user_name)
             user_label.setObjectName("UserPill")
             role_name = self.current_user.role.name if (self.current_user and self.current_user.role) else "manager"
-            role_display = {"manager": "مدير النظام", "cashier": "كاشير", "wallet_employee": "موظف محافظ"}.get(role_name, role_name)
+            role_display = {"manager": ar.MAIN_WINDOW_C2CDE4, "cashier": ar.ROLE_CASHIER, "wallet_employee": ar.ROLE_WALLET_EMPLOYEE}.get(role_name, role_name)
             role_badge = QLabel(role_display)
             role_badge.setObjectName("RolePill")
             user_box.addWidget(user_label)
@@ -154,7 +154,7 @@ if HAS_QT:
             sidebar_layout.setContentsMargins(8, 16, 8, 16)
             sidebar_layout.setSpacing(4)
 
-            lbl_cat_ops = QLabel("العمليات والنشاط")
+            lbl_cat_ops = QLabel(ar.MAIN_WINDOW_3C30D2)
             lbl_cat_ops.setObjectName("SidebarCategory")
             sidebar_layout.addWidget(lbl_cat_ops)
 
@@ -162,18 +162,18 @@ if HAS_QT:
 
             self.nav_items = [
                 ("dashboard", ar.NAV_DASHBOARD, self._show_dashboard),
-                ("pos", ar.POS + " (المبيعات)", self._show_pos),
+                ("pos", ar.POS + ar.MAIN_WINDOW_2F364A, self._show_pos),
                 ("invoices", ar.HISTORY, self._show_invoices),
                 ("inventory", ar.INVENTORY, self._show_inventory),
-                ("returns", "الضمان والمرتجعات", self._show_returns),
-                ("purchases", ar.PURCHASES + " والموردين", self._show_purchases),
-                ("wallets", ar.WALLETS + " والشحن", self._show_wallets),
-                ("accounting", ar.ACCOUNTING + " والورديات", self._show_accounting),
-                ("customers", ar.CUSTOMERS + " والديون", self._show_customers),
+                ("returns", ar.MAIN_WINDOW_C7F537, self._show_returns),
+                ("purchases", ar.PURCHASES + ar.MAIN_WINDOW_F5E66B, self._show_purchases),
+                ("wallets", ar.WALLETS + ar.MAIN_WINDOW_36CC36, self._show_wallets),
+                ("accounting", ar.ACCOUNTING + ar.MAIN_WINDOW_30E574, self._show_accounting),
+                ("customers", ar.CUSTOMERS + ar.MAIN_WINDOW_813FA0, self._show_customers),
             ]
             self.sys_nav_items = [
-                ("reports", ar.REPORTS + " والأرباح", self._show_reports),
-                ("settings", ar.SETTINGS + " والنسخ الاحتياطي", self._show_settings),
+                ("reports", ar.REPORTS + ar.MAIN_WINDOW_A2B306, self._show_reports),
+                ("settings", ar.SETTINGS + ar.MAIN_WINDOW_305E88, self._show_settings),
             ]
             self._nav_by_key: dict[str, QPushButton] = {}
             shortcut_no = 1

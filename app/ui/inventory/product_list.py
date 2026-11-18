@@ -1,5 +1,6 @@
 """Modern Product List widget with instant search, filters, badges, and clean dialogs."""
 from __future__ import annotations
+from app.i18n import ar
 
 from decimal import Decimal
 from app.ui.components import show_error
@@ -22,11 +23,10 @@ except ImportError:
 
 if HAS_QT:
     from app.services import inventory_service
-    from app.i18n import ar
     from app.core.money import format_money, egp_to_piasters, piasters_to_egp
     from app.core.permissions import PermissionDenied
 
-    HEADERS = ["#", "اسم المنتج", "النوع", "الباركود", "سعر البيع", "الكمية بالمخزن", "الحد الأدنى", "تتبع IMEI", "الحالة"]
+    HEADERS = ["#", ar.LOW_STOCK_WIDGET_1AB391, ar.LOW_STOCK_WIDGET_A70B01, ar.PRODUCT_LIST_95520D, ar.PRODUCT_LIST_13E684, ar.PRODUCT_LIST_BF9877, ar.DASH_MIN, ar.PRODUCT_LIST_6D7BD8, ar.USERS_STATUS]
 
     class ProductListWidget(QWidget):
         def __init__(self, session, user, parent=None):
@@ -48,7 +48,7 @@ if HAS_QT:
 
             # Search Input
             self.search_edit = QLineEdit()
-            self.search_edit.setPlaceholderText("ابحث باسم المنتج أو الباركود...")
+            self.search_edit.setPlaceholderText(ar.PRODUCT_LIST_9ECD98)
             self.search_edit.setMinimumWidth(300)
             self.search_edit.setFixedHeight(40)
             self.search_edit.textChanged.connect(self._filter_products)
@@ -57,17 +57,17 @@ if HAS_QT:
             # Type Filter
             self.filter_type = QComboBox()
             self.filter_type.setFixedHeight(40)
-            self.filter_type.addItem("جميع الأنواع", "all")
-            self.filter_type.addItem("هواتف فقط", "phone")
-            self.filter_type.addItem("إكسسوارات فقط", "accessory")
-            self.filter_type.addItem("كروت شحن فقط", "card")
+            self.filter_type.addItem(ar.PRODUCT_LIST_B327CE, "all")
+            self.filter_type.addItem(ar.PRODUCT_LIST_8D203E, "phone")
+            self.filter_type.addItem(ar.PRODUCT_LIST_C6E1CF, "accessory")
+            self.filter_type.addItem(ar.PRODUCT_LIST_06C8C6, "card")
             self.filter_type.currentIndexChanged.connect(self._filter_products)
             bar.addWidget(self.filter_type)
 
             bar.addStretch()
 
             # Action Buttons
-            self.btn_refresh = QPushButton("تحديث")
+            self.btn_refresh = QPushButton(ar.REFRESH)
             self.btn_refresh.setFixedHeight(40)
             self.btn_refresh.clicked.connect(self.load_data)
             bar.addWidget(self.btn_refresh)
@@ -81,7 +81,7 @@ if HAS_QT:
             self.btn_export.clicked.connect(self._export_excel)
             bar.addWidget(self.btn_export)
 
-            self.btn_add = QPushButton("إضافة منتج جديد")
+            self.btn_add = QPushButton(ar.PRODUCT_LIST_B56A2A)
             self.btn_add.setObjectName("PrimaryBtn")
             self.btn_add.setFixedHeight(40)
             self.btn_add.clicked.connect(self._add_product)
@@ -151,7 +151,7 @@ if HAS_QT:
                 is_out_of_stock = qty == 0
                 is_low_stock = qty <= p.min_stock and not is_out_of_stock
 
-                type_ar = {"phone": "هاتف", "accessory": "إكسسوار", "card": "كارت"}.get(p.type, p.type)
+                type_ar = {"phone": ar.LOW_STOCK_WIDGET_B0D973, "accessory": ar.LOW_STOCK_WIDGET_99E818, "card": ar.LOW_STOCK_WIDGET_99AFB1}.get(p.type, p.type)
 
                 cols = [
                     (str(p.id), Qt.AlignCenter, None, None),
@@ -161,8 +161,8 @@ if HAS_QT:
                     (format_money(p.sale_price), Qt.AlignCenter, "#0369A1", True),
                     (str(qty), Qt.AlignCenter, None, True),
                     (str(p.min_stock), Qt.AlignCenter, "#64748B", None),
-                    ("نعم" if p.track_imei else "لا", Qt.AlignCenter, None, None),
-                    ("نشط" if p.is_active else "متوقف", Qt.AlignCenter, "#059669" if p.is_active else "#94A3B8", True),
+                    (ar.YES if p.track_imei else ar.NO, Qt.AlignCenter, None, None),
+                    (ar.PRODUCT_LIST_8CAAF9 if p.is_active else ar.PRODUCT_LIST_2E7AFF, Qt.AlignCenter, "#059669" if p.is_active else "#94A3B8", True),
                 ]
 
                 for col, (text, align, fg_color, is_bold) in enumerate(cols):
@@ -220,7 +220,7 @@ if HAS_QT:
             super().__init__(parent)
             self.session = session
             self.user = user
-            self.setWindowTitle("إضافة صنف جديد")
+            self.setWindowTitle(ar.PRODUCT_LIST_BD0915)
             self.setMinimumWidth(680)
 
             self._build_ui()
@@ -238,9 +238,9 @@ if HAS_QT:
 
             header_text = QVBoxLayout()
             header_text.setSpacing(2)
-            title = QLabel("إضافة صنف جديد إلى المخزون")
+            title = QLabel(ar.PRODUCT_LIST_882542)
             style_label(title, size="h2", tone="text", bold=True)
-            subtitle = QLabel("أدخل تفاصيل المنتج بدقة لتنظيم المبيعات وحساب الأرباح والضمان")
+            subtitle = QLabel(ar.PRODUCT_LIST_7A0F35)
             style_label(subtitle, size="caption", tone="muted")
             header_text.addWidget(title)
             header_text.addWidget(subtitle)
@@ -250,34 +250,34 @@ if HAS_QT:
             main_layout.addLayout(header_box)
 
             # ─── Group 1: الأساسيات ───
-            grp_basic = QGroupBox("1. البيانات الأساسية للصنف")
+            grp_basic = QGroupBox(ar.PRODUCT_LIST_D82C13)
             grid_basic = QGridLayout(grp_basic)
             grid_basic.setHorizontalSpacing(14)
             grid_basic.setVerticalSpacing(10)
 
             # Name (Full width)
-            lbl_name = QLabel("اسم المنتج / الموديل: *")
+            lbl_name = QLabel(ar.PRODUCT_LIST_8658FE)
             style_label(lbl_name, bold=True)
             self.name_edit = QLineEdit()
             self.name_edit.setFixedHeight(40)
-            self.name_edit.setPlaceholderText("مثال: سامسونج جالكسي S24 ألترا 256 جيجا أو شاحن سريع 30W")
+            self.name_edit.setPlaceholderText(ar.PRODUCT_LIST_87C0D0)
             grid_basic.addWidget(lbl_name, 0, 0, 1, 2)
             grid_basic.addWidget(self.name_edit, 1, 0, 1, 2)
 
             # Type & Barcode
-            lbl_type = QLabel("نوع الصنف: *")
+            lbl_type = QLabel(ar.PRODUCT_LIST_65F25B)
             style_label(lbl_type, bold=True)
             self.type_combo = QComboBox()
             self.type_combo.setFixedHeight(40)
-            self.type_combo.addItem("إكسسوارات وملحقات", "accessory")
-            self.type_combo.addItem("هاتف محمول (تتبع IMEI)", "phone")
-            self.type_combo.addItem("كروت شحن وباقات", "card")
+            self.type_combo.addItem(ar.PRODUCT_LIST_837413, "accessory")
+            self.type_combo.addItem(ar.PRODUCT_LIST_C052F8, "phone")
+            self.type_combo.addItem(ar.PRODUCT_LIST_8E807B, "card")
 
-            lbl_barcode = QLabel("رقم الباركود (Barcode):")
+            lbl_barcode = QLabel(ar.PRODUCT_LIST_0A94A3)
             style_label(lbl_barcode, bold=True)
             self.barcode_edit = QLineEdit()
             self.barcode_edit.setFixedHeight(40)
-            self.barcode_edit.setPlaceholderText("امسح بالباركود أو اتركه فارغاً")
+            self.barcode_edit.setPlaceholderText(ar.PRODUCT_LIST_5B6297)
 
             grid_basic.addWidget(lbl_type, 2, 0)
             grid_basic.addWidget(lbl_barcode, 2, 1)
@@ -287,30 +287,30 @@ if HAS_QT:
             main_layout.addWidget(grp_basic)
 
             # ─── Group 2: الأسعار والتسعير ───
-            grp_price = QGroupBox("2. الأسعار والتكلفة (بالجنيه المصري)")
+            grp_price = QGroupBox(ar.PRODUCT_LIST_B3B868)
             grid_price = QGridLayout(grp_price)
             grid_price.setHorizontalSpacing(14)
             grid_price.setVerticalSpacing(10)
 
-            lbl_sale = QLabel("سعر البيع الافتراضي: *")
+            lbl_sale = QLabel(ar.PRODUCT_LIST_43CB56)
             style_label(lbl_sale, tone="info", bold=True)
             self.sale_edit = QLineEdit()
             self.sale_edit.setFixedHeight(40)
-            self.sale_edit.setPlaceholderText("0.00 ج.م")
+            self.sale_edit.setPlaceholderText(ar.DAILY_CLOSE_DIALOG_388B15)
             self.sale_edit.setValidator(QDoubleValidator(0.0, 9999999.0, 2))
 
-            lbl_cost = QLabel("سعر التكلفة (الشراء):")
+            lbl_cost = QLabel(ar.PRODUCT_LIST_30B579)
             style_label(lbl_cost, tone="muted", bold=True)
             self.cost_edit = QLineEdit()
             self.cost_edit.setFixedHeight(40)
-            self.cost_edit.setPlaceholderText("0.00 ج.م")
+            self.cost_edit.setPlaceholderText(ar.DAILY_CLOSE_DIALOG_388B15)
             self.cost_edit.setValidator(QDoubleValidator(0.0, 9999999.0, 2))
 
-            lbl_min_price = QLabel("أقل سعر بيع مسموح به:")
+            lbl_min_price = QLabel(ar.PRODUCT_LIST_B5D903)
             style_label(lbl_min_price, tone="muted", bold=True)
             self.min_price_edit = QLineEdit()
             self.min_price_edit.setFixedHeight(40)
-            self.min_price_edit.setPlaceholderText("0.00 ج.م")
+            self.min_price_edit.setPlaceholderText(ar.DAILY_CLOSE_DIALOG_388B15)
             self.min_price_edit.setValidator(QDoubleValidator(0.0, 9999999.0, 2))
 
             grid_price.addWidget(lbl_sale, 0, 0)
@@ -324,18 +324,18 @@ if HAS_QT:
             main_layout.addWidget(grp_price)
 
             # ─── Group 3: المخزون والضمان ───
-            grp_stock = QGroupBox("3. المخزون وتتبع السيريال والضمان")
+            grp_stock = QGroupBox(ar.PRODUCT_LIST_D2D2B5)
             grid_stock = QGridLayout(grp_stock)
             grid_stock.setHorizontalSpacing(14)
             grid_stock.setVerticalSpacing(10)
 
-            lbl_min_stock = QLabel("تنبيه الحد الأدنى للمخزون:")
+            lbl_min_stock = QLabel(ar.PRODUCT_LIST_981D2F)
             style_label(lbl_min_stock, bold=True)
             self.min_stock_edit = QLineEdit("3")
             self.min_stock_edit.setFixedHeight(40)
             self.min_stock_edit.setValidator(QIntValidator(0, 9999))
 
-            lbl_warranty = QLabel("فترة الضمان (بالأيام):")
+            lbl_warranty = QLabel(ar.PRODUCT_LIST_79E153)
             style_label(lbl_warranty, bold=True)
             self.warranty_edit = QLineEdit("0")
             self.warranty_edit.setFixedHeight(40)
@@ -353,9 +353,9 @@ if HAS_QT:
             imei_box.setContentsMargins(8, 8, 8, 8)
             imei_box.setSpacing(10)
 
-            self.track_imei_check = QCheckBox("تتبع أجهزة هذا الصنف برقم السيريال (IMEI)")
+            self.track_imei_check = QCheckBox(ar.PRODUCT_LIST_3F80CE)
             style_label(self.track_imei_check, size="body", tone="text", bold=True)
-            imei_hint = QLabel("(إلزامي للهواتف — سيتطلب إدخال رقم IMEI عند الشراء والبيع والضمان)")
+            imei_hint = QLabel(ar.PRODUCT_LIST_55D646)
             style_label(imei_hint, size="caption", tone="muted")
 
             imei_box.addWidget(self.track_imei_check)
@@ -373,13 +373,13 @@ if HAS_QT:
             btn_layout.setSpacing(12)
             btn_layout.addStretch()
 
-            btn_cancel = QPushButton("إلغاء الأمر")
+            btn_cancel = QPushButton(ar.DEVICE_LIST_69A551)
             btn_cancel.setFixedHeight(44)
             btn_cancel.setMinimumWidth(120)
             variant(btn_cancel, "secondary")
             btn_cancel.clicked.connect(self.reject)
 
-            btn_save = QPushButton(" حفظ الصنف في المخزون")
+            btn_save = QPushButton(ar.PRODUCT_LIST_374821)
             btn_save.setObjectName("PrimaryBtn")
             btn_save.setFixedHeight(44)
             btn_save.setMinimumWidth(210)
@@ -399,7 +399,7 @@ if HAS_QT:
         def _save(self):
             name = self.name_edit.text().strip()
             if not name:
-                show_error(self, message="يرجى كتابة اسم المنتج أو الموديل")
+                show_error(self, message=ar.PRODUCT_LIST_D5CBED)
                 self.name_edit.setFocus()
                 return
 
@@ -407,7 +407,7 @@ if HAS_QT:
             try:
                 sale_egp = Decimal(sale_str)
             except Exception:
-                show_error(self, message="يرجى إدخال سعر بيع صحيح")
+                show_error(self, message=ar.PRODUCT_LIST_B3DA0C)
                 self.sale_edit.setFocus()
                 return
 

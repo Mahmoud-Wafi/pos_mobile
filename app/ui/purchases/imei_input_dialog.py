@@ -1,5 +1,6 @@
 """Modal dialog to enter / scan IMEIs for phone items in purchase invoices."""
 from __future__ import annotations
+from app.i18n import ar
 
 from typing import Optional
 from PySide6.QtCore import Qt
@@ -62,17 +63,17 @@ class IMEIInputDialog(QDialog):
 
         attach_imei_check(self.imei1_edit, required=True)
         self.imei1_edit.setFixedHeight(40)
-        self.imei1_edit.setPlaceholderText("امسح بالباركود أو اكتب IMEI 1 *")
+        self.imei1_edit.setPlaceholderText(ar.IMEI_INPUT_DIALOG_C008E5)
         scan_box.addWidget(self.imei1_edit, 5)
 
         self.imei2_edit = QLineEdit()
 
         attach_imei_check(self.imei2_edit, required=False)
         self.imei2_edit.setFixedHeight(40)
-        self.imei2_edit.setPlaceholderText("IMEI 2 (اختياري)")
+        self.imei2_edit.setPlaceholderText(ar.IMEI_INPUT_DIALOG_C853FB)
         scan_box.addWidget(self.imei2_edit, 4)
 
-        self.btn_add = QPushButton("إضافة")
+        self.btn_add = QPushButton(ar.AUTO_ICONS_B9508A)
         self.btn_add.setFixedHeight(40)
         variant(self.btn_add, "primary")
         self.btn_add.clicked.connect(self._add_imei)
@@ -85,7 +86,7 @@ class IMEIInputDialog(QDialog):
         # Table of Entered IMEIs
         self.table = QTableWidget()
         self.table.setColumnCount(4)
-        self.table.setHorizontalHeaderLabels(["#", "IMEI 1 (الرئيسي)", "IMEI 2 (الإضافي)", "حذف"])
+        self.table.setHorizontalHeaderLabels(["#", ar.IMEI_INPUT_DIALOG_849984, ar.IMEI_INPUT_DIALOG_55644F, ar.DELETE])
         self.table.verticalHeader().setVisible(False)
         self.table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Fixed)
         self.table.setColumnWidth(0, 40)
@@ -100,13 +101,13 @@ class IMEIInputDialog(QDialog):
         btn_box = QHBoxLayout()
         btn_box.setSpacing(10)
 
-        btn_cancel = QPushButton("إلغاء")
+        btn_cancel = QPushButton(ar.CANCEL)
         btn_cancel.setFixedHeight(40)
         variant(btn_cancel, "secondary")
         btn_cancel.clicked.connect(self.reject)
         btn_box.addWidget(btn_cancel)
 
-        btn_save = QPushButton("اعتماد السيريالات")
+        btn_save = QPushButton(ar.IMEI_INPUT_DIALOG_DE5664)
         btn_save.setFixedHeight(40)
         variant(btn_save, "success")
         btn_save.clicked.connect(self._confirm)
@@ -119,7 +120,7 @@ class IMEIInputDialog(QDialog):
         val2 = self.imei2_edit.text().strip() or None
 
         if not val1:
-            show_error(self, message="يرجى مسح أو إدخال رقم IMEI 1")
+            show_error(self, message=ar.IMEI_INPUT_DIALOG_06FB49)
             self.imei1_edit.setFocus()
             return
 
@@ -157,7 +158,7 @@ class IMEIInputDialog(QDialog):
             item_2.setTextAlignment(Qt.AlignCenter)
             self.table.setItem(idx, 2, item_2)
 
-            btn_del = icon_button("trash-2", "حذف", "danger-soft")
+            btn_del = icon_button("trash-2", ar.DELETE, "danger-soft")
             btn_del.clicked.connect(lambda _, row=idx: self._delete_row(row))
             self.table.setCellWidget(idx, 3, btn_del)
 

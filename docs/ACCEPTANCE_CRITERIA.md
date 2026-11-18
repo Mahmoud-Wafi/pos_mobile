@@ -91,10 +91,10 @@ Baseline before this work: 114 tests. Current: 164 passing (`QT_QPA_PLATFORM=off
 
 | # | Criterion | Status |
 |---|---|---|
-| 5.1 | All user-facing Arabic text in `app/ui` and service error messages goes through `app/i18n/ar.py`. | [ ] (new code does; older UI and service strings do not) |
+| 5.1 | All user-facing Arabic text in `app/ui` and service error messages goes through `app/i18n/ar.py`. | [~] UI: 748 plain strings moved to `ar.py` (924 → 119 lines left, mostly f-strings; a test stops it growing). Service-layer messages not yet moved. |
 | 5.2 | UI smoke tests: login; `MainWindow` for each of the three roles; every view's refresh; the full POS flow (scan → pay → post → print panel); the close-shift flow. | [~] (login, role navigation, approval, discount, settings tabs, shift close exist; the full POS post flow and per-view refresh tests do not) |
-| 5.3 | A Windows `.exe` is built from a committed spec, runs on a clean machine without Python, and creates its data in the per-user folder. | [ ] |
-| 5.4 | README is rewritten to match what the repo really does (features, setup, build, roles, screenshots). A `CHANGELOG.md` is added. | [ ] |
+| 5.3 | A Windows `.exe` is built from a committed spec, runs on a clean machine without Python, and creates its data in the per-user folder. | [~] Spec and build script committed (`packaging/`); not yet built or run on Windows. |
+| 5.4 | README is rewritten to match what the repo really does (features, setup, build, roles, screenshots). A `CHANGELOG.md` is added. | [~] README build/test sections and CHANGELOG done; screenshots and LICENSE still missing. |
 | 5.5 | Definition of done: a full day works end to end (open shift → sell by cash, split and credit → return → void → close shift → daily close → backup → restore); the cashier sees no cost or profit; printed and PDF documents show correct Arabic, shop settings and local time; no float money, no `utcnow()`, no committed `.venv` / `.pyc` / `.db`. | [ ] |
 
 ---

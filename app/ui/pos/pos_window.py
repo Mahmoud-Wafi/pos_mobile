@@ -35,7 +35,7 @@ from app.services.sales_service import (
 )
 
 
-HEADERS = ["#", "اسم الصنف", "السيريال (IMEI)", "الكمية", "سعر الوحدة", "الخصم", "الإجمالي", "حذف"]
+HEADERS = ["#", ar.STOCKTAKE_WIDGET_FA4E1F, ar.COL_IMEI, ar.RECEIPT_COL_QTY, ar.CART_UNIT_PRICE, ar.DISCOUNT, ar.TOTAL, ar.DELETE]
 
 
 if HAS_QT:
@@ -64,9 +64,9 @@ if HAS_QT:
             set_prop(self.shift_banner, "banner", "warning")
             sb_layout = QHBoxLayout(self.shift_banner)
             sb_layout.setContentsMargins(8, 4, 8, 4)
-            self.lbl_shift_msg = QLabel("تنبيه: لا توجد وردية مفتوحة حالياً للكاشير. يجب فتح الوردية للتمكن من البيع.")
+            self.lbl_shift_msg = QLabel(ar.POS_WINDOW_D54F48)
             style_label(self.lbl_shift_msg, tone="warning", bold=True)
-            btn_open_shift = QPushButton("فتح الوردية الآن")
+            btn_open_shift = QPushButton(ar.POS_WINDOW_079A27)
             variant(btn_open_shift, "secondary")
             btn_open_shift.clicked.connect(self._open_shift_dialog)
             sb_layout.addWidget(self.lbl_shift_msg)
@@ -102,7 +102,7 @@ if HAS_QT:
 
             # Barcode / IMEI scanner input
             self.scan_edit = QLineEdit()
-            self.scan_edit.setPlaceholderText("امسح الباركود أو اكتب رقم السيريال (IMEI) أو اسم الصنف واضغط Enter...")
+            self.scan_edit.setPlaceholderText(ar.POS_WINDOW_5E5F21)
             self.scan_edit.setFixedHeight(44)
             style_label(self.scan_edit, size="label", bold=True)
             self.scan_edit.returnPressed.connect(self._on_scan_or_search)
@@ -116,7 +116,7 @@ if HAS_QT:
             self.customer_combo.currentIndexChanged.connect(self._on_customer_changed)
             top_bar.addWidget(self.customer_combo, 1)
 
-            btn_new_cust = QPushButton("عميل جديد +")
+            btn_new_cust = QPushButton(ar.POS_WINDOW_EE2182)
             btn_new_cust.setFixedHeight(44)
             btn_new_cust.clicked.connect(self._add_quick_customer)
             top_bar.addWidget(btn_new_cust)
@@ -166,21 +166,21 @@ if HAS_QT:
             bot_bar = QHBoxLayout()
             bot_bar.setSpacing(10)
 
-            btn_new_inv = QPushButton("فاتورة جديدة [F9]")
+            btn_new_inv = QPushButton(ar.POS_WINDOW_222FA2)
             btn_new_inv.clicked.connect(self._new_invoice)
             bot_bar.addWidget(btn_new_inv)
 
-            btn_hold = QPushButton("تعليق الفاتورة")
+            btn_hold = QPushButton(ar.POS_WINDOW_0FF953)
             btn_hold.clicked.connect(self._hold_invoice)
             bot_bar.addWidget(btn_hold)
 
-            self.btn_resume = QPushButton("▶️ المعلّقة")
+            self.btn_resume = QPushButton(ar.POS_WINDOW_4D54D5)
             self.btn_resume.clicked.connect(self._resume_held_dialog)
             bot_bar.addWidget(self.btn_resume)
 
             bot_bar.addStretch()
 
-            btn_clear = QPushButton("تفريغ السلة [Esc]")
+            btn_clear = QPushButton(ar.POS_WINDOW_83DD1E)
             btn_clear.clicked.connect(self._clear_cart)
             bot_bar.addWidget(btn_clear)
 
@@ -197,7 +197,7 @@ if HAS_QT:
             s_layout.setSpacing(14)
 
             # Invoice info
-            self.lbl_inv_no = QLabel("رقم الفاتورة: —")
+            self.lbl_inv_no = QLabel(ar.POS_WINDOW_08BC18)
             style_label(self.lbl_inv_no, size="label", tone="text", bold=True)
             s_layout.addWidget(self.lbl_inv_no)
 
@@ -205,15 +205,15 @@ if HAS_QT:
 
             # Totals rows
             row_sub = QHBoxLayout()
-            row_sub.addWidget(QLabel("المجموع الفرعي:"))
-            self.lbl_subtotal = QLabel("0.00 ج.م")
+            row_sub.addWidget(QLabel(ar.POS_WINDOW_E2F201))
+            self.lbl_subtotal = QLabel(ar.DAILY_CLOSE_DIALOG_388B15)
             style_label(self.lbl_subtotal, bold=True)
             row_sub.addStretch(); row_sub.addWidget(self.lbl_subtotal)
             s_layout.addLayout(row_sub)
 
             # Discount row
             row_disc = QHBoxLayout()
-            row_disc.addWidget(QLabel("الخصم الإضافي (ج.م):"))
+            row_disc.addWidget(QLabel(ar.POS_WINDOW_CECBBB))
             self.disc_edit = QLineEdit("0")
             self.disc_edit.setFixedWidth(100)
             self.disc_edit.setAlignment(Qt.AlignCenter)
@@ -227,10 +227,10 @@ if HAS_QT:
             set_prop(total_box, "total_box", True)
             tb_layout = QVBoxLayout(total_box)
             tb_layout.setAlignment(Qt.AlignCenter)
-            tb_title = QLabel("صافي الإجمالي المطلوب")
+            tb_title = QLabel(ar.POS_WINDOW_9FB38A)
             style_label(tb_title, size="body", tone="muted", bold=True)
             tb_title.setAlignment(Qt.AlignCenter)
-            self.lbl_big_total = QLabel("0.00 ج.م")
+            self.lbl_big_total = QLabel(ar.DAILY_CLOSE_DIALOG_388B15)
             style_label(self.lbl_big_total, size="h1", tone="total", bold=True)
             self.lbl_big_total.setAlignment(Qt.AlignCenter)
             tb_layout.addWidget(tb_title)
@@ -240,7 +240,7 @@ if HAS_QT:
             s_layout.addStretch()
 
             # Checkout Button
-            self.btn_pay = QPushButton(" الدفع وإنهاء الفاتورة [F4]")
+            self.btn_pay = QPushButton(ar.POS_WINDOW_905F06)
             self.btn_pay.setFixedHeight(54)
             variant(self.btn_pay, "success")
             self.btn_pay.clicked.connect(self._on_checkout)
@@ -356,7 +356,7 @@ if HAS_QT:
                         )
                         return
             if device is not None and any(it.device_id == device.id for it in self.current_sale.items):
-                raise sales_service.SaleError("هذا الجهاز مضاف بالفعل في الفاتورة")
+                raise sales_service.SaleError(ar.POS_WINDOW_051863)
             sales_service.add_line(
                 self.session, self.user, self.current_sale, product, quantity=1, device=device
             )
@@ -389,10 +389,10 @@ if HAS_QT:
                     self.cart_table.setItem(row, col, item)
 
                 # Delete Button
-                btn_del = icon_button("trash-2", "حذف البند", "danger-soft")
+                btn_del = icon_button("trash-2", ar.POS_WINDOW_58A803, "danger-soft")
                 item_id = it.id
                 btn_del.clicked.connect(lambda _, i=item_id: self._remove_item(i))
-                btn_del.setToolTip("حذف البند")
+                btn_del.setToolTip(ar.POS_WINDOW_58A803)
                 self.cart_table.setCellWidget(row, 7, btn_del)
 
             self.lbl_subtotal.setText(format_money(self.current_sale.subtotal))
@@ -404,7 +404,7 @@ if HAS_QT:
             # The invoice being edited is itself "held" in the DB; show only the others.
             if self.current_sale is not None and self.current_sale.status == "held":
                 n = max(0, n - 1)
-            self.btn_resume.setText(f"▶️ المعلّقة ({n})" if n else "▶️ المعلّقة")
+            self.btn_resume.setText(f"▶️ المعلّقة ({n})" if n else ar.POS_WINDOW_4D54D5)
 
         def _remove_item(self, item_id: int):
             item = next((i for i in self.current_sale.items if i.id == item_id), None)
@@ -506,7 +506,7 @@ if HAS_QT:
 
         def _on_checkout(self):
             if not self.current_sale or not self.current_sale.items:
-                show_error(self, message="يرجى إضافة أصناف إلى السلة أولاً")
+                show_error(self, message=ar.POS_WINDOW_BD7DBB)
                 return
 
             cust_name = self.customer_combo.currentText()
@@ -570,7 +570,7 @@ if HAS_QT:
         def _clear_cart(self):
             if not self.current_sale or not self.current_sale.items:
                 return
-            if confirm(self, "تفريغ السلة", "هل تريد مسح الأصناف الحالية من السلة؟", "مسح", destructive=True):
+            if confirm(self, ar.POS_WINDOW_914BC6, ar.POS_WINDOW_FF7D25, ar.AUTO_ICONS_EC2CE8, destructive=True):
                 for it in list(self.current_sale.items):
                     sales_service.remove_line(self.session, self.user, self.current_sale, it.id)
                 self.session.expire(self.current_sale, ["items"])
@@ -584,7 +584,7 @@ if HAS_QT:
                 self._check_shift_and_init_sale()
                 return
             if self.current_sale and self.current_sale.items:
-                show_error(self, message="أكمل الفاتورة الحالية أو علّقها قبل إغلاق الوردية")
+                show_error(self, message=ar.POS_WINDOW_A232FE)
                 return
             dlg = CloseShiftDialog(self.session, self.user, shift, parent=self)
             dlg.exec()
@@ -593,12 +593,12 @@ if HAS_QT:
                 self.shift_changed.emit()
 
         def _open_shift_dialog(self):
-            amount, ok = QInputDialog.getDouble(self, "فتح وردية جديدة", "أدخل رصيد العهدة الافتتاحي (كاش الدرج بالجنيه):", 0.0, 0.0, 999999.0, 2)
+            amount, ok = QInputDialog.getDouble(self, ar.POS_WINDOW_1E5C4F, ar.POS_WINDOW_C1E97A, 0.0, 0.0, 999999.0, 2)
             if ok:
                 try:
                     shift_service.open_shift(self.session, self.user, opening_cash=egp_to_piasters(amount))
                     self.session.commit()
-                    show_toast(self, "تم فتح الوردية بنجاح ")
+                    show_toast(self, ar.POS_WINDOW_29AC18)
                     self._check_shift_and_init_sale()
                     self.shift_changed.emit()
                 except Exception as e:
@@ -606,9 +606,9 @@ if HAS_QT:
                     show_error(self, e)
 
         def _add_quick_customer(self):
-            name, ok = QInputDialog.getText(self, "إضافة عميل جديد", "اسم العميل:")
+            name, ok = QInputDialog.getText(self, ar.CUSTOMER_DIALOG_2E94C6, ar.POS_WINDOW_FB6661)
             if ok and name.strip():
-                phone, ok2 = QInputDialog.getText(self, "إضافة عميل جديد", "رقم الهاتف:")
+                phone, ok2 = QInputDialog.getText(self, ar.CUSTOMER_DIALOG_2E94C6, ar.CUSTOMER_DIALOG_251531)
                 try:
                     cust = customer_service.create_customer(self.session, self.user, {"name": name.strip(), "phone": phone.strip()})
                     self.session.commit()

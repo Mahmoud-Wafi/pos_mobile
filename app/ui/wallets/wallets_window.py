@@ -1,5 +1,6 @@
 """Electronic Wallets management and instant operations screen."""
 from __future__ import annotations
+from app.i18n import ar
 
 import datetime
 from typing import Optional
@@ -40,29 +41,29 @@ class WalletsWidget(QWidget):
         top_bar = QHBoxLayout()
         top_bar.setSpacing(10)
 
-        lbl_head = QLabel("إدارة المحافظ الإلكترونية وشبكات الدفع الفوري")
+        lbl_head = QLabel(ar.WALLETS_WINDOW_E7E7A0)
         style_label(lbl_head, size="h2", tone="text", bold=True)
         top_bar.addWidget(lbl_head)
         top_bar.addStretch()
 
-        btn_refresh = QPushButton("تحديث")
+        btn_refresh = QPushButton(ar.REFRESH)
         btn_refresh.setMinimumHeight(40)
         btn_refresh.clicked.connect(self.load_all)
         top_bar.addWidget(btn_refresh)
 
-        btn_rules = QPushButton("قواعد العمولات")
+        btn_rules = QPushButton(ar.WALLETS_WINDOW_797860)
         btn_rules.setMinimumHeight(40)
         variant(btn_rules, "secondary")
         btn_rules.clicked.connect(self._open_rules_dialog)
         top_bar.addWidget(btn_rules)
 
-        btn_audit = QPushButton("جرد المحافظ")
+        btn_audit = QPushButton(ar.WALLETS_WINDOW_A56017)
         btn_audit.setMinimumHeight(40)
         variant(btn_audit, "secondary")
         btn_audit.clicked.connect(self._open_audit_dialog)
         top_bar.addWidget(btn_audit)
 
-        btn_new_wallet = QPushButton("إضافة خط محفظة")
+        btn_new_wallet = QPushButton(ar.WALLETS_WINDOW_495C62)
         btn_new_wallet.setMinimumHeight(40)
         variant(btn_new_wallet, "primary")
         btn_new_wallet.clicked.connect(self._open_new_wallet_dialog)
@@ -97,12 +98,12 @@ class WalletsWidget(QWidget):
 
         self.op_buttons = {}
         ops = [
-            ("cash_in", "إيداع للعميل (Cash In)", "#2563EB"),
-            ("cash_out", "سحب نقدي (Cash Out)", "#16A34A"),
-            ("bill", "دفع فواتير (Bill)", "#7C3AED"),
-            ("recharge", "شحن رصيد (Recharge)", "#EA580C"),
-            ("fund", "تمويل من الدرج (Fund)", "#0284C7"),
-            ("withdraw", "تفريغ للدرج (Withdraw)", "#0D9488"),
+            ("cash_in", ar.WALLETS_WINDOW_224F5C, "#2563EB"),
+            ("cash_out", ar.WALLETS_WINDOW_B416BB, "#16A34A"),
+            ("bill", ar.WALLETS_WINDOW_64C034, "#7C3AED"),
+            ("recharge", ar.WALLETS_WINDOW_AF377F, "#EA580C"),
+            ("fund", ar.WALLETS_WINDOW_61B0E2, "#0284C7"),
+            ("withdraw", ar.WALLETS_WINDOW_2EE3FC, "#0D9488"),
         ]
 
         for op_id, op_label, color in ops:
@@ -122,7 +123,7 @@ class WalletsWidget(QWidget):
         grid.setVerticalSpacing(8)
 
         # 1. Select Wallet
-        grid.addWidget(QLabel("المحفظة المستخدمة: *"), 0, 0)
+        grid.addWidget(QLabel(ar.WALLETS_WINDOW_2874C2), 0, 0)
         self.op_wallet_combo = QComboBox()
         self.op_wallet_combo.setFixedHeight(40)
         self.op_wallet_combo.setMinimumWidth(220)
@@ -130,37 +131,37 @@ class WalletsWidget(QWidget):
         grid.addWidget(self.op_wallet_combo, 1, 0)
 
         # 2. Customer Phone
-        grid.addWidget(QLabel("رقم هاتف العميل:"), 0, 1)
+        grid.addWidget(QLabel(ar.WALLETS_WINDOW_E9AECF), 0, 1)
         self.op_phone_edit = QLineEdit()
         self.op_phone_edit.setFixedHeight(40)
         self.op_phone_edit.setPlaceholderText("010/011/012/015...")
         grid.addWidget(self.op_phone_edit, 1, 1)
 
         # 3. Amount
-        grid.addWidget(QLabel("المبلغ المطلوب (ج.م): *"), 0, 2)
+        grid.addWidget(QLabel(ar.WALLETS_WINDOW_02FD22), 0, 2)
         self.op_amount_edit = QLineEdit()
         self.op_amount_edit.setFixedHeight(40)
-        self.op_amount_edit.setPlaceholderText("0.00 ج.م")
+        self.op_amount_edit.setPlaceholderText(ar.DAILY_CLOSE_DIALOG_388B15)
         self.op_amount_edit.setValidator(QDoubleValidator(0.01, 9999999.0, 2))
         self.op_amount_edit.textChanged.connect(self._recalc_commission_preview)
         grid.addWidget(self.op_amount_edit, 1, 2)
 
         # 4. Reference / Transaction SMS Code
-        grid.addWidget(QLabel("رقم العملية / المرجع (SMS):"), 0, 3)
+        grid.addWidget(QLabel(ar.WALLETS_WINDOW_AFE825), 0, 3)
         self.op_ref_edit = QLineEdit()
         self.op_ref_edit.setFixedHeight(40)
-        self.op_ref_edit.setPlaceholderText("كود العملية من رسالة الشبكة...")
+        self.op_ref_edit.setPlaceholderText(ar.WALLETS_WINDOW_906F55)
         grid.addWidget(self.op_ref_edit, 1, 3)
 
         # 5. Commission & Profit preview badge
-        grid.addWidget(QLabel("العمولة والربح المتوقع:"), 0, 4)
-        self.lbl_comm_preview = QLabel("العمولة: 0.00 ج.م | الربح: 0.00 ج.م")
+        grid.addWidget(QLabel(ar.WALLETS_WINDOW_1B4A8F), 0, 4)
+        self.lbl_comm_preview = QLabel(ar.WALLETS_WINDOW_176A15)
         self.lbl_comm_preview.setFixedHeight(40)
         set_prop(self.lbl_comm_preview, "banner", "info")
         grid.addWidget(self.lbl_comm_preview, 1, 4)
 
         # 6. Submit Button
-        self.btn_execute = QPushButton("تنفيذ العملية")
+        self.btn_execute = QPushButton(ar.WALLETS_WINDOW_2C51B0)
         self.btn_execute.setFixedHeight(40)
         variant(self.btn_execute, "primary")
         self.btn_execute.clicked.connect(self._execute_operation)
@@ -177,19 +178,19 @@ class WalletsWidget(QWidget):
 
         # Table Filter Header
         t_bar = QHBoxLayout()
-        t_title = QLabel("سجل حركات وعمليات المحافظ الإلكترونية")
+        t_title = QLabel(ar.WALLETS_WINDOW_1A84D4)
         style_label(t_title, size="title", tone="text", bold=True)
         t_bar.addWidget(t_title)
         t_bar.addStretch()
 
         self.tx_filter_type = QComboBox()
         self.tx_filter_type.setMinimumHeight(40)
-        self.tx_filter_type.addItem("جميع العمليات", "all")
-        self.tx_filter_type.addItem("إيداع فقط", "cash_in")
-        self.tx_filter_type.addItem("سحب فقط", "cash_out")
-        self.tx_filter_type.addItem("فواتير فقط", "bill")
-        self.tx_filter_type.addItem("شحن فقط", "recharge")
-        self.tx_filter_type.addItem("تمويل / تفريغ", "fund_withdraw")
+        self.tx_filter_type.addItem(ar.WALLETS_WINDOW_1814FD, "all")
+        self.tx_filter_type.addItem(ar.WALLETS_WINDOW_E9EB95, "cash_in")
+        self.tx_filter_type.addItem(ar.WALLETS_WINDOW_A37B82, "cash_out")
+        self.tx_filter_type.addItem(ar.WALLETS_WINDOW_42248C, "bill")
+        self.tx_filter_type.addItem(ar.WALLETS_WINDOW_A282C7, "recharge")
+        self.tx_filter_type.addItem(ar.WALLETS_WINDOW_A03B48, "fund_withdraw")
         self.tx_filter_type.currentIndexChanged.connect(self.load_transactions)
         t_bar.addWidget(self.tx_filter_type)
 
@@ -198,7 +199,7 @@ class WalletsWidget(QWidget):
         self.table = QTableWidget()
         self.table.setColumnCount(9)
         self.table.setHorizontalHeaderLabels([
-            "#", "المحفظة", "نوع العملية", "هاتف العميل", "المبلغ", "العمولة", "صافي الربح", "أثر الدرج", "التاريخ والوقت"
+            "#", ar.REPORTS_WINDOW_1FE6B8, ar.REPORTS_WINDOW_72127C, ar.REPORTS_WINDOW_2C473A, ar.ACCOUNTING_WINDOW_FABA46, ar.REPORTS_WINDOW_F109E1, ar.REPORTS_WINDOW_9B69AB, ar.WALLETS_WINDOW_5BBE3F, ar.REPORTS_WINDOW_FF5C9D
         ])
         self.table.verticalHeader().setVisible(False)
         self.table.setEditTriggers(QTableWidget.NoEditTriggers)
@@ -248,17 +249,17 @@ class WalletsWidget(QWidget):
             profit = comm - net_fee
             self.lbl_comm_preview.setText(f"العمولة: {format_money(comm)} | الربح: {format_money(profit)}")
         else:
-            self.lbl_comm_preview.setText("العمولة: 0.00 ج.م | الربح: 0.00 ج.م")
+            self.lbl_comm_preview.setText(ar.WALLETS_WINDOW_176A15)
 
     def _execute_operation(self):
         w: Optional[Wallet] = self.op_wallet_combo.currentData()
         if not w:
-            show_error(self, message="يرجى اختيار المحفظة")
+            show_error(self, message=ar.WALLET_AUDIT_DIALOG_EDD8BE)
             return
 
         amt_text = self.op_amount_edit.text().strip()
         if not amt_text:
-            show_error(self, message="يرجى كتابة المبلغ")
+            show_error(self, message=ar.WALLETS_WINDOW_527C97)
             self.op_amount_edit.setFocus()
             return
 
@@ -267,7 +268,7 @@ class WalletsWidget(QWidget):
             if amt_piasters <= 0:
                 raise ValueError()
         except Exception:
-            show_error(self, message="صيغة المبلغ غير صحيحة")
+            show_error(self, message=ar.EXPENSE_DIALOG_51D7FD)
             self.op_amount_edit.setFocus()
             return
 
@@ -287,7 +288,7 @@ class WalletsWidget(QWidget):
             self.session.commit()
             QMessageBox.information(
                 self,
-                "تمت العملية بنجاح",
+                ar.WALLETS_WINDOW_5B455B,
                 f"تم تنفيذ عملية {tx.op_type} بمبلغ {format_money(tx.amount)} بنجاح!\n"
                 f"أثر الدرج: {format_money(tx.cash_effect)} | رصيد المحفظة الجديد: {format_money(w.balance)}"
             )
@@ -371,12 +372,12 @@ class WalletsWidget(QWidget):
             self.table.setItem(idx, 1, QTableWidgetItem(t.wallet.label if t.wallet else "—"))
 
             op_ar = {
-                "cash_in": "إيداع للعميل",
-                "cash_out": "سحب نقدي",
-                "bill": "دفع فاتورة",
-                "recharge": "شحن رصيد",
-                "fund": "تمويل المحفظة",
-                "withdraw": "تفريغ للدرج",
+                "cash_in": ar.WALLETS_WINDOW_D5F6CB,
+                "cash_out": ar.WALLETS_WINDOW_2FDB39,
+                "bill": ar.WALLETS_WINDOW_02F040,
+                "recharge": ar.WALLETS_WINDOW_1058AB,
+                "fund": ar.WALLETS_WINDOW_7BF4A0,
+                "withdraw": ar.WALLETS_WINDOW_B6BE03,
             }.get(t.op_type, t.op_type)
             self.table.setItem(idx, 2, QTableWidgetItem(op_ar))
 

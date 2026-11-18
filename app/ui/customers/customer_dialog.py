@@ -1,5 +1,6 @@
 """Dialog to create or edit customer profiles and credit limits."""
 from __future__ import annotations
+from app.i18n import ar
 
 from typing import Optional
 from PySide6.QtCore import Qt
@@ -25,7 +26,7 @@ class CustomerDialog(QDialog):
         self.session = session
         self.user = user
         self.customer = customer
-        self.setWindowTitle("تعديل بيانات عميل" if customer else "إضافة عميل جديد")
+        self.setWindowTitle(ar.CUSTOMER_DIALOG_4672E5 if customer else ar.CUSTOMER_DIALOG_2E94C6)
         self.resize(480, 460)
         self.setModal(True)
 
@@ -46,9 +47,9 @@ class CustomerDialog(QDialog):
 
         t_box = QVBoxLayout()
         t_box.setSpacing(2)
-        lbl_t = QLabel("بيانات العميل وحساب الآجل" if not self.customer else "تعديل بيانات العميل")
+        lbl_t = QLabel(ar.CUSTOMER_DIALOG_F8798B if not self.customer else ar.CUSTOMER_DIALOG_502992)
         style_label(lbl_t, size="title", tone="text", bold=True)
-        lbl_sub = QLabel("تحديد حد الائتمان المسموح به ورقم الهاتف للمتابعة وإصدار الفواتير")
+        lbl_sub = QLabel(ar.CUSTOMER_DIALOG_5E6FF5)
         style_label(lbl_sub, size="caption", tone="muted")
         t_box.addWidget(lbl_t)
         t_box.addWidget(lbl_sub)
@@ -62,31 +63,31 @@ class CustomerDialog(QDialog):
         layout.addWidget(sep)
 
         # Name
-        layout.addWidget(QLabel("اسم العميل: *"))
+        layout.addWidget(QLabel(ar.CUSTOMER_DIALOG_36E964))
         self.name_edit = QLineEdit()
         self.name_edit.setFixedHeight(42)
-        self.name_edit.setPlaceholderText("الاسم ثلاثي أو ثنائي...")
+        self.name_edit.setPlaceholderText(ar.CUSTOMER_DIALOG_C73AA0)
         layout.addWidget(self.name_edit)
 
         # Phone
-        layout.addWidget(QLabel("رقم الهاتف:"))
+        layout.addWidget(QLabel(ar.CUSTOMER_DIALOG_251531))
         self.phone_edit = QLineEdit()
         self.phone_edit.setFixedHeight(42)
         self.phone_edit.setPlaceholderText("010/011/012/015...")
         layout.addWidget(self.phone_edit)
 
         # Credit Limit
-        layout.addWidget(QLabel("حد الائتمان الأقصى للآجل (ج.م):"))
+        layout.addWidget(QLabel(ar.CUSTOMER_DIALOG_C7A4B0))
         self.credit_edit = QLineEdit("0.00")
         self.credit_edit.setFixedHeight(42)
         self.credit_edit.setValidator(QDoubleValidator(0.0, 9999999.0, 2))
         layout.addWidget(self.credit_edit)
 
         # Notes
-        layout.addWidget(QLabel("ملاحظات إضافية أو العنوان:"))
+        layout.addWidget(QLabel(ar.CUSTOMER_DIALOG_93F16C))
         self.notes_edit = QTextEdit()
         self.notes_edit.setFixedHeight(70)
-        self.notes_edit.setPlaceholderText("العنوان، الوظيفة، أي معلومات إضافية...")
+        self.notes_edit.setPlaceholderText(ar.CUSTOMER_DIALOG_491235)
         layout.addWidget(self.notes_edit)
 
         layout.addStretch()
@@ -95,13 +96,13 @@ class CustomerDialog(QDialog):
         btn_box = QHBoxLayout()
         btn_box.setSpacing(12)
 
-        btn_cancel = QPushButton("إلغاء")
+        btn_cancel = QPushButton(ar.CANCEL)
         btn_cancel.setFixedHeight(42)
         variant(btn_cancel, "secondary")
         btn_cancel.clicked.connect(self.reject)
         btn_box.addWidget(btn_cancel)
 
-        btn_save = QPushButton("حفظ بيانات العميل")
+        btn_save = QPushButton(ar.CUSTOMER_DIALOG_E8ABC9)
         btn_save.setFixedHeight(42)
         variant(btn_save, "primary")
         btn_save.clicked.connect(self._save)
@@ -118,7 +119,7 @@ class CustomerDialog(QDialog):
     def _save(self):
         name = self.name_edit.text().strip()
         if not name:
-            show_error(self, message="يرجى كتابة اسم العميل")
+            show_error(self, message=ar.CUSTOMER_DIALOG_7B284C)
             self.name_edit.setFocus()
             return
 
@@ -126,7 +127,7 @@ class CustomerDialog(QDialog):
         try:
             limit_piasters = egp_to_piasters(self.credit_edit.text() or 0)
         except Exception:
-            show_error(self, message="صيغة حد الائتمان غير صحيحة")
+            show_error(self, message=ar.CUSTOMER_DIALOG_6E1FCE)
             return
 
         notes = self.notes_edit.toPlainText().strip()

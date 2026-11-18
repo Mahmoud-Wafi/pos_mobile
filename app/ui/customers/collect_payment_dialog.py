@@ -1,5 +1,6 @@
 """Dialog for collecting customer debts and recording payments."""
 from __future__ import annotations
+from app.i18n import ar
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QDoubleValidator
@@ -46,7 +47,7 @@ class CollectPaymentDialog(QDialog):
         t_box.setSpacing(2)
         lbl_t = QLabel(f"تحصيل دفعة نقدية: {self.customer.name}")
         style_label(lbl_t, size="title", tone="text", bold=True)
-        lbl_sub = QLabel("إيداع المبلغ المحصل في الدرج وتخفيض مديونية العميل بالسيستم")
+        lbl_sub = QLabel(ar.COLLECT_PAYMENT_DIALOG_98B59B)
         style_label(lbl_sub, size="caption", tone="muted")
         t_box.addWidget(lbl_t)
         t_box.addWidget(lbl_sub)
@@ -58,7 +59,7 @@ class CollectPaymentDialog(QDialog):
         card = QFrame()
         set_prop(card, "banner", "danger")
         c_layout = QHBoxLayout(card)
-        c_title = QLabel("إجمالي المديونية المستحقة على العميل:")
+        c_title = QLabel(ar.COLLECT_PAYMENT_DIALOG_21996B)
         style_label(c_title, tone="danger", bold=True)
         self.lbl_debt = QLabel(format_money(self.customer.balance))
         style_label(self.lbl_debt, size="h2", tone="danger", bold=True)
@@ -68,7 +69,7 @@ class CollectPaymentDialog(QDialog):
         layout.addWidget(card)
 
         # Amount
-        layout.addWidget(QLabel("المبلغ المحصل الآن (ج.م): *"))
+        layout.addWidget(QLabel(ar.COLLECT_PAYMENT_DIALOG_0D2766))
         self.amount_edit = QLineEdit()
         self.amount_edit.setFixedHeight(42)
         self.amount_edit.setPlaceholderText(f"أقصى تحصيل: {piasters_to_input(self.customer.balance)} ج.م")
@@ -76,7 +77,7 @@ class CollectPaymentDialog(QDialog):
         layout.addWidget(self.amount_edit)
 
         # Method / Cash Account
-        layout.addWidget(QLabel("الخزينة المودع بها التحصيل: *"))
+        layout.addWidget(QLabel(ar.COLLECT_PAYMENT_DIALOG_077DD3))
         self.acc_combo = QComboBox()
         self.acc_combo.setFixedHeight(42)
         accounts = self.session.query(CashAccount).all()
@@ -85,10 +86,10 @@ class CollectPaymentDialog(QDialog):
         layout.addWidget(self.acc_combo)
 
         # Notes
-        layout.addWidget(QLabel("بيان أو ملاحظات التحصيل:"))
+        layout.addWidget(QLabel(ar.COLLECT_PAYMENT_DIALOG_63CDD3))
         self.note_edit = QLineEdit()
         self.note_edit.setFixedHeight(40)
-        self.note_edit.setPlaceholderText("سداد جزء من فاتورة / دفعة شهرية...")
+        self.note_edit.setPlaceholderText(ar.COLLECT_PAYMENT_DIALOG_270E81)
         layout.addWidget(self.note_edit)
 
         layout.addStretch()
@@ -97,13 +98,13 @@ class CollectPaymentDialog(QDialog):
         btn_box = QHBoxLayout()
         btn_box.setSpacing(12)
 
-        btn_cancel = QPushButton("إلغاء")
+        btn_cancel = QPushButton(ar.CANCEL)
         btn_cancel.setFixedHeight(42)
         variant(btn_cancel, "secondary")
         btn_cancel.clicked.connect(self.reject)
         btn_box.addWidget(btn_cancel)
 
-        btn_save = QPushButton("تأكيد التحصيل")
+        btn_save = QPushButton(ar.COLLECT_PAYMENT_DIALOG_688032)
         btn_save.setFixedHeight(42)
         variant(btn_save, "success")
         btn_save.clicked.connect(self._collect)
@@ -114,7 +115,7 @@ class CollectPaymentDialog(QDialog):
     def _collect(self):
         amt_str = self.amount_edit.text().strip()
         if not amt_str:
-            show_error(self, message="يرجى كتابة المبلغ المحصل")
+            show_error(self, message=ar.COLLECT_PAYMENT_DIALOG_AD51F4)
             self.amount_edit.setFocus()
             return
 
@@ -123,7 +124,7 @@ class CollectPaymentDialog(QDialog):
             if amt_piasters <= 0:
                 raise ValueError()
         except Exception:
-            show_error(self, message="صيغة المبلغ غير صحيحة")
+            show_error(self, message=ar.EXPENSE_DIALOG_51D7FD)
             self.amount_edit.setFocus()
             return
 

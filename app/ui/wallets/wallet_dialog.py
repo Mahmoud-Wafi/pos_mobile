@@ -1,5 +1,6 @@
 """Dialog to create or edit an electronic wallet line."""
 from __future__ import annotations
+from app.i18n import ar
 
 from typing import Optional
 from PySide6.QtCore import Qt
@@ -25,7 +26,7 @@ class WalletDialog(QDialog):
         self.session = session
         self.user = user
         self.wallet = wallet
-        self.setWindowTitle("تعديل محفظة" if wallet else "إضافة خط محفظة جديد")
+        self.setWindowTitle(ar.WALLET_DIALOG_EA5DB5 if wallet else ar.WALLET_DIALOG_160ECF)
         self.resize(520, 500)
         self.setModal(True)
 
@@ -46,9 +47,9 @@ class WalletDialog(QDialog):
 
         t_box = QVBoxLayout()
         t_box.setSpacing(2)
-        lbl_t = QLabel("بيانات خط المحفظة الإلكترونية" if not self.wallet else "تعديل المحفظة")
+        lbl_t = QLabel(ar.WALLET_DIALOG_1AFF6E if not self.wallet else ar.WALLET_DIALOG_1B2867)
         style_label(lbl_t, size="title", tone="text", bold=True)
-        lbl_sub = QLabel("ربط الخط بالشبكة وتحديد الحدود اليومية والشهرية لحمايتها من الإيقاف")
+        lbl_sub = QLabel(ar.WALLET_DIALOG_C7DF34)
         style_label(lbl_sub, size="caption", tone="muted")
         t_box.addWidget(lbl_t)
         t_box.addWidget(lbl_sub)
@@ -66,33 +67,33 @@ class WalletDialog(QDialog):
         grid.setVerticalSpacing(10)
 
         # Network
-        grid.addWidget(QLabel("الشبكة / المزود: *"), 0, 0)
+        grid.addWidget(QLabel(ar.WALLET_DIALOG_5F02A8), 0, 0)
         self.net_combo = QComboBox()
         self.net_combo.setFixedHeight(42)
-        self.net_combo.addItem("فودافون كاش (Vodafone Cash)", "vodafone")
-        self.net_combo.addItem("أورنج موني (Orange Money)", "orange")
-        self.net_combo.addItem("اتصالات كاش (Etisalat Cash)", "etisalat")
-        self.net_combo.addItem("وي باي (WE Pay)", "we")
-        self.net_combo.addItem("إنستاباي (InstaPay)", "instapay")
+        self.net_combo.addItem(ar.WALLET_DIALOG_5C14ED, "vodafone")
+        self.net_combo.addItem(ar.WALLET_DIALOG_F80DA6, "orange")
+        self.net_combo.addItem(ar.WALLET_DIALOG_2AD49B, "etisalat")
+        self.net_combo.addItem(ar.WALLET_DIALOG_FE3213, "we")
+        self.net_combo.addItem(ar.WALLET_DIALOG_62B886, "instapay")
         grid.addWidget(self.net_combo, 1, 0)
 
         # Phone Number
-        grid.addWidget(QLabel("رقم الخط / الموبايل: *"), 0, 1)
+        grid.addWidget(QLabel(ar.WALLET_DIALOG_A5F695), 0, 1)
         self.phone_edit = QLineEdit()
         self.phone_edit.setFixedHeight(42)
         self.phone_edit.setPlaceholderText("010xxxxxxx")
         grid.addWidget(self.phone_edit, 1, 1)
 
         # Label
-        grid.addWidget(QLabel("اسم مميز للخط / مسمى المحفظة: *"), 2, 0, 1, 2)
+        grid.addWidget(QLabel(ar.WALLET_DIALOG_B5DC3A), 2, 0, 1, 2)
         self.label_edit = QLineEdit()
         self.label_edit.setFixedHeight(42)
-        self.label_edit.setPlaceholderText("مثال: فودافون كاش خط البيع 1 أو إنستاباي المحل")
+        self.label_edit.setPlaceholderText(ar.WALLET_DIALOG_5C7F4C)
         grid.addWidget(self.label_edit, 3, 0, 1, 2)
 
         # Initial Balance (only for new)
         if not self.wallet:
-            grid.addWidget(QLabel("الرصيد الافتتاحي (ج.م):"), 4, 0)
+            grid.addWidget(QLabel(ar.WALLET_DIALOG_0A3E06), 4, 0)
             self.bal_edit = QLineEdit("0.00")
             self.bal_edit.setFixedHeight(42)
             self.bal_edit.setValidator(QDoubleValidator(0.0, 9999999.0, 2))
@@ -101,14 +102,14 @@ class WalletDialog(QDialog):
             self.bal_edit = None
 
         # Daily Limit
-        grid.addWidget(QLabel("الحد اليومي (ج.م):"), 4 if not self.wallet else 4, 1 if not self.wallet else 0)
+        grid.addWidget(QLabel(ar.WALLET_DIALOG_B32436), 4 if not self.wallet else 4, 1 if not self.wallet else 0)
         self.daily_limit_edit = QLineEdit("30000.00")
         self.daily_limit_edit.setFixedHeight(42)
         self.daily_limit_edit.setValidator(QDoubleValidator(0.0, 9999999.0, 2))
         grid.addWidget(self.daily_limit_edit, 5 if not self.wallet else 5, 1 if not self.wallet else 0)
 
         # Monthly Limit
-        grid.addWidget(QLabel("الحد الشهري (ج.م):"), 6, 0)
+        grid.addWidget(QLabel(ar.WALLET_DIALOG_5BB528), 6, 0)
         self.monthly_limit_edit = QLineEdit("100000.00")
         self.monthly_limit_edit.setFixedHeight(42)
         self.monthly_limit_edit.setValidator(QDoubleValidator(0.0, 9999999.0, 2))
@@ -121,13 +122,13 @@ class WalletDialog(QDialog):
         btn_box = QHBoxLayout()
         btn_box.setSpacing(12)
 
-        btn_cancel = QPushButton("إلغاء")
+        btn_cancel = QPushButton(ar.CANCEL)
         btn_cancel.setFixedHeight(42)
         variant(btn_cancel, "secondary")
         btn_cancel.clicked.connect(self.reject)
         btn_box.addWidget(btn_cancel)
 
-        self.btn_save = QPushButton("حفظ المحفظة")
+        self.btn_save = QPushButton(ar.WALLET_DIALOG_FFA690)
         self.btn_save.setFixedHeight(42)
         variant(self.btn_save, "primary")
         self.btn_save.clicked.connect(self._save)
@@ -149,7 +150,7 @@ class WalletDialog(QDialog):
     def _save(self):
         label = self.label_edit.text().strip()
         if not label:
-            show_error(self, message="يرجى كتابة اسم أو مسمى المحفظة")
+            show_error(self, message=ar.WALLET_DIALOG_655906)
             self.label_edit.setFocus()
             return
 
@@ -157,7 +158,7 @@ class WalletDialog(QDialog):
             d_limit = egp_to_piasters(self.daily_limit_edit.text() or 0)
             m_limit = egp_to_piasters(self.monthly_limit_edit.text() or 0)
         except Exception:
-            show_error(self, message="صيغة الحدود اليومية أو الشهرية غير صحيحة")
+            show_error(self, message=ar.WALLET_DIALOG_EA0656)
             return
 
         try:
@@ -169,7 +170,7 @@ class WalletDialog(QDialog):
             else:
                 phone = self.phone_edit.text().strip()
                 if not phone:
-                    show_error(self, message="يرجى كتابة رقم الهاتف للخط")
+                    show_error(self, message=ar.WALLET_DIALOG_A69AA1)
                     self.phone_edit.setFocus()
                     return
                 network = self.net_combo.currentData()

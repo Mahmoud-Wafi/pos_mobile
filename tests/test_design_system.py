@@ -152,3 +152,19 @@ def test_main_window_shell(qtbot, db_session):
     assert win._nav_by_key["pos"].property("active") is True
     assert win._nav_by_key["dashboard"].property("active") is False
     assert win.nav_buttons[0].toolTip() == "Ctrl+1"
+
+
+def test_ui_arabic_text_lives_in_i18n():
+    """Ratchet (5.1): remaining hard-coded Arabic lines in app/ui (mostly f-strings) must not grow."""
+    import pathlib
+    import re
+
+    ar_re = re.compile("[؀-ۿ]")
+    root = pathlib.Path(__file__).resolve().parents[1] / "app" / "ui"
+    count = sum(
+        1
+        for f in root.rglob("*.py")
+        for line in f.read_text(encoding="utf-8").splitlines()
+        if ar_re.search(line) and not line.strip().startswith("#") and '"""' not in line
+    )
+    assert count <= 125, count

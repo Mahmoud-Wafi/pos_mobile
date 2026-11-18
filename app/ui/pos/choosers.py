@@ -158,7 +158,7 @@ class LineEditDialog(QDialog):
                 "discount": parse_egp_input(self.discount.text() or "0"),
             }
         except ValueError:
-            QMessageBox.warning(self, ar.ERROR if hasattr(ar, "ERROR") else "خطأ", ar.SHIFT_INVALID_AMOUNT)
+            QMessageBox.warning(self, ar.ERROR if hasattr(ar, "ERROR") else ar.ERROR, ar.SHIFT_INVALID_AMOUNT)
             return
         self.accept()
 

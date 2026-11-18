@@ -15,14 +15,14 @@ from app.ui.design.tokens import COLORS as C
 
 log = logging.getLogger(__name__)
 _ARABIC = re.compile(r"[؀-ۿ]")
-GENERIC_ERROR = "حدث خطأ غير متوقع. تم تسجيل التفاصيل في ملف السجل."
-DETAILS = "التفاصيل"
+GENERIC_ERROR = ar.DIALOGS_724F5B
+DETAILS = ar.DIALOGS_7ECA23
 
 
 class ConfirmDialog(QDialog):
     """Yes/No confirmation. For destructive actions the safe button has the default focus."""
 
-    def __init__(self, parent, title: str, message: str, confirm_text: str = ar.YES if hasattr(ar, "YES") else "تأكيد",
+    def __init__(self, parent, title: str, message: str, confirm_text: str = ar.YES if hasattr(ar, "YES") else ar.CONFIRM,
                  destructive: bool = False):
         super().__init__(parent)
         self.setWindowTitle(title)
@@ -77,7 +77,7 @@ def confirm_typed(parent, title: str, message: str, phrase: str, confirm_text: s
     return TypedConfirmDialog(parent, title, message, phrase, confirm_text).exec() == QDialog.Accepted
 
 
-def confirm(parent, title: str, message: str, confirm_text: str = "تأكيد", destructive: bool = False) -> bool:
+def confirm(parent, title: str, message: str, confirm_text: str = ar.CONFIRM, destructive: bool = False) -> bool:
     return ConfirmDialog(parent, title, message, confirm_text, destructive).exec() == QDialog.Accepted
 
 
@@ -115,7 +115,7 @@ def show_error(parent, exc: BaseException | str | None = None, message: str | No
         toggle.clicked.connect(lambda: box.setVisible(not box.isVisible()))
         lay.addWidget(toggle)
         lay.addWidget(box)
-    ok = button(ar.OK if hasattr(ar, "OK") else "حسناً", "primary")
+    ok = button(ar.OK if hasattr(ar, "OK") else ar.DIALOGS_E5B1B2, "primary")
     ok.setDefault(True)
     ok.clicked.connect(dlg.accept)
     lay.addWidget(ok, 0, Qt.AlignLeft)

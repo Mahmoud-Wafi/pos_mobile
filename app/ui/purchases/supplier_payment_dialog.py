@@ -1,5 +1,6 @@
 """Dialog for paying suppliers (settling debts)."""
 from __future__ import annotations
+from app.i18n import ar
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QDoubleValidator
@@ -45,7 +46,7 @@ class SupplierPaymentDialog(QDialog):
         title_box.setSpacing(2)
         lbl_title = QLabel(f"سداد دفعة للمورد: {self.supplier.name}")
         style_label(lbl_title, size="title", tone="text", bold=True)
-        lbl_sub = QLabel("سيتم خصم المبلغ من خزينة/درج المحل وتخفيض رصيد المورد")
+        lbl_sub = QLabel(ar.SUPPLIER_PAYMENT_DIALOG_859984)
         style_label(lbl_sub, size="caption", tone="muted")
         title_box.addWidget(lbl_title)
         title_box.addWidget(lbl_sub)
@@ -57,7 +58,7 @@ class SupplierPaymentDialog(QDialog):
         bal_card = QFrame()
         set_prop(bal_card, "banner", "info")
         bal_layout = QHBoxLayout(bal_card)
-        bal_title = QLabel("الرصيد المستحق الحالي للمورد:")
+        bal_title = QLabel(ar.SUPPLIER_PAYMENT_DIALOG_7451CB)
         style_label(bal_title, size="body", tone="primary", bold=True)
         self.bal_value = QLabel(format_money(self.supplier.balance))
         style_label(self.bal_value, size="title", tone="primary", bold=True)
@@ -67,15 +68,15 @@ class SupplierPaymentDialog(QDialog):
         layout.addWidget(bal_card)
 
         # Amount
-        layout.addWidget(QLabel("مبلغ السداد (ج.م): *"))
+        layout.addWidget(QLabel(ar.SUPPLIER_PAYMENT_DIALOG_ED34C2))
         self.amount_edit = QLineEdit()
         self.amount_edit.setFixedHeight(44)
-        self.amount_edit.setPlaceholderText("0.00 ج.م")
+        self.amount_edit.setPlaceholderText(ar.DAILY_CLOSE_DIALOG_388B15)
         self.amount_edit.setValidator(QDoubleValidator(0.01, 9999999.0, 2))
         layout.addWidget(self.amount_edit)
 
         # Account / Method
-        layout.addWidget(QLabel("خزينة الصرف (طريقة الدفع): *"))
+        layout.addWidget(QLabel(ar.SUPPLIER_PAYMENT_DIALOG_5FE4FB))
         self.account_combo = QComboBox()
         self.account_combo.setFixedHeight(42)
         accounts = self.session.query(CashAccount).all()
@@ -85,10 +86,10 @@ class SupplierPaymentDialog(QDialog):
         layout.addWidget(self.account_combo)
 
         # Note
-        layout.addWidget(QLabel("ملاحظات السداد (رقم الإيصال / الحوالة):"))
+        layout.addWidget(QLabel(ar.SUPPLIER_PAYMENT_DIALOG_0CA0B7))
         self.note_edit = QLineEdit()
         self.note_edit.setFixedHeight(42)
-        self.note_edit.setPlaceholderText("مثال: تحويل بنكي / إيصال استلام نقدية رقم...")
+        self.note_edit.setPlaceholderText(ar.SUPPLIER_PAYMENT_DIALOG_87E58F)
         layout.addWidget(self.note_edit)
 
         layout.addStretch()
@@ -97,13 +98,13 @@ class SupplierPaymentDialog(QDialog):
         btn_box = QHBoxLayout()
         btn_box.setSpacing(12)
 
-        btn_cancel = QPushButton("إلغاء")
+        btn_cancel = QPushButton(ar.CANCEL)
         btn_cancel.setFixedHeight(42)
         variant(btn_cancel, "secondary")
         btn_cancel.clicked.connect(self.reject)
         btn_box.addWidget(btn_cancel)
 
-        btn_pay = QPushButton("تأكيد صرف الدفعة")
+        btn_pay = QPushButton(ar.SUPPLIER_PAYMENT_DIALOG_6BA03B)
         btn_pay.setFixedHeight(42)
         variant(btn_pay, "success")
         btn_pay.clicked.connect(self._pay)
@@ -114,17 +115,17 @@ class SupplierPaymentDialog(QDialog):
     def _pay(self):
         val_text = self.amount_edit.text().strip()
         if not val_text:
-            show_error(self, message="يرجى كتابة مبلغ السداد")
+            show_error(self, message=ar.SUPPLIER_PAYMENT_DIALOG_F14231)
             self.amount_edit.setFocus()
             return
 
         try:
             amount_piasters = egp_to_piasters(val_text)
             if amount_piasters <= 0:
-                show_error(self, message="يجب أن يكون المبلغ أكبر من الصفر")
+                show_error(self, message=ar.SUPPLIER_PAYMENT_DIALOG_9B3013)
                 return
         except Exception:
-            show_error(self, message="صيغة المبلغ غير صحيحة")
+            show_error(self, message=ar.EXPENSE_DIALOG_51D7FD)
             return
 
         account_id = self.account_combo.currentData()

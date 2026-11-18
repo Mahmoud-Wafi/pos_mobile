@@ -15,7 +15,7 @@ from app.ui.components import Card, DataTable, EmptyState, KpiCard, PageHeader, 
 from app.ui.design.style import set_prop, text_role
 from app.ui.design.tokens import COLORS as C
 
-_DAYS = ["اثنين", "ثلاثاء", "أربعاء", "خميس", "جمعة", "سبت", "أحد"]
+_DAYS = [ar.DASHBOARD_WIDGET_26D56D, ar.DASHBOARD_WIDGET_49AC97, ar.DASHBOARD_WIDGET_E1C2C5, ar.DASHBOARD_WIDGET_1BAFF5, ar.DASHBOARD_WIDGET_FBB481, ar.DASHBOARD_WIDGET_F994F5, ar.DASHBOARD_WIDGET_7237E5]
 
 
 class SalesChart(QChartView):

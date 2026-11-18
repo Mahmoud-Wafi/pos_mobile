@@ -56,7 +56,7 @@ class InvoiceHistoryWidget(QWidget):
             f.addWidget(QLabel(lab)); f.addWidget(w)
         f.addWidget(self.search, 1)
         f.addWidget(self.status); f.addWidget(self.customer); f.addWidget(self.cashier)
-        btn = QPushButton(ar.SEARCH if hasattr(ar, "SEARCH") else "بحث")
+        btn = QPushButton(ar.SEARCH if hasattr(ar, "SEARCH") else ar.SEARCH)
         btn.setDefault(True); btn.clicked.connect(self.refresh)
         f.addWidget(btn)
         root.addLayout(f)
@@ -182,7 +182,7 @@ class InvoiceHistoryWidget(QWidget):
         if not (ok and reason.strip()):
             return
         restock = QMessageBox.question(
-            self, ar.HISTORY_RETURN, "هل الصنف بحالة جيدة ويصلح لإعادته للمخزن؟") == QMessageBox.Yes
+            self, ar.HISTORY_RETURN, ar.HISTORY_VIEW_D85009) == QMessageBox.Yes
         try:
             sales_service.return_sale_items(
                 self.session, self.user, s.id, [{"sale_item_id": item.id, "quantity": qty}],

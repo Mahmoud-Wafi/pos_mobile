@@ -37,7 +37,7 @@ class BackupSecurityTab(QWidget):
         top_bar = QHBoxLayout()
         top_bar.setSpacing(12)
 
-        lbl_title = QLabel("إعدادات النظام والنسخ الاحتياطي والأمان")
+        lbl_title = QLabel(ar.SETTINGS_WINDOW_091362)
         style_label(lbl_title, size="h2", tone="text", bold=True)
         top_bar.addWidget(lbl_title)
         top_bar.addStretch()
@@ -48,13 +48,13 @@ class BackupSecurityTab(QWidget):
         content_layout.setSpacing(16)
 
         # ── Left Column: Backup Management ───────────────────
-        backup_group = QGroupBox("إدارة النسخ الاحتياطي (Database Backups)")
+        backup_group = QGroupBox(ar.SETTINGS_WINDOW_84BBD9)
         bg_layout = QVBoxLayout(backup_group)
         bg_layout.setContentsMargins(12, 16, 12, 12)
         bg_layout.setSpacing(10)
 
         desc = QLabel(
-            "يقوم النظام بإنشاء نسخة احتياطية آمنة ومضغوطة من قاعدة البيانات لضمان عدم ضياع أي بيانات مبيعات أو فواتير."
+            ar.SETTINGS_WINDOW_64D8D1
         )
         desc.setWordWrap(True)
         style_label(desc, size="caption", tone="muted")
@@ -63,13 +63,13 @@ class BackupSecurityTab(QWidget):
         btn_bar = QHBoxLayout()
         btn_bar.setSpacing(10)
 
-        btn_create = QPushButton("إنشاء نسخة احتياطية الآن")
+        btn_create = QPushButton(ar.SETTINGS_WINDOW_6E962D)
         btn_create.setMinimumHeight(40)
         variant(btn_create, "primary")
         btn_create.clicked.connect(self._create_backup)
         btn_bar.addWidget(btn_create)
 
-        btn_refresh = QPushButton("تحديث القائمة")
+        btn_refresh = QPushButton(ar.LOW_STOCK_WIDGET_8EB2F5)
         btn_refresh.setMinimumHeight(40)
         btn_refresh.clicked.connect(self.load_backups)
         btn_bar.addWidget(btn_refresh)
@@ -79,7 +79,7 @@ class BackupSecurityTab(QWidget):
 
         self.table_backups = QTableWidget()
         self.table_backups.setColumnCount(3)
-        self.table_backups.setHorizontalHeaderLabels(["اسم ملف النسخة الاحتياطية", "الحجم", "إجراء"])
+        self.table_backups.setHorizontalHeaderLabels([ar.SETTINGS_WINDOW_947B46, ar.SETTINGS_WINDOW_E3EBFE, ar.RETURNS_WINDOW_155E71])
         self.table_backups.verticalHeader().setVisible(False)
         self.table_backups.setEditTriggers(QTableWidget.NoEditTriggers)
         self.table_backups.setSelectionBehavior(QTableWidget.SelectRows)
@@ -97,24 +97,24 @@ class BackupSecurityTab(QWidget):
         right_box.setSpacing(16)
 
         # Security Box
-        sec_group = QGroupBox("تغيير كلمة المرور")
+        sec_group = QGroupBox(ar.CHANGE_PASSWORD)
         sec_layout = QVBoxLayout(sec_group)
         sec_layout.setContentsMargins(12, 16, 12, 12)
         sec_layout.setSpacing(8)
 
-        sec_layout.addWidget(QLabel("كلمة المرور الحالية:"))
+        sec_layout.addWidget(QLabel(ar.SETTINGS_WINDOW_2D53C8))
         self.old_pass_edit = QLineEdit()
         self.old_pass_edit.setEchoMode(QLineEdit.Password)
         self.old_pass_edit.setMinimumHeight(40)
         sec_layout.addWidget(self.old_pass_edit)
 
-        sec_layout.addWidget(QLabel("كلمة المرور الجديدة:"))
+        sec_layout.addWidget(QLabel(ar.USERS_NEW_PASSWORD_PROMPT))
         self.new_pass_edit = QLineEdit()
         self.new_pass_edit.setEchoMode(QLineEdit.Password)
         self.new_pass_edit.setMinimumHeight(40)
         sec_layout.addWidget(self.new_pass_edit)
 
-        btn_save_pass = QPushButton("تحديث كلمة المرور")
+        btn_save_pass = QPushButton(ar.SETTINGS_WINDOW_0404C0)
         btn_save_pass.setMinimumHeight(40)
         variant(btn_save_pass, "success")
         btn_save_pass.clicked.connect(self._change_password)
@@ -123,18 +123,18 @@ class BackupSecurityTab(QWidget):
         right_box.addWidget(sec_group)
 
         # System Info Box
-        info_group = QGroupBox("ℹ️ معلومات النظام والترخيص")
+        info_group = QGroupBox(ar.SETTINGS_WINDOW_026F2F)
         info_layout = QVBoxLayout(info_group)
         info_layout.setContentsMargins(12, 16, 12, 12)
         info_layout.setSpacing(6)
 
         infos = [
-            ("اسم البرنامج:", "نظام إدارة محل الموبايلات"),
-            ("الإصدار:", "1.0 (مستقر - وضع Offline كامل)"),
-            ("المحرك المالي:", "نظام القروش الصحيحة (Integer Piasters)"),
-            ("قاعدة البيانات:", "SQLite 3 (وضع WAL مؤمن + FK)"),
-            ("بيئة التشغيل:", "سطح المكتب (Desktop App)"),
-            ("الدعم الفني:", "محلي دون اتصال خارجي"),
+            (ar.SETTINGS_WINDOW_33C0CB, ar.APP_TITLE),
+            (ar.SETTINGS_WINDOW_1425CB, ar.SETTINGS_WINDOW_6DC5FB),
+            (ar.SETTINGS_WINDOW_CE31EB, ar.SETTINGS_WINDOW_9F518B),
+            (ar.SETTINGS_WINDOW_A76753, ar.SETTINGS_WINDOW_025AE3),
+            (ar.SETTINGS_WINDOW_4D8B5E, ar.SETTINGS_WINDOW_914B7D),
+            (ar.SETTINGS_WINDOW_1B43FD, ar.SETTINGS_WINDOW_72871A),
         ]
         for label, val in infos:
             row = QHBoxLayout()
@@ -164,7 +164,7 @@ class BackupSecurityTab(QWidget):
             size_kb = os.path.getsize(bp) / 1024
             self.table_backups.setItem(r, 1, QTableWidgetItem(f"{size_kb:.1f} KB"))
 
-            btn_res = QPushButton("استعادة")
+            btn_res = QPushButton(ar.RESTORE_PHRASE)
             variant(btn_res, "danger")
             btn_res.clicked.connect(lambda _, path=bp: self._confirm_restore(path))
             self.table_backups.setCellWidget(r, 2, btn_res)
@@ -180,7 +180,7 @@ class BackupSecurityTab(QWidget):
     def _confirm_restore(self, backup_path: Path):
         msg = (f"ستتم استعادة النسخة ({backup_path.name}) بعد حفظ نسخة أمان من قاعدة البيانات الحالية، "
                "وسيتم استبدال كل البيانات الحالية ببيانات هذه النسخة، ثم يُعاد تشغيل البرنامج.")
-        if not confirm_typed(self, "تأكيد الاستعادة", msg, ar.RESTORE_PHRASE, ar.RESTORE_PHRASE):
+        if not confirm_typed(self, ar.SETTINGS_WINDOW_9876A4, msg, ar.RESTORE_PHRASE, ar.RESTORE_PHRASE):
             return
         try:
             backup_service.restore(self.session, self.user, backup_path)
@@ -205,15 +205,15 @@ class BackupSecurityTab(QWidget):
         new_pwd = self.new_pass_edit.text()
 
         if not old_pwd or not new_pwd:
-            show_error(self, message="يرجى إدخال كلمة المرور الحالية والجديدة")
+            show_error(self, message=ar.SETTINGS_WINDOW_078221)
             return
 
         if len(new_pwd) < 6:
-            show_error(self, message="كلمة المرور الجديدة يجب أن تكون 6 خانات على الأقل")
+            show_error(self, message=ar.PASSWORD_TOO_SHORT)
             return
 
         if not verify_password(old_pwd, self.user.password_hash):
-            show_error(self, message="كلمة المرور الحالية غير صحيحة")
+            show_error(self, message=ar.SETTINGS_WINDOW_1ED93E)
             return
 
         try:
@@ -221,7 +221,7 @@ class BackupSecurityTab(QWidget):
             self.session.commit()
             self.old_pass_edit.clear()
             self.new_pass_edit.clear()
-            show_toast(self, "تم تغيير كلمة المرور بنجاح!")
+            show_toast(self, ar.SETTINGS_WINDOW_07E187)
         except Exception as e:
             self.session.rollback()
             show_error(self, e)

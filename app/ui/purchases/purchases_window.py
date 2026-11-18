@@ -1,6 +1,8 @@
 """Purchases and Suppliers management screen (Tab 1: Invoices, Tab 2: Used Phones, Tab 3: Suppliers)."""
 from __future__ import annotations
+from app.i18n import ar
 
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -43,17 +45,17 @@ class PurchasesWidget(QWidget):
         # ── Tab 1: فواتير المشتريات ─────────────────────────
         self.tab_invoices = QWidget()
         self._setup_invoices_tab()
-        self.tabs.addTab(self.tab_invoices, "فواتير المشتريات")
+        self.tabs.addTab(self.tab_invoices, ar.PURCHASE_INVOICES)
 
         # ── Tab 2: الأجهزة المستعملة ────────────────────────
         self.tab_used = QWidget()
         self._setup_used_tab()
-        self.tabs.addTab(self.tab_used, "الأجهزة المستعملة والإقرارات")
+        self.tabs.addTab(self.tab_used, ar.PURCHASES_WINDOW_E28C9A)
 
         # ── Tab 3: الموردين والمدفوعات ───────────────────────
         self.tab_suppliers = QWidget()
         self._setup_suppliers_tab()
-        self.tabs.addTab(self.tab_suppliers, "الموردين والحسابات")
+        self.tabs.addTab(self.tab_suppliers, ar.PURCHASES_WINDOW_65F7C1)
 
         main_layout.addWidget(self.tabs)
 
@@ -68,16 +70,16 @@ class PurchasesWidget(QWidget):
         bar = QHBoxLayout()
         self.inv_search_edit = QLineEdit()
         self.inv_search_edit.setMinimumHeight(40)
-        self.inv_search_edit.setPlaceholderText("بحث برقم الفاتورة أو اسم المورد...")
+        self.inv_search_edit.setPlaceholderText(ar.PURCHASES_WINDOW_5C3A7B)
         self.inv_search_edit.textChanged.connect(self._filter_invoices)
         bar.addWidget(self.inv_search_edit, 1)
 
-        btn_refresh = QPushButton("تحديث")
+        btn_refresh = QPushButton(ar.REFRESH)
         btn_refresh.setMinimumHeight(40)
         btn_refresh.clicked.connect(self.load_invoices)
         bar.addWidget(btn_refresh)
 
-        btn_new_inv = QPushButton("فاتورة شراء جديدة")
+        btn_new_inv = QPushButton(ar.NEW_PURCHASE)
         btn_new_inv.setMinimumHeight(40)
         variant(btn_new_inv, "primary")
         btn_new_inv.clicked.connect(self._open_new_invoice_dialog)
@@ -88,7 +90,7 @@ class PurchasesWidget(QWidget):
         self.inv_table = QTableWidget()
         self.inv_table.setColumnCount(8)
         self.inv_table.setHorizontalHeaderLabels([
-            "#", "رقم الفاتورة", "المورد", "التاريخ", "إجمالي الفاتورة", "المدفوع", "المتبقي (آجل)", "الحالة"
+            "#", ar.SALE_DONE_INVOICE, ar.SUPPLIER, ar.RECEIPT_DATE, ar.PURCHASES_WINDOW_9B39B8, ar.PAID, ar.RECEIPT_REMAINING, ar.USERS_STATUS
         ])
         self.inv_table.verticalHeader().setVisible(False)
         self.inv_table.setEditTriggers(QTableWidget.NoEditTriggers)
@@ -150,7 +152,7 @@ class PurchasesWidget(QWidget):
                 rem_item.setForeground(Qt.red)
             self.inv_table.setItem(idx, 6, rem_item)
 
-            st_item = QTableWidgetItem("مرحلة" if inv.status == "posted" else inv.status)
+            st_item = QTableWidgetItem(ar.PURCHASES_WINDOW_BC34A8 if inv.status == "posted" else inv.status)
             st_item.setTextAlignment(Qt.AlignCenter)
             self.inv_table.setItem(idx, 7, st_item)
 
@@ -164,16 +166,16 @@ class PurchasesWidget(QWidget):
         bar = QHBoxLayout()
         self.used_search_edit = QLineEdit()
         self.used_search_edit.setMinimumHeight(40)
-        self.used_search_edit.setPlaceholderText("بحث باسم البائع، الرقم القومي، أو الهاتف...")
+        self.used_search_edit.setPlaceholderText(ar.PURCHASES_WINDOW_59A1E6)
         self.used_search_edit.textChanged.connect(self._filter_used)
         bar.addWidget(self.used_search_edit, 1)
 
-        btn_refresh = QPushButton("تحديث")
+        btn_refresh = QPushButton(ar.REFRESH)
         btn_refresh.setMinimumHeight(40)
         btn_refresh.clicked.connect(self.load_used_purchases)
         bar.addWidget(btn_refresh)
 
-        btn_new_used = QPushButton("شراء جهاز مستعمل جديد")
+        btn_new_used = QPushButton(ar.PURCHASES_WINDOW_3F185D)
         btn_new_used.setMinimumHeight(40)
         variant(btn_new_used, "success")
         btn_new_used.clicked.connect(self._open_new_used_dialog)
@@ -184,7 +186,7 @@ class PurchasesWidget(QWidget):
         self.used_table = QTableWidget()
         self.used_table.setColumnCount(8)
         self.used_table.setHorizontalHeaderLabels([
-            "#", "اسم البائع", "الرقم القومي", "الهاتف", "الجهاز / الموديل", "سيريال IMEI", "السعر", "إقرار التنازل"
+            "#", ar.SELLER_NAME, ar.PURCHASES_WINDOW_9FF7A7, ar.PURCHASES_WINDOW_76F2F1, ar.PURCHASES_WINDOW_EDA661, ar.PURCHASES_WINDOW_7ADBB7, ar.COL_PRICE, ar.PURCHASES_WINDOW_02D620
         ])
         self.used_table.verticalHeader().setVisible(False)
         self.used_table.setEditTriggers(QTableWidget.NoEditTriggers)
@@ -232,7 +234,7 @@ class PurchasesWidget(QWidget):
             self.used_table.setItem(idx, 2, QTableWidgetItem(u.seller_national_id))
             self.used_table.setItem(idx, 3, QTableWidgetItem(u.seller_phone))
 
-            dev_name = u.device.product.name if u.device and u.device.product else "هاتف"
+            dev_name = u.device.product.name if u.device and u.device.product else ar.LOW_STOCK_WIDGET_B0D973
             self.used_table.setItem(idx, 4, QTableWidgetItem(dev_name))
 
             imei_str = u.device.imei1 if u.device else "—"
@@ -242,7 +244,7 @@ class PurchasesWidget(QWidget):
             price_item.setTextAlignment(Qt.AlignCenter)
             self.used_table.setItem(idx, 6, price_item)
 
-            btn_print = QPushButton("طباعة")
+            btn_print = QPushButton(ar.AUTO_ICONS_88C5D1)
             variant(btn_print, "secondary")
             btn_print.clicked.connect(lambda _, rec_id=u.id: self._print_declaration(rec_id))
             self.used_table.setCellWidget(idx, 7, btn_print)
@@ -272,16 +274,16 @@ class PurchasesWidget(QWidget):
         bar = QHBoxLayout()
         self.sup_search_edit = QLineEdit()
         self.sup_search_edit.setMinimumHeight(40)
-        self.sup_search_edit.setPlaceholderText("بحث باسم المورد أو رقم الهاتف...")
+        self.sup_search_edit.setPlaceholderText(ar.PURCHASES_WINDOW_F1878A)
         self.sup_search_edit.textChanged.connect(self._filter_suppliers)
         bar.addWidget(self.sup_search_edit, 1)
 
-        btn_refresh = QPushButton("تحديث")
+        btn_refresh = QPushButton(ar.REFRESH)
         btn_refresh.setMinimumHeight(40)
         btn_refresh.clicked.connect(self.load_suppliers)
         bar.addWidget(btn_refresh)
 
-        btn_new_sup = QPushButton("إضافة مورد جديد")
+        btn_new_sup = QPushButton(ar.PURCHASES_WINDOW_37C629)
         btn_new_sup.setMinimumHeight(40)
         variant(btn_new_sup, "primary")
         btn_new_sup.clicked.connect(self._open_new_supplier_dialog)
@@ -292,7 +294,7 @@ class PurchasesWidget(QWidget):
         self.sup_table = QTableWidget()
         self.sup_table.setColumnCount(6)
         self.sup_table.setHorizontalHeaderLabels([
-            "#", "اسم المورد / الشركة", "الهاتف", "الرصيد المستحق للمورد", "ملاحظات", "سداد دفعة"
+            "#", ar.PURCHASES_WINDOW_EF7E0B, ar.PURCHASES_WINDOW_76F2F1, ar.PURCHASES_WINDOW_8796EF, ar.CUSTOMERS_WINDOW_3C4208, ar.PURCHASES_WINDOW_3D2DF4
         ])
         self.sup_table.verticalHeader().setVisible(False)
         self.sup_table.setEditTriggers(QTableWidget.NoEditTriggers)
@@ -347,7 +349,7 @@ class PurchasesWidget(QWidget):
 
             self.sup_table.setItem(idx, 4, QTableWidgetItem(s.notes or "—"))
 
-            btn_pay = QPushButton("سداد دفعة")
+            btn_pay = QPushButton(ar.PURCHASES_WINDOW_3D2DF4)
             variant(btn_pay, "secondary")
             btn_pay.clicked.connect(lambda _, sup=s: self._pay_supplier_dialog(sup))
             self.sup_table.setCellWidget(idx, 5, btn_pay)

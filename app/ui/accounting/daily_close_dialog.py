@@ -1,5 +1,6 @@
 """Consolidated daily close report dialog for managers."""
 from __future__ import annotations
+from app.i18n import ar
 
 import datetime
 from app.ui.components import show_error
@@ -46,7 +47,7 @@ class DailyCloseDialog(QDialog):
         t_box.setSpacing(2)
         lbl_t = QLabel(f"ملخص الإغلاق المالي والأرباح لليوم ({self.ref_date.strftime('%Y-%m-%d')})")
         style_label(lbl_t, size="title", tone="text", bold=True)
-        lbl_sub = QLabel("تقرير مالي شامل يجمع المبيعات والمشتريات والمصروفات وعمولات المحافظ وصافي الأرباح")
+        lbl_sub = QLabel(ar.DAILY_CLOSE_DIALOG_D4B09E)
         style_label(lbl_sub, size="caption", tone="muted")
         t_box.addWidget(lbl_t)
         t_box.addWidget(lbl_sub)
@@ -62,36 +63,36 @@ class DailyCloseDialog(QDialog):
         grid.setVerticalSpacing(12)
 
         # Sales Section
-        grid.addWidget(self._make_sec_title("1. المبيعات والأرباح التجارية"), 0, 0, 1, 2)
-        self.lbl_sales_tot = QLabel("إجمالي المبيعات: 0.00 ج.م (عدد: 0)")
-        self.lbl_sales_paid = QLabel("المحصل نقداً: 0.00 ج.م")
-        self.lbl_sales_profit = QLabel("أرباح المبيعات المحققة: 0.00 ج.م")
+        grid.addWidget(self._make_sec_title(ar.DAILY_CLOSE_DIALOG_D20C4A), 0, 0, 1, 2)
+        self.lbl_sales_tot = QLabel(ar.DAILY_CLOSE_DIALOG_68AACF)
+        self.lbl_sales_paid = QLabel(ar.DAILY_CLOSE_DIALOG_DEF7D7)
+        self.lbl_sales_profit = QLabel(ar.DAILY_CLOSE_DIALOG_DD6B3A)
         style_label(self.lbl_sales_profit, tone="success", bold=True)
         grid.addWidget(self.lbl_sales_tot, 1, 0)
         grid.addWidget(self.lbl_sales_paid, 1, 1)
         grid.addWidget(self.lbl_sales_profit, 2, 0)
 
         # Purchases Section
-        grid.addWidget(self._make_sec_title("2. المشتريات والتوريدات"), 3, 0, 1, 2)
-        self.lbl_pur_tot = QLabel("إجمالي فواتير الشراء: 0.00 ج.م")
-        self.lbl_pur_paid = QLabel("المدفوع نقداً للموردين: 0.00 ج.م")
+        grid.addWidget(self._make_sec_title(ar.DAILY_CLOSE_DIALOG_3452B2), 3, 0, 1, 2)
+        self.lbl_pur_tot = QLabel(ar.DAILY_CLOSE_DIALOG_F3F2F7)
+        self.lbl_pur_paid = QLabel(ar.DAILY_CLOSE_DIALOG_52C0F0)
         grid.addWidget(self.lbl_pur_tot, 4, 0)
         grid.addWidget(self.lbl_pur_paid, 4, 1)
 
         # Wallets Section
-        grid.addWidget(self._make_sec_title("3. عمولات المحافظ الإلكترونية"), 5, 0, 1, 2)
-        self.lbl_w_comm = QLabel("إجمالي العمولات المحصلة: 0.00 ج.م")
-        self.lbl_w_profit = QLabel("صافي أرباح المحافظ: 0.00 ج.م")
+        grid.addWidget(self._make_sec_title(ar.DAILY_CLOSE_DIALOG_35E7C7), 5, 0, 1, 2)
+        self.lbl_w_comm = QLabel(ar.DAILY_CLOSE_DIALOG_594DDA)
+        self.lbl_w_profit = QLabel(ar.DAILY_CLOSE_DIALOG_16FBB7)
         style_label(self.lbl_w_profit, tone="success", bold=True)
         grid.addWidget(self.lbl_w_comm, 6, 0)
         grid.addWidget(self.lbl_w_profit, 6, 1)
 
         # Expenses & Shifts
-        grid.addWidget(self._make_sec_title("4. المصروفات وفروقات الورديات"), 7, 0, 1, 2)
-        self.lbl_expenses = QLabel("المصروفات التشغيلية: 0.00 ج.م")
+        grid.addWidget(self._make_sec_title(ar.DAILY_CLOSE_DIALOG_9D8EC5), 7, 0, 1, 2)
+        self.lbl_expenses = QLabel(ar.DAILY_CLOSE_DIALOG_453048)
         style_label(self.lbl_expenses, tone="danger", bold=True)
-        self.lbl_shifts = QLabel("عجز / زيادة الورديات: 0.00 ج.م")
-        self.lbl_draws = QLabel("مسحوبات المالك الشخصية: 0.00 ج.م")
+        self.lbl_shifts = QLabel(ar.DAILY_CLOSE_DIALOG_4228B4)
+        self.lbl_draws = QLabel(ar.DAILY_CLOSE_DIALOG_F08E32)
         grid.addWidget(self.lbl_expenses, 8, 0)
         grid.addWidget(self.lbl_shifts, 8, 1)
         grid.addWidget(self.lbl_draws, 9, 0)
@@ -102,9 +103,9 @@ class DailyCloseDialog(QDialog):
         net_card = QFrame()
         set_prop(net_card, "banner", "info")
         n_layout = QHBoxLayout(net_card)
-        n_lbl = QLabel("صافي ربح اليوم التقديري (Net Profit):")
+        n_lbl = QLabel(ar.DAILY_CLOSE_DIALOG_92FE3A)
         style_label(n_lbl, size="title", tone="primary", bold=True)
-        self.lbl_net_profit = QLabel("0.00 ج.م")
+        self.lbl_net_profit = QLabel(ar.DAILY_CLOSE_DIALOG_388B15)
         style_label(self.lbl_net_profit, size="h2", tone="primary", bold=True)
         n_layout.addWidget(n_lbl)
         n_layout.addStretch()
@@ -113,7 +114,7 @@ class DailyCloseDialog(QDialog):
 
         layout.addStretch()
 
-        btn_close = QPushButton("إغلاق")
+        btn_close = QPushButton(ar.CLOSE)
         btn_close.setFixedHeight(40)
         variant(btn_close, "secondary")
         btn_close.clicked.connect(self.accept)
