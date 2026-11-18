@@ -42,6 +42,11 @@ def main() -> None:
     from app.ui.theme import setup_theme
 
     app = QApplication(sys.argv)
+    from PySide6.QtGui import QIcon
+
+    from app.config import BASE_DIR
+
+    app.setWindowIcon(QIcon(str(BASE_DIR / "assets" / "app.png")))
     app.setLayoutDirection(Qt.RightToLeft)
     setup_theme(app)
     startup.install_excepthook(_show_error_dialog)
