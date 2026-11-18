@@ -262,9 +262,10 @@
 
 ## 🧪 تشغيل الاختبارات
 
-يحتوي النظام على جناح اختبارات آلي شامل يغطي 114 حالة اختبار لكافة الوظائف الحيوية:
+يحتوي النظام على جناح اختبارات آلي (أكثر من 260 اختباراً، بما فيها اختبارات الواجهة). ثبّت `requirements-dev.txt` ثم:
 ```bash
-pytest -v
+QT_QPA_PLATFORM=offscreen pytest -q   # على Linux/CI بدون شاشة
+pytest -q                             # على Windows
 ```
 
 للتحقق من تقرير التغطية أو تشغيل وحدة معينة:
@@ -278,24 +279,15 @@ pytest tests/test_reports.py -v
 
 ## 📦 بناء ملف التشغيل لـ Windows
 
-لإنشاء ملف تنفيذي مستقل (`.exe`) يعمل دون الحاجة لتثبيت بايثون:
+يُبنى من ملف مواصفات مرفق في المستودع (`packaging/pos_mobile.spec`). على جهاز Windows وداخل بيئة افتراضية مثبّت بها `requirements.txt`:
 
-1. تثبيت حزمة PyInstaller:
-   ```bash
-   pip install pyinstaller
-   ```
+```bat
+packaging\build_windows.bat
+```
 
-2. تشغيل أمر البناء:
-   ```bash
-   pyinstaller --noconsole --name "POS_Mobile" \
-     --add-data "assets:assets" \
-     --add-data "alembic.ini:." \
-     --add-data "migrations:migrations" \
-     --icon "assets/icon.png" \
-     main.py
-   ```
+الناتج: `dist\POS_Mobile\POS_Mobile.exe`. بيانات المستخدم (قاعدة البيانات، النسخ الاحتياطية، السجلات) تُحفظ في مجلد المستخدم وليس بجوار الملف التنفيذي، ويمكن تغييرها بالمتغير `POS_DATA_DIR`.
 
-3. ستجد الملف التنفيذي الجاهز للاستخدام داخل مجلد `dist/POS_Mobile`.
+> ملاحظة: لم يُختبر البناء على جهاز Windows نظيف بعد؛ جرّبه قبل التسليم.
 
 ---
 
