@@ -6,9 +6,11 @@ from app.models.accounting import CashAccount, CashTransaction, Expense, Expense
 from app.models.shift import Shift
 from app.models.sale import Sale, SaleItem, SalePayment, SaleReturn, SaleReturnItem
 from app.models.purchase import Supplier, Purchase, PurchaseItem, SupplierPayment, UsedDevicePurchase
+from app.models.warranty import WarrantyClaim
 from app.models.wallet import Wallet, CommissionRule, WalletTransaction, WalletAudit
 
 __all__ = [
+    "WarrantyClaim",
     "User",
     "Role",
     "RolePermission",

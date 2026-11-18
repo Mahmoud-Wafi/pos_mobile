@@ -241,3 +241,46 @@ def test_imei_field_shows_luhn_state(qtbot):
     e.setText("490154203237518")  # valid Luhn
     e.editingFinished.emit()
     assert e.property("invalid") == "false"
+
+
+def test_warranty_claims_dialog_lists_and_updates(qtbot, db_session):
+    from app.core.money import egp_to_piasters as egp
+    from app.core.security import hash_password
+    from app.models.user import Role, User
+    from app.services import inventory_service, sales_service, shift_service, warranty_service
+    from app.ui.pos.warranty_claims_dialog import WarrantyClaimsDialog
+
+    s = db_session
+    role = s.query(Role).filter_by(name="manager").first()
+    mgr = User(username="wm", password_hash=hash_password("Passw0rd!"), full_name="wm", role_id=role.id)
+    s.add(mgr)
+    s.commit()
+    p = inventory_service.create_product(s, mgr, {
+        "name": "Cable", "type": "accessory", "cost_price": egp("10"), "sale_price": egp("50"),
+        "min_price": egp("20"), "min_stock": 1, "track_imei": False, "warranty_days": 30})
+    inventory_service.adjust_stock(s, mgr, p, 3, "init")
+    shift_service.open_shift(s, mgr, opening_cash=0)
+    sale = sales_service.start_sale(s, mgr)
+    sales_service.add_line(s, mgr, sale, p)
+    sales_service.post_sale(s, mgr, sale, [{"method": "cash", "amount": sale.total}])
+    warranty_service.open_claim(s, mgr, sale.items[0].id, "dead")
+    s.commit()
+    dlg = WarrantyClaimsDialog(s, mgr)
+    qtbot.addWidget(dlg)
+    assert dlg.table.rowCount() == 1
+
+
+def test_inventory_lists_have_label_buttons(qtbot, db_session):
+    from app.core.security import hash_password
+    from app.models.user import Role, User
+    from app.ui.inventory.device_list import DeviceListWidget
+    from app.ui.inventory.product_list import ProductListWidget
+
+    role = db_session.query(Role).filter_by(name="manager").first()
+    mgr = User(username="lb", password_hash=hash_password("Passw0rd!"), full_name="lb", role_id=role.id)
+    db_session.add(mgr)
+    db_session.commit()
+    for cls in (ProductListWidget, DeviceListWidget):
+        w = cls(db_session, mgr)
+        qtbot.addWidget(w)
+        assert w.btn_labels.text()
