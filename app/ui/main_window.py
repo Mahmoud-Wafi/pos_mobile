@@ -30,6 +30,7 @@ from app.ui.dashboard.dashboard_widget import DashboardWidget
 from app.ui.inventory.inventory_window import InventoryWindow
 from app.ui.pos.pos_window import POSWindow
 from app.ui.pos.returns_window import ReturnsWindow
+from app.ui.repairs.repairs_window import RepairsWidget
 from app.ui.invoices.history_view import InvoiceHistoryWidget
 from app.ui.purchases.purchases_window import PurchasesWidget
 from app.ui.wallets.wallets_window import WalletsWidget
@@ -44,7 +45,7 @@ log = logging.getLogger(__name__)
 
 NAV_ICONS = {
     "dashboard": "layout-dashboard", "pos": "shopping-cart", "invoices": "receipt", "inventory": "package",
-    "returns": "undo-2", "purchases": "truck", "wallets": "wallet", "accounting": "landmark",
+    "returns": "undo-2", "repairs": "wrench", "purchases": "truck", "wallets": "wallet", "accounting": "landmark",
     "customers": "users", "reports": "chart-column", "settings": "settings",
 }
 
@@ -166,6 +167,7 @@ if HAS_QT:
                 ("invoices", ar.HISTORY, self._show_invoices),
                 ("inventory", ar.INVENTORY, self._show_inventory),
                 ("returns", ar.MAIN_WINDOW_C7F537, self._show_returns),
+                ("repairs", ar.REPAIR_TITLE, self._show_repairs),
                 ("purchases", ar.PURCHASES + ar.MAIN_WINDOW_F5E66B, self._show_purchases),
                 ("wallets", ar.WALLETS + ar.MAIN_WINDOW_36CC36, self._show_wallets),
                 ("accounting", ar.ACCOUNTING + ar.MAIN_WINDOW_30E574, self._show_accounting),
@@ -241,6 +243,10 @@ if HAS_QT:
             self.returns_view = ReturnsWindow(self.session, self.current_user) if can_open(self.perms, "returns") else None
             if self.returns_view is not None:
                 self.stack.addWidget(self.returns_view)
+
+            self.repairs_view = RepairsWidget(self.session, self.current_user) if can_open(self.perms, "repairs") else None
+            if self.repairs_view is not None:
+                self.stack.addWidget(self.repairs_view)
 
             # 4. Purchases & Suppliers View (Phase 4)
             self.purchases_view = PurchasesWidget(self.session, self.current_user) if can_open(self.perms, "purchases") else None
@@ -323,7 +329,13 @@ if HAS_QT:
             except Exception:
                 last = ar.NO_BACKUP_YET
             self.sb_db.setText(ar.STATUS_DB_OK)
-            self.sb_backup.setText(f"{ar.STATUS_LAST_BACKUP}: {last}")
+            from app.core.backup import offsite_status
+
+            off = offsite_status()
+            extra = ""
+            if off is not None:
+                extra = f"  |  {ar.OFFSITE_STATUS_LABEL}: " + (ar.OFFSITE_STATUS_OK if off[0] == "ok" else ar.OFFSITE_STATUS_FAIL)
+            self.sb_backup.setText(f"{ar.STATUS_LAST_BACKUP}: {last}{extra}")
             self.sb_user.setText(f"{ar.STATUS_USER}: {self.current_user.full_name}")
             self.sb_version.setText(f"v{APP_VERSION}")
 
@@ -375,6 +387,13 @@ if HAS_QT:
                 return
             self._set_active_nav("returns")
             self.stack.setCurrentWidget(self.returns_view)
+
+        def _show_repairs(self):
+            if not self._allow("repairs"):
+                return
+            self._set_active_nav("repairs")
+            self.repairs_view.reload()
+            self.stack.setCurrentWidget(self.repairs_view)
 
         def _show_purchases(self):
             if not self._allow("purchases"):

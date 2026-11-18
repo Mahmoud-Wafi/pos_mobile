@@ -20,7 +20,7 @@ from app.services import sales_service
 from app.ui.design.style import set_prop, style_label, variant
 
 
-HEADERS = [ar.SALE_DONE_INVOICE, ar.CUSTOMERS_WINDOW_2B9848, ar.RETURNS_WINDOW_C4F854, ar.COL_IMEI, ar.RETURNS_WINDOW_82D91A, ar.RETURNS_WINDOW_BFC686, ar.RETURNS_WINDOW_24B433, ar.RETURNS_WINDOW_155E71]
+HEADERS = [ar.SALE_DONE_INVOICE, ar.CUSTOMERS_WINDOW_2B9848, ar.RETURNS_WINDOW_C4F854, ar.COL_IMEI, ar.RETURNS_WINDOW_82D91A, ar.RETURNS_WINDOW_BFC686, ar.RETURNS_WINDOW_24B433, ar.RETURNS_WINDOW_155E71, ar.WARRANTY_OPEN_CLAIM]
 
 
 if HAS_QT:
@@ -64,6 +64,11 @@ if HAS_QT:
             btn_search.clicked.connect(self._do_search)
             bar.addWidget(btn_search)
 
+            self.btn_claims = QPushButton(ar.WARRANTY_CLAIMS_TITLE)
+            self.btn_claims.setFixedHeight(44)
+            self.btn_claims.clicked.connect(self._show_claims)
+            bar.addWidget(self.btn_claims)
+
             s_layout.addLayout(bar)
             layout.addWidget(search_card)
 
@@ -86,6 +91,7 @@ if HAS_QT:
             header.setSectionResizeMode(5, QHeaderView.Fixed); self.table.setColumnWidth(5, 110) # Days
             header.setSectionResizeMode(6, QHeaderView.Fixed); self.table.setColumnWidth(6, 140) # Date
             header.setSectionResizeMode(7, QHeaderView.Fixed); self.table.setColumnWidth(7, 120) # Action
+            header.setSectionResizeMode(8, QHeaderView.Fixed); self.table.setColumnWidth(8, 130) # Claim
 
             layout.addWidget(self.table)
 
@@ -133,6 +139,32 @@ if HAS_QT:
                 s_item_id = r["sale_item_id"]
                 btn_return.clicked.connect(lambda _, sid=s_item_id: self._process_return(sid))
                 self.table.setCellWidget(row, 7, btn_return)
+
+                btn_claim = QPushButton(ar.WARRANTY_OPEN_CLAIM)
+                variant(btn_claim, "secondary")
+                btn_claim.clicked.connect(lambda _, sid=s_item_id, ok=r["is_valid"]: self._open_claim(sid, ok))
+                self.table.setCellWidget(row, 8, btn_claim)
+
+        def _show_claims(self):
+            from app.ui.pos.warranty_claims_dialog import WarrantyClaimsDialog
+
+            WarrantyClaimsDialog(self.session, self.user, self).exec()
+
+        def _open_claim(self, sale_item_id: int, in_warranty: bool):
+            from app.services import warranty_service
+
+            issue, ok = QInputDialog.getMultiLineText(
+                self, ar.WARRANTY_OPEN_CLAIM, ar.WARRANTY_ISSUE_PROMPT + ("" if in_warranty else f"\n({ar.WARRANTY_OUT_NOTE})"))
+            if not ok:
+                return
+            try:
+                warranty_service.open_claim(self.session, self.user, sale_item_id, issue)
+                self.session.commit()
+            except Exception as e:
+                self.session.rollback()
+                show_error(self, e)
+                return
+            show_toast(self, ar.WARRANTY_CLAIM_OPENED)
 
         def _process_return(self, sale_item_id: int):
             reason, ok = QInputDialog.getText(self, ar.RETURNS_WINDOW_E04EEC, ar.RETURNS_WINDOW_FF5F3B)

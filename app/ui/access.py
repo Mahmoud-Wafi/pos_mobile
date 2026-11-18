@@ -15,6 +15,7 @@ NAV_PERMISSIONS: dict[str, set[str]] = {
     "invoices": {P.PERM_SALES_CREATE, P.PERM_SALES_RETURN, P.PERM_SALES_VOID},
     "inventory": {P.PERM_INVENTORY_VIEW},
     "returns": {P.PERM_SALES_RETURN},
+    "repairs": {P.PERM_SALES_CREATE},
     "purchases": {P.PERM_PURCHASES_VIEW, P.PERM_PURCHASES_CREATE},
     "wallets": {P.PERM_WALLET_USE, P.PERM_WALLET_MANAGE},
     "accounting": {P.PERM_CASH_VIEW},

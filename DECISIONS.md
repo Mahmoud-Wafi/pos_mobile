@@ -74,3 +74,12 @@ Architectural and business-rule decisions made during development.
 - Dashboard data comes from `report_service.dashboard_overview`, which hides sections the user lacks permission for; charts use QtCharts (offline).
 - Tables: an app-wide event filter (`table_defaults.py`) applies row height ≥ 40, alternating rows and remembered column widths (`DATA_DIR/ui.ini`); `DataTable` adds numeric-aware sorting and keys that survive sorting. Existing screens that read rows by index must move to `selected_key()` before opting in to sorting.
 - Sessions: the shared session is rolled back and expired on every screen switch. A full session-per-action refactor was deliberately not done in this phase (risk vs. benefit; services still take a session argument so it can be done screen by screen later).
+
+## D-016 — Repairs, warranty claims, labels, off-site backup
+- Repairs use the existing `sales.create` permission (cashier and manager); cancelling uses `sales.return`; entering parts cost needs `cost.view`. No new permission was added so existing databases need no role migration.
+- Cash taken for a repair goes into the drawer under the user's open shift (category `repair`), so shift close and the daily close see it. Repair profit (final price - parts cost) is counted in the daily close on the day the device is delivered, not on intake.
+- A repair can only be delivered when it is `ready` and fully paid. Cancelling an open ticket refunds what was paid out of the drawer.
+- Warranty claims on an expired warranty are allowed but recorded with `in_warranty = false` (the owner decides goodwill cases).
+- Labels are PDFs (no printer driver code): the shop prints them to its label printer. IMEI labels carry no price.
+- Off-site copy: written under a temp name, verified, then renamed; failures never stop the local backup and show in the status bar.
+- The "ready" message opens `https://wa.me/...` in the user's browser; the app itself stays offline.

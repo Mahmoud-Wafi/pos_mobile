@@ -22,6 +22,7 @@ import zipfile
 from pathlib import Path
 
 from app.config import APP_VERSION, BACKUP_DIR, BASE_DIR, DB_PATH
+from app.i18n import ar
 
 DB_MEMBER = "shop.db"
 MANIFEST = "manifest.json"
@@ -239,8 +240,62 @@ def restore_backup(backup_path: Path, db_path: Path = DB_PATH, backup_dir: Path 
             staging.rmdir()
 
 
+OFFSITE_STATUS_FILE = "offsite_status.txt"
+
+
+def copy_offsite(zip_path: Path, dest_dir: Path | str, keep: int = 14, backup_dir: Path = BACKUP_DIR) -> Path:
+    """Copy a backup zip to another folder (USB drive, synced cloud folder) and verify the copy.
+
+    The copy is written under a temporary name and renamed only after it verifies, so a half-written
+    file never looks like a good backup. The result is recorded for the status bar.
+    """
+    import shutil
+
+    dest = Path(dest_dir)
+    try:
+        if not str(dest_dir).strip():
+            raise BackupError(ar.OFFSITE_NOT_SET)
+        dest.mkdir(parents=True, exist_ok=True)
+        tmp = dest / (".part_" + zip_path.name)
+        shutil.copy2(zip_path, tmp)
+        try:
+            verify_backup(tmp)
+        except BackupError:
+            tmp.unlink(missing_ok=True)
+            raise
+        final = dest / zip_path.name
+        os.replace(tmp, final)
+        prune_backups(keep, dest)
+        _write_offsite_status(backup_dir, True, str(dest))
+        return final
+    except BackupError as exc:
+        _write_offsite_status(backup_dir, False, str(exc))
+        raise
+    except OSError as exc:
+        _write_offsite_status(backup_dir, False, str(exc))
+        raise BackupError(ar.OFFSITE_FAILED) from exc
+
+
+def _write_offsite_status(backup_dir: Path, ok: bool, detail: str) -> None:
+    try:
+        backup_dir.mkdir(parents=True, exist_ok=True)
+        stamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+        (backup_dir / OFFSITE_STATUS_FILE).write_text(f"{'ok' if ok else 'fail'}|{stamp}|{detail}", encoding="utf-8")
+    except OSError:
+        pass
+
+
+def offsite_status(backup_dir: Path = BACKUP_DIR) -> tuple[str, str, str] | None:
+    """(state, time, detail) of the last off-site copy; state is 'ok' or 'fail'. None if never tried."""
+    try:
+        state, when, detail = (backup_dir / OFFSITE_STATUS_FILE).read_text(encoding="utf-8").split("|", 2)
+        return state, when, detail
+    except (OSError, ValueError):
+        return None
+
+
 def run_auto_backup(retention: int = 14, force: bool = False, db_path: Path = DB_PATH,
-                    backup_dir: Path = BACKUP_DIR) -> Path | None:
+                    backup_dir: Path = BACKUP_DIR, offsite_dir: str = "") -> Path | None:
     """Daily / on-close backup: creates one when due (or forced), then prunes. Never raises."""
     import logging
 
@@ -249,6 +304,12 @@ def run_auto_backup(retention: int = 14, force: bool = False, db_path: Path = DB
             return None
         path = create_backup(db_path, backup_dir)
         prune_backups(retention, backup_dir)
+        if offsite_dir.strip():
+            try:
+                copy_offsite(path, offsite_dir, retention, backup_dir)
+            except Exception:   # the local backup succeeded; the failure is recorded for the status bar
+                import logging as _lg
+                _lg.getLogger("pos").exception("off-site backup copy failed")
         return path
     except Exception:           # a failed automatic backup must never stop the shop working
         logging.getLogger("pos").exception("automatic backup failed")

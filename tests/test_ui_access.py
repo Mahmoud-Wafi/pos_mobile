@@ -36,14 +36,14 @@ def test_access_map_cashier_has_no_cost_screens(db_session):
 
 def test_access_map_manager_sees_everything(db_session):
     u = db_session.query(User).join(Role).filter(Role.name == ROLE_MANAGER).first()
-    assert len(allowed_screens(u.permission_codes())) == 11
+    assert len(allowed_screens(u.permission_codes())) == 12
     assert can_open(u.permission_codes(), "settings")
 
 
 @pytest.mark.parametrize("role,hidden_idx,visible_idx", [
-    (ROLE_WALLET_EMPLOYEE, {1, 2, 3, 4, 5, 7, 8, 9, 10}, {0, 6}),
-    (ROLE_CASHIER, {10}, {0, 1, 2, 3, 4, 8, 9}),
-    (ROLE_MANAGER, set(), set(range(11))),
+    (ROLE_WALLET_EMPLOYEE, {1, 2, 3, 4, 5, 6, 8, 9, 10, 11}, {0, 7}),
+    (ROLE_CASHIER, {11}, {0, 1, 2, 3, 4, 5, 9, 10}),
+    (ROLE_MANAGER, set(), set(range(12))),
 ])
 def test_main_window_nav_per_role(qtbot, db_session, role, hidden_idx, visible_idx):
     from app.ui.main_window import MainWindow

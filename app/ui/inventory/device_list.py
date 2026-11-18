@@ -80,6 +80,10 @@ if HAS_QT:
             self.btn_export.setMinimumHeight(40)
             self.btn_export.clicked.connect(self._export_excel)
             bar.addWidget(self.btn_export)
+            self.btn_labels = QPushButton(ar.LABEL_PRINT)
+            self.btn_labels.setMinimumHeight(40)
+            self.btn_labels.clicked.connect(self._print_labels)
+            bar.addWidget(self.btn_labels)
 
             self.btn_refresh = QPushButton(ar.REFRESH)
             self.btn_refresh.setFixedHeight(40)
@@ -144,6 +148,7 @@ if HAS_QT:
             self._populate_table(filtered)
 
         def _populate_table(self, devices):
+            self._shown = list(devices)
             self.table.setRowCount(len(devices))
             for row, d in enumerate(devices):
                 status_ar, bg_col, fg_col = STATUS_CONFIG.get(d.status, (d.status, "#F1F5F9", "#0F172A"))
@@ -170,6 +175,25 @@ if HAS_QT:
                     self.table.setItem(row, col, item)
 
             self.footer_label.setText(f"إجمالي الأجهزة المسجلة: {len(devices)} جهاز")
+
+        def _print_labels(self):
+            from PySide6.QtWidgets import QFileDialog
+            from app.services import label_service
+            from app.ui.components import show_error, show_toast
+            row = self.table.currentRow()
+            shown = getattr(self, "_shown", [])
+            if not 0 <= row < len(shown):
+                show_error(self, message=ar.LABEL_NOTHING)
+                return
+            dest, _ = QFileDialog.getSaveFileName(self, ar.LABEL_SAVE_TITLE, "labels.pdf", "PDF (*.pdf)")
+            if not dest:
+                return
+            try:
+                label_service.render(label_service.device_specs(self.session, self.user, [shown[row]]), dest)
+            except Exception as exc:
+                show_error(self, exc)
+                return
+            show_toast(self, ar.LABEL_SAVED)
 
         def _import_excel(self):
             from app.ui.inventory.import_wizard import ImportWizard

@@ -24,6 +24,7 @@ DEFAULT_SETTINGS: dict[str, str] = {
     "idle_lock_minutes": "10",
     "backup_retention": "14",
     "auto_backup": "1",
+    "offsite_backup_dir": "",
 }
 
 

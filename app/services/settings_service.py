@@ -1,7 +1,12 @@
 """Shop settings (name, address, footer, warranty text, limits) with validation + audit."""
 from __future__ import annotations
 
+import os
+from pathlib import Path
+
 from sqlalchemy.orm import Session
+
+from app.i18n import ar
 
 from app.core.audit import log_action
 from app.core.permissions import PERM_SETTINGS_MANAGE, require_permission
@@ -51,6 +56,10 @@ def update(session: Session, actor: User, changes: dict[str, str]) -> None:
             if not lo <= number <= hi:
                 raise SettingsError(f"القيمة يجب أن تكون بين {lo} و {hi}: {key}")
             value = str(number)
+        if key == "offsite_backup_dir" and value:
+            folder = Path(value)
+            if not folder.is_absolute() or not folder.is_dir() or not os.access(folder, os.W_OK):
+                raise SettingsError(ar.OFFSITE_BAD_FOLDER)
         if key == "shop_name" and not value:
             raise SettingsError("اسم المحل مطلوب")
         row = session.query(Setting).filter_by(key=key).first()

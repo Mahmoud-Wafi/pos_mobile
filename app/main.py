@@ -33,8 +33,9 @@ def main() -> None:
 
     with session_scope() as session:
         enabled, keep = backup_service.auto_enabled(session), backup_service.retention(session)
+        offsite = backup_service.offsite_dir(session)
     if enabled:
-        backup_core.run_auto_backup(keep)           # daily backup (no-op when today's exists)
+        backup_core.run_auto_backup(keep, offsite_dir=offsite)           # daily backup (no-op when today's exists)
 
     from PySide6.QtCore import Qt
     from PySide6.QtWidgets import QApplication
@@ -42,6 +43,11 @@ def main() -> None:
     from app.ui.theme import setup_theme
 
     app = QApplication(sys.argv)
+    from PySide6.QtGui import QIcon
+
+    from app.config import BASE_DIR
+
+    app.setWindowIcon(QIcon(str(BASE_DIR / "assets" / "app.png")))
     app.setLayoutDirection(Qt.RightToLeft)
     setup_theme(app)
     startup.install_excepthook(_show_error_dialog)
@@ -51,7 +57,7 @@ def main() -> None:
             last = backup_core.last_backup_time()
             import datetime as _dt
             if last is None or _dt.datetime.now() - last > _dt.timedelta(hours=1):
-                backup_core.run_auto_backup(keep, force=True)
+                backup_core.run_auto_backup(keep, force=True, offsite_dir=offsite)
         app.aboutToQuit.connect(_backup_on_close)
 
     from app.ui.session import run_with_login
