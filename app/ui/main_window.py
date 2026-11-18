@@ -340,10 +340,14 @@ if HAS_QT:
             self.sb_version.setText(f"v{APP_VERSION}")
 
         def _fresh_session(self, _index: int = 0) -> None:
-            """Drop any half-finished transaction and stale objects when the user changes screen."""
+            """Refresh stale objects when the user changes screen.
+
+            Never roll back here: the POS keeps a flushed-but-uncommitted draft invoice, and a rollback
+            would detach it (DetachedInstanceError on the next scan). Screens roll back their own errors.
+            """
             try:
-                self.session.rollback()
-                self.session.expire_all()
+                if not self.session.dirty:          # keep unsaved edits
+                    self.session.expire_all()
             except Exception:  # noqa: BLE001 - never block navigation
                 log.exception("session refresh failed")
 

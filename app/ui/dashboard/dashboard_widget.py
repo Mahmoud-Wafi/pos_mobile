@@ -170,7 +170,6 @@ class DashboardWidget(QWidget):
     def refresh_data(self) -> None:
         self.stack.setCurrentIndex(0)           # loading state while the queries run
         try:
-            self.session.rollback()
             m = report_service.dashboard_overview(self.session, self.user)
         except Exception:
             self.session.rollback()

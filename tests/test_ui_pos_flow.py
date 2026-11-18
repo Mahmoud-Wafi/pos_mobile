@@ -157,3 +157,26 @@ def test_cashier_history_limited_to_own(shop):
     s.commit()
     assert sales_service.search_sales(s, cash) == []
     assert len(sales_service.search_sales(s, mgr)) == 1
+
+
+def test_switching_screens_keeps_the_draft_invoice(qtbot, db_session):
+    """Regression: a screen switch used to roll back and detach the POS draft sale."""
+    from app.core.security import hash_password
+    from app.models.user import Role, User
+    from app.services import sales_service
+    from app.ui.main_window import MainWindow
+
+    role = db_session.query(Role).filter_by(name="manager").first()
+    u = User(username="sw", password_hash=hash_password("Passw0rd!"), full_name="sw", role_id=role.id)
+    db_session.add(u)
+    db_session.commit()
+    win = MainWindow(user_id=u.id)
+    qtbot.addWidget(win)
+    win.show()
+    win._show_pos()
+    sale = win.pos_view.current_sale
+    win._show_dashboard()
+    win._show_pos()
+    assert sale in win.session            # still attached
+    assert sale.status == "held"
+    assert sales_service.list_held_sales(win.session) is not None
