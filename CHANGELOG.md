@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased (branch `features-next`)
+
+### Added
+- Repairs: intake tickets, status flow, deposits/payments through the drawer, delivery, cancel with refund, customer message (WhatsApp link + copy), A5 receipt PDF; delivered-repair profit in the daily close.
+- Warranty claims log (open / in repair / resolved / rejected) with a claims screen.
+- Barcode labels (Code 128, 50x30 mm) for products and IMEIs.
+- Off-site backup copy to a USB drive or synced folder, verified, with a status-bar indicator.
+- End-to-end full-day test; app icon.
+
 ## Unreleased (branch `antigravity-improvements`)
 
 ### Added

@@ -11,7 +11,7 @@ from app.core.permissions import ROLE_CASHIER, ROLE_MANAGER, ROLE_WALLET_EMPLOYE
 from app.models.customer import Customer
 from app.models.user import Role, User
 
-SCREENS = ["dashboard", "pos", "invoices", "inventory", "returns", "purchases", "wallets",
+SCREENS = ["dashboard", "pos", "invoices", "inventory", "returns", "repairs", "purchases", "wallets",
            "accounting", "customers", "reports", "settings"]
 
 
@@ -284,3 +284,33 @@ def test_inventory_lists_have_label_buttons(qtbot, db_session):
         w = cls(db_session, mgr)
         qtbot.addWidget(w)
         assert w.btn_labels.text()
+
+
+def test_repairs_screen_flow(qtbot, db_session):
+    from app.core.money import egp_to_piasters as egp
+    from app.core.security import hash_password
+    from app.models.user import Role, User
+    from app.services import repair_service, shift_service
+    from app.ui.repairs.repairs_window import NewRepairDialog, RepairsWidget
+
+    s = db_session
+    role = s.query(Role).filter_by(name="cashier").first()
+    cashier = User(username="rc", password_hash=hash_password("Passw0rd!"), full_name="rc", role_id=role.id)
+    s.add(cashier)
+    s.commit()
+    shift_service.open_shift(s, cashier, opening_cash=0)
+    w = RepairsWidget(s, cashier)
+    qtbot.addWidget(w)
+    assert w.table.rowCount() == 0
+    dlg = NewRepairDialog(s, cashier)
+    qtbot.addWidget(dlg)
+    dlg.name.setText("Ali")
+    dlg.device.setText("Redmi")
+    dlg.issue.setPlainText("no power")
+    dlg.deposit.setText("50")
+    dlg._save()
+    assert dlg.ticket is not None and dlg.ticket.paid == egp("50")
+    w.reload()
+    assert w.table.rowCount() == 1
+    w.table.setCurrentCell(0, 0)
+    assert w._selected() is not None

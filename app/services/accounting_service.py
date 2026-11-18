@@ -439,7 +439,16 @@ def daily_close(
     shift_diff_total = shifts_q.with_entities(func.coalesce(func.sum(Shift.diff), 0)).scalar() or 0
 
     # Net Profit = Sales profit + Wallet profit - Expenses + Shift diff
-    net_profit = sales_profit + wallet_profit - exp_total + shift_diff_total
+    # Repairs: income and profit count on the day the device is handed back
+    from app.models.repair import RepairTicket
+
+    done = (session.query(RepairTicket)
+            .filter(RepairTicket.status == "delivered", RepairTicket.delivered_at >= start_dt,
+                    RepairTicket.delivered_at <= end_dt).all())
+    repair_income = sum(t.final_price for t in done)
+    repair_profit = sum(t.final_price - t.parts_cost for t in done)
+
+    net_profit = sales_profit + wallet_profit + repair_profit - exp_total + shift_diff_total
 
     # 7. Current Balances Snapshot
     accounts = session.query(CashAccount).all()
@@ -461,6 +470,7 @@ def daily_close(
             "total": pur_total,
             "paid": pur_paid,
         },
+        "repairs": {"count": len(done), "income": repair_income, "profit": repair_profit},
         "expenses": exp_total,
         "owner_draws": draw_total,
         "wallets": {
