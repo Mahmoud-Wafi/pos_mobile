@@ -78,14 +78,14 @@ Baseline before this work: 114 tests. Current: 164 passing (`QT_QPA_PLATFORM=off
 
 | # | Criterion | Status |
 |---|---|---|
-| 4.1 | Backups use SQLite's online backup (not a file copy), are zipped with a manifest (app version, Alembic revision, time, sha256), and require `backup.manage`. | [ ] |
-| 4.2 | Restore checks integrity and the manifest, rejects a tampered file, disposes the engine, removes stale `-wal` / `-shm` files and offers an automatic restart. A backup taken during an open write transaction restores cleanly (tested). | [ ] |
-| 4.3 | Automatic backup on app close and daily, with retention N (a setting, default 14). The last backup time shows in the status bar. | [ ] |
-| 4.4 | Excel import wizard (`.xlsx` / `.csv` → preview → per-row errors → confirm) using the Arabic/English headers from D-008, with a downloadable template. Real `.xlsx` export (RTL sheet) for inventory, devices and reports, next to CSV with BOM. | [ ] |
-| 4.5 | The one shared SQLAlchemy session is replaced screen by screen with a session per user action (or at least rollback on error and `expire_all()` on view switch). A failed action in one screen never breaks another. Tests stay green after each screen. | [ ] |
-| 4.6 | New dashboard: unified KPI cards with comparison to yesterday, 7-day sales chart, top 5 products, per-wallet balance strip (`QtCharts`, offline), reorder shortcut from the low-stock list, empty/loading states. The profit card is hidden without permission. | [ ] |
-| 4.7 | Tables are consistent: right-aligned text, row height at least 40 px, sortable headers, remembered column widths, empty-state messages, icon row actions with tooltips. Western digits are shown everywhere; Arabic-Indic input is accepted. | [ ] |
-| 4.8 | Forms validate inline (red border and helper text), tab order is sensible, `Enter` submits and `Esc` cancels. IMEI fields check Luhn on blur and show ✓/✗. Restore needs a typed confirmation. | [ ] |
+| 4.1 | Backups use SQLite's online backup (not a file copy), are zipped with a manifest (app version, Alembic revision, time, sha256), and require `backup.manage`. | [x]  |
+| 4.2 | Restore checks integrity and the manifest, rejects a tampered file, disposes the engine, removes stale `-wal` / `-shm` files and offers an automatic restart. A backup taken during an open write transaction restores cleanly (tested). | [x]  |
+| 4.3 | Automatic backup on app close and daily, with retention N (a setting, default 14). The last backup time shows in the status bar. | [x]  |
+| 4.4 | Excel import wizard (`.xlsx` / `.csv` → preview → per-row errors → confirm) using the Arabic/English headers from D-008, with a downloadable template. Real `.xlsx` export (RTL sheet) for inventory, devices and reports, next to CSV with BOM. | [x]  |
+| 4.5 | The one shared SQLAlchemy session is replaced screen by screen with a session per user action (or at least rollback on error and `expire_all()` on view switch). A failed action in one screen never breaks another. Tests stay green after each screen. | [~] Partial: rollback + `expire_all()` on every view switch; per-action sessions not done (see D-015). |
+| 4.6 | New dashboard: unified KPI cards with comparison to yesterday, 7-day sales chart, top 5 products, per-wallet balance strip (`QtCharts`, offline), reorder shortcut from the low-stock list, empty/loading states. The profit card is hidden without permission. | [x]  |
+| 4.7 | Tables are consistent: right-aligned text, row height at least 40 px, sortable headers, remembered column widths, empty-state messages, icon row actions with tooltips. Western digits are shown everywhere; Arabic-Indic input is accepted. | [~] Partial: shared defaults (row height, sorting, widths, numeric sort) apply app-wide via `table_defaults.py`; per-table icon row actions not done. |
+| 4.8 | Forms validate inline (red border and helper text), tab order is sensible, `Enter` submits and `Esc` cancels. IMEI fields check Luhn on blur and show ✓/✗. Restore needs a typed confirmation. | [~] Partial: IMEI Luhn ✓/✗ on blur and typed restore confirmation done; inline helper text only on IMEI fields so far. |
 
 ## Phase 5 — Quality and release
 

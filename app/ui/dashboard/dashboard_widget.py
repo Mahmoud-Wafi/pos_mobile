@@ -1,18 +1,64 @@
-"""Dashboard view with high-level KPI cards, quick shortcuts, and real-time operational feeds."""
+"""Dashboard: KPI cards with yesterday comparison, 7-day sales chart, top products, wallets, low stock."""
 from __future__ import annotations
 
-from typing import Optional
-
+from PySide6.QtCharts import QBarCategoryAxis, QBarSeries, QBarSet, QChart, QChartView, QValueAxis
 from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QColor, QPainter
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel,
-    QPushButton, QTableWidget, QTableWidgetItem, QHeaderView,
-    QFrame, QGridLayout, QScrollArea,
+    QFrame, QHBoxLayout, QLabel, QScrollArea, QStackedWidget, QVBoxLayout, QWidget,
 )
 
-from app.core.money import format_money
+from app.core.money import format_money, piasters_to_input
+from app.i18n import ar
 from app.services import report_service
-from app.ui.design.style import set_prop, style_label, variant
+from app.ui.components import Card, DataTable, EmptyState, KpiCard, PageHeader, button, icon_button
+from app.ui.design.style import set_prop, text_role
+from app.ui.design.tokens import COLORS as C
+
+_DAYS = ["اثنين", "ثلاثاء", "أربعاء", "خميس", "جمعة", "سبت", "أحد"]
+
+
+class SalesChart(QChartView):
+    """7-day sales bars (EGP). Rendered with QtCharts, fully offline."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setRenderHint(QPainter.Antialiasing)
+        self.setLayoutDirection(Qt.LeftToRight)
+        self.setMinimumHeight(220)
+        self.setFrameShape(QFrame.NoFrame)
+        self.set_data([])
+
+    def set_data(self, series: list[dict]) -> None:
+        chart = QChart()
+        chart.legend().hide()
+        chart.setBackgroundVisible(False)
+        chart.setMargins(chart.margins())
+        bars = QBarSet(ar.DASH_SALES)
+        bars.setColor(QColor(C["primary"]))
+        bars.setBorderColor(QColor(C["primary"]))
+        cats, top = [], 0.0
+        for d in series:
+            v = float(piasters_to_input(d["total"]))
+            bars.append(v)
+            top = max(top, v)
+            cats.append(f"{_DAYS[d['date'].weekday()]}\n{d['date'].day}")
+        s = QBarSeries()
+        s.append(bars)
+        s.setLabelsVisible(False)
+        chart.addSeries(s)
+        ax = QBarCategoryAxis()
+        ax.append(cats)
+        chart.addAxis(ax, Qt.AlignBottom)
+        s.attachAxis(ax)
+        ay = QValueAxis()
+        ay.setRange(0, top * 1.1 if top else 100)
+        ay.setLabelFormat("%.0f")
+        ay.applyNiceNumbers()
+        chart.addAxis(ay, Qt.AlignLeft)
+        s.attachAxis(ay)
+        self.setChart(chart)
+        self.bar_values = [bars.at(i) for i in range(bars.count())]
 
 
 class DashboardWidget(QWidget):
@@ -26,275 +72,178 @@ class DashboardWidget(QWidget):
 
     def __init__(self, session, user, parent=None):
         super().__init__(parent)
-        self.session = session
-        self.user = user
+        self.session, self.user = session, user
         self._build_ui()
         self.refresh_data()
 
-    def _build_ui(self):
-        main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(18, 18, 18, 18)
-        main_layout.setSpacing(16)
+    # ── layout ───────────────────────────────────────────────────────────
+    def _build_ui(self) -> None:
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        self.stack = QStackedWidget()
+        outer.addWidget(self.stack)
 
-        # ── Top Bar ─────────────────────────────────────────
-        top_bar = QHBoxLayout()
-        top_bar.setSpacing(12)
+        self.loading = EmptyState(ar.DASH_LOADING, "clock")
+        self.stack.addWidget(self.loading)
 
-        lbl_title = QLabel("لوحة المؤشرات ونظرة عامة على النشاط")
-        style_label(lbl_title, size="h2", tone="text", bold=True)
-        top_bar.addWidget(lbl_title)
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.NoFrame)
+        set_prop(scroll, "transparent", True)
+        body = QWidget()
+        set_prop(body, "transparent", True)
+        scroll.setWidget(body)
+        self.stack.addWidget(scroll)
+        lay = QVBoxLayout(body)
+        lay.setContentsMargins(18, 18, 18, 18)
+        lay.setSpacing(16)
 
-        top_bar.addStretch()
-
+        self.header = PageHeader(ar.NAV_DASHBOARD)
         self.lbl_date = QLabel()
-        style_label(self.lbl_date, size="body", tone="muted", bold=True)
-        top_bar.addWidget(self.lbl_date)
+        text_role(self.lbl_date, "muted")
+        self.header.actions.addWidget(self.lbl_date)
+        self.header.add_action(button(ar.REFRESH, "secondary", "rotate-cw")).clicked.connect(self.refresh_data)
+        lay.addWidget(self.header)
 
-        btn_refresh = QPushButton("تحديث البيانات")
-        btn_refresh.setMinimumHeight(40)
-        variant(btn_refresh, "secondary")
-        btn_refresh.clicked.connect(self.refresh_data)
-        top_bar.addWidget(btn_refresh)
+        # KPI row
+        self.kpi_row = QHBoxLayout()
+        self.kpi_row.setSpacing(12)
+        self.kpi_sales = KpiCard(ar.DASH_SALES_TODAY)
+        self.kpi_count = KpiCard(ar.DASH_INVOICES_TODAY)
+        self.kpi_profit = KpiCard(ar.DASH_PROFIT_TODAY)
+        self.kpi_cash = KpiCard(ar.DASH_DRAWER)
+        self.kpi_debt = KpiCard(ar.DASH_RECEIVABLES)
+        for k in (self.kpi_sales, self.kpi_count, self.kpi_profit, self.kpi_cash, self.kpi_debt):
+            self.kpi_row.addWidget(k)
+        lay.addLayout(self.kpi_row)
 
-        main_layout.addLayout(top_bar)
+        # chart + top products
+        mid = QHBoxLayout()
+        mid.setSpacing(12)
+        self.chart_card = Card()
+        t = QLabel(ar.DASH_LAST7)
+        text_role(t, "title")
+        self.chart_card.body.addWidget(t)
+        self.chart = SalesChart()
+        self.chart_card.body.addWidget(self.chart)
+        self.chart_empty = EmptyState(ar.DASH_NO_SALES, "chart-column")
+        self.chart_card.body.addWidget(self.chart_empty)
+        mid.addWidget(self.chart_card, 3)
 
-        # ── KPI Cards Grid ──────────────────────────────────
-        kpi_grid = QGridLayout()
-        kpi_grid.setSpacing(14)
+        self.top_card = Card()
+        t = QLabel(ar.DASH_TOP5)
+        text_role(t, "title")
+        self.top_card.body.addWidget(t)
+        self.top_table = DataTable([ar.COL_PRODUCT, ar.CART_QTY, ar.HISTORY_COL_TOTAL], ar.DASH_NO_SALES)
+        self.top_table.setMinimumHeight(220)
+        self.top_card.body.addWidget(self.top_table)
+        mid.addWidget(self.top_card, 2)
+        lay.addLayout(mid)
 
-        # 1. Today's Sales
-        self.card_sales, self.lbl_sales_val, self.lbl_sales_sub = self._create_card(
-            "مبيعات اليوم", "0.00 ج.م", "0 فواتير مسجلة", "#2563EB", "#EFF6FF"
-        )
-        kpi_grid.addWidget(self.card_sales, 0, 0)
+        # wallets strip
+        self.wallet_card = Card()
+        t = QLabel(ar.DASH_WALLETS)
+        text_role(t, "title")
+        self.wallet_card.body.addWidget(t)
+        self.wallet_strip = QHBoxLayout()
+        self.wallet_strip.setSpacing(10)
+        self.wallet_card.body.addLayout(self.wallet_strip)
+        lay.addWidget(self.wallet_card)
 
-        # 2. Today's Profit
-        self.card_profit, self.lbl_profit_val, self.lbl_profit_sub = self._create_card(
-            "صافي أرباح اليوم", "0.00 ج.م", "المبيعات + المحافظ", "#059669", "#ECFDF5"
-        )
-        kpi_grid.addWidget(self.card_profit, 0, 1)
+        # low stock
+        low = Card()
+        head = QHBoxLayout()
+        t = QLabel(ar.DASH_LOW_STOCK)
+        text_role(t, "title")
+        head.addWidget(t)
+        head.addStretch()
+        self.btn_reorder = button(ar.DASH_REORDER, "primary", "plus")
+        self.btn_reorder.clicked.connect(self.open_purchases_requested.emit)
+        head.addWidget(self.btn_reorder)
+        low.body.addLayout(head)
+        self.low_table = DataTable([ar.COL_PRODUCT, ar.COL_STOCK, ar.DASH_MIN, ""], ar.DASH_STOCK_OK)
+        self.low_table.setMinimumHeight(170)
+        low.body.addWidget(self.low_table)
+        lay.addWidget(low)
 
-        # 3. Cash Drawer Balance
-        self.card_drawer, self.lbl_drawer_val, self.lbl_drawer_sub = self._create_card(
-            "رصيد درج النقدية", "0.00 ج.م", "الخزينة المباشرة للكاشير", "#D97706", "#FFFBEB"
-        )
-        kpi_grid.addWidget(self.card_drawer, 0, 2)
-
-        # 4. Total Wallets Balance
-        self.card_wallets, self.lbl_wallets_val, self.lbl_wallets_sub = self._create_card(
-            "إجمالي أرصدة المحافظ", "0.00 ج.م", "فودافون كاش والأجهزة", "#0284C7", "#F0F9FF"
-        )
-        kpi_grid.addWidget(self.card_wallets, 1, 0)
-
-        # 5. Low Stock Alert
-        self.card_stock, self.lbl_stock_val, self.lbl_stock_sub = self._create_card(
-            "نواقص المخزون", "0 صنف", "أصناف بلغت الحد الأدنى", "#DC2626", "#FEF2F2"
-        )
-        kpi_grid.addWidget(self.card_stock, 1, 1)
-
-        # 6. Active Shift Info
-        self.card_shift, self.lbl_shift_val, self.lbl_shift_sub = self._create_card(
-            "الوردية الحالية", "مفتوحة", "الكاشير: —", "#7C3AED", "#F5F3FF"
-        )
-        kpi_grid.addWidget(self.card_shift, 1, 2)
-
-        main_layout.addLayout(kpi_grid)
-
-        # ── Quick Action Shortcuts ──────────────────────────
-        shortcut_frame = QFrame()
-        set_prop(shortcut_frame, "card", True)
-        sc_layout = QHBoxLayout(shortcut_frame)
-        sc_layout.setSpacing(10)
-
-        sc_title = QLabel("وصول سريع:")
-        style_label(sc_title, size="body", tone="muted", bold=True)
-        sc_layout.addWidget(sc_title)
-
-        shortcuts = [
-            ("نقطة البيع (POS)", "#2563EB", self.open_pos_requested.emit),
-            ("عمليات المحافظ", "#0284C7", self.open_wallets_requested.emit),
-            ("فاتورة مشتريات", "#059669", self.open_purchases_requested.emit),
-            ("الخزينة والمصروفات", "#D97706", self.open_accounting_requested.emit),
-            ("حسابات العملاء", "#4F46E5", self.open_customers_requested.emit),
-            ("إدارة المخزون", "#0D9488", self.open_inventory_requested.emit),
-            ("التقارير الشاملة", "#475569", self.open_reports_requested.emit),
-        ]
-
-        for text, color, slot in shortcuts:
-            btn = QPushButton(text)
-            btn.setMinimumHeight(40)
-            btn.setCursor(Qt.PointingHandCursor)
-            btn.setStyleSheet(f"""
-                QPushButton {{
-                    background-color: #F8FAFC;
-                    border: 1px solid #E2E8F0;
-                    border-radius: 6px;
-                    padding: 0 12px;
-                    font-size: 12px;
-                    font-weight: bold;
-                    color: {color};
-                }}
-                QPushButton:hover {{
-                    background-color: #EFF6FF;
-                    border-color: {color};
-                }}
-            """)
-            btn.clicked.connect(slot)
-            sc_layout.addWidget(btn)
-
-        sc_layout.addStretch()
-        main_layout.addWidget(shortcut_frame)
-
-        # ── Feeds Split (Recent Sales + Low Stock Alerts) ───
-        feeds_layout = QHBoxLayout()
-        feeds_layout.setSpacing(14)
-
-        # Right Feed: Recent Sales
-        recent_box = QFrame()
-        set_prop(recent_box, "card", True)
-        recent_layout = QVBoxLayout(recent_box)
-        recent_layout.setSpacing(10)
-
-        r_title = QLabel("أحدث مبيعات اليوم")
-        style_label(r_title, size="label", tone="text", bold=True)
-        recent_layout.addWidget(r_title)
-
-        self.recent_table = QTableWidget()
-        self.recent_table.setColumnCount(4)
-        self.recent_table.setHorizontalHeaderLabels(["رقم الفاتورة", "العميل", "الإجمالي", "الوقت"])
-        self.recent_table.verticalHeader().setVisible(False)
-        self.recent_table.setEditTriggers(QTableWidget.NoEditTriggers)
-        self.recent_table.setSelectionBehavior(QTableWidget.SelectRows)
-        self.recent_table.setAlternatingRowColors(True)
-        rh = self.recent_table.horizontalHeader()
-        rh.setSectionResizeMode(0, QHeaderView.Fixed); self.recent_table.setColumnWidth(0, 110)
-        rh.setSectionResizeMode(1, QHeaderView.Stretch)
-        rh.setSectionResizeMode(2, QHeaderView.Fixed); self.recent_table.setColumnWidth(2, 100)
-        rh.setSectionResizeMode(3, QHeaderView.Fixed); self.recent_table.setColumnWidth(3, 90)
-        recent_layout.addWidget(self.recent_table)
-
-        feeds_layout.addWidget(recent_box, 1)
-
-        # Left Feed: Low Stock Alerts
-        stock_box = QFrame()
-        set_prop(stock_box, "card", True)
-        stock_layout = QVBoxLayout(stock_box)
-        stock_layout.setSpacing(10)
-
-        s_title = QLabel("تنبيهات النواقص بالمخزون")
-        style_label(s_title, size="label", tone="danger", bold=True)
-        stock_layout.addWidget(s_title)
-
-        self.stock_table = QTableWidget()
-        self.stock_table.setColumnCount(4)
-        self.stock_table.setHorizontalHeaderLabels(["اسم الصنف", "النوع", "الكمية الحالية", "الحد الأدنى"])
-        self.stock_table.verticalHeader().setVisible(False)
-        self.stock_table.setEditTriggers(QTableWidget.NoEditTriggers)
-        self.stock_table.setSelectionBehavior(QTableWidget.SelectRows)
-        self.stock_table.setAlternatingRowColors(True)
-        sh = self.stock_table.horizontalHeader()
-        sh.setSectionResizeMode(0, QHeaderView.Stretch)
-        sh.setSectionResizeMode(1, QHeaderView.Fixed); self.stock_table.setColumnWidth(1, 80)
-        sh.setSectionResizeMode(2, QHeaderView.Fixed); self.stock_table.setColumnWidth(2, 90)
-        sh.setSectionResizeMode(3, QHeaderView.Fixed); self.stock_table.setColumnWidth(3, 90)
-        stock_layout.addWidget(self.stock_table)
-
-        feeds_layout.addWidget(stock_box, 1)
-
-        main_layout.addLayout(feeds_layout, 1)
-
-    def _create_card(self, title: str, init_val: str, subtitle: str, color: str, bg_tint: str):
-        card = QFrame()
-        card.setFixedHeight(105)
-        card.setObjectName("DashCard")
-        card.setStyleSheet(f"QFrame#DashCard {{ background-color: {bg_tint}; border: 1px solid #E2E8F0; border-radius: 10px; }}")
-        vbox = QVBoxLayout(card)
-        vbox.setContentsMargins(6, 6, 6, 6)
-        vbox.setSpacing(3)
-
-        lbl_title = QLabel(title)
-        lbl_title.setStyleSheet(f"font-size: 12px; font-weight: bold; color: {color};")
-        vbox.addWidget(lbl_title)
-
-        lbl_val = QLabel(init_val)
-        style_label(lbl_val, size="h2", tone="text", bold=True)
-        vbox.addWidget(lbl_val)
-
-        lbl_sub = QLabel(subtitle)
-        style_label(lbl_sub, size="caption", tone="muted")
-        vbox.addWidget(lbl_sub)
-
-        return card, lbl_val, lbl_sub
-
-    def refresh_data(self):
+    # ── data ─────────────────────────────────────────────────────────────
+    def refresh_data(self) -> None:
+        self.stack.setCurrentIndex(0)           # loading state while the queries run
         try:
-            metrics = report_service.dashboard_metrics(self.session, self.user)
-            self.lbl_date.setText(f"تاريخ اليوم: {metrics['today_str']}")
+            self.session.rollback()
+            m = report_service.dashboard_overview(self.session, self.user)
+        except Exception:
+            self.session.rollback()
+            self.stack.setCurrentIndex(1)
+            raise
+        self.lbl_date.setText(f"{ar.DASH_TODAY}: {m['today'].strftime('%Y-%m-%d')}")
+        self._fill_kpis(m)
+        self._fill_charts(m)
+        self._fill_wallets(m)
+        self._fill_low_stock(m)
+        self.stack.setCurrentIndex(1)
 
-            # Sales
-            self.lbl_sales_val.setText(format_money(metrics["sales_total"]))
-            self.lbl_sales_sub.setText(f"{metrics['sales_count']} فاتورة بيع مسجلة اليوم")
+    def _fill_kpis(self, m: dict) -> None:
+        sales = m["sales"]
+        for card in (self.kpi_sales, self.kpi_count, self.kpi_profit):
+            card.setVisible(sales is not None)
+        if sales is not None:
+            t, y = sales["today"], sales["yesterday"]
+            pct = report_service.change_percent(t["total"], y["total"])
+            self.kpi_sales.set_value(format_money(t["total"]), self._compare(pct, y["total"]))
+            self.kpi_count.set_value(str(t["count"]), ar.DASH_YESTERDAY.format(n=y["count"]))
+            self.kpi_profit.setVisible(t["profit"] is not None)       # hidden without profit permission
+            if t["profit"] is not None:
+                self.kpi_profit.set_value(format_money(t["profit"]))
+        self.kpi_cash.setVisible(m["cash"] is not None)
+        if m["cash"] is not None:
+            self.kpi_cash.set_value(format_money(m["cash"]["drawer"]), f"{ar.DASH_SAFE}: {format_money(m['cash']['safe'])}")
+        self.kpi_debt.setVisible(m["receivables"] is not None)
+        if m["receivables"] is not None:
+            self.kpi_debt.set_value(format_money(m["receivables"]))
 
-            # Profit
-            if metrics["sales_profit"] is not None:
-                tot_p = metrics["sales_profit"] + (metrics["wallet_profit"] or 0)
-                self.lbl_profit_val.setText(format_money(tot_p))
-                self.lbl_profit_sub.setText(f"مبيعات: {format_money(metrics['sales_profit'])}")
-            else:
-                self.lbl_profit_val.setText("— — —")
-                self.lbl_profit_sub.setText("غير مصرح بعرض الأرباح")
+    @staticmethod
+    def _compare(pct, yesterday_total: int) -> str:
+        if pct is None:
+            return ar.DASH_NO_YESTERDAY if yesterday_total == 0 else ""
+        arrow = "▲" if pct > 0 else ("▼" if pct < 0 else "=")
+        return f"{arrow} {abs(pct)}% {ar.DASH_VS_YESTERDAY}"
 
-            # Cash Drawer
-            self.lbl_drawer_val.setText(format_money(metrics["drawer_balance"]))
-            self.lbl_drawer_sub.setText(f"رصيد الخزينة: {format_money(metrics['safe_balance'])}")
+    def _fill_charts(self, m: dict) -> None:
+        has_sales = m["series"] is not None
+        self.chart_card.setVisible(has_sales)
+        self.top_card.setVisible(has_sales)
+        if not has_sales:
+            return
+        any_sales = any(d["total"] for d in m["series"])
+        self.chart.set_data(m["series"])
+        self.chart.setVisible(any_sales)
+        self.chart_empty.setVisible(not any_sales)
+        self.top_table.set_rows([[p["name"], p["qty"], format_money(p["total"])] for p in m["top_products"]],
+                                [Qt.AlignRight | Qt.AlignVCenter, Qt.AlignCenter, Qt.AlignCenter])
 
-            # Wallets
-            self.lbl_wallets_val.setText(format_money(metrics["total_wallets_balance"]))
-            self.lbl_wallets_sub.setText(f"{metrics['wallet_count']} عملية محفظة مسجلة اليوم")
+    def _fill_wallets(self, m: dict) -> None:
+        while self.wallet_strip.count():
+            w = self.wallet_strip.takeAt(0).widget()
+            if w:
+                w.deleteLater()
+        wallets = m["wallets"]
+        self.wallet_card.setVisible(wallets is not None)
+        if not wallets:
+            if wallets is not None:
+                self.wallet_strip.addWidget(EmptyState(ar.DASH_NO_WALLETS, "wallet"))
+            return
+        for w in wallets:
+            card = KpiCard(w["label"], format_money(w["balance"]), w["network"])
+            self.wallet_strip.addWidget(card)
+        self.wallet_strip.addStretch()
 
-            # Low Stock
-            lsc = metrics["low_stock_count"]
-            self.lbl_stock_val.setText(f"{lsc} أصناف" if lsc > 0 else "المخزون كافٍ")
-            if lsc > 0:
-                set_prop(self.card_stock, "banner", "danger")
-            else:
-                set_prop(self.card_stock, "card", True)
-
-            # Shift
-            shift_info = metrics["active_shift"]
-            if shift_info["is_open"]:
-                self.lbl_shift_val.setText(f"وردية #{shift_info['id']} (نشطة)")
-                self.lbl_shift_sub.setText(f"الكاشير: {shift_info['user_name']} | بدأت {shift_info['opened_at']}")
-                set_prop(self.card_shift, "banner", "success")
-            else:
-                self.lbl_shift_val.setText("الوردية مغلقة")
-                self.lbl_shift_sub.setText("لا توجد وردية مفتوحة حالياً")
-                set_prop(self.card_shift, "banner", "danger")
-
-            # Populate Recent Sales Table
-            self.recent_table.setRowCount(len(metrics["recent_sales"]))
-            for r, s in enumerate(metrics["recent_sales"]):
-                self.recent_table.setItem(r, 0, QTableWidgetItem(s["invoice_no"]))
-                self.recent_table.setItem(r, 1, QTableWidgetItem(s["customer_name"]))
-                self.recent_table.setItem(r, 2, QTableWidgetItem(format_money(s["total"])))
-                self.recent_table.setItem(r, 3, QTableWidgetItem(s["time"]))
-
-            # Populate Low Stock Table
-            self.stock_table.setRowCount(len(metrics["low_stock_items"]))
-            type_ar = {"phone": "هاتف", "accessory": "إكسسوار", "spare_part": "قطع غيار", "card": "كارت"}
-            for r, itm in enumerate(metrics["low_stock_items"]):
-                self.stock_table.setItem(r, 0, QTableWidgetItem(itm["name"]))
-                self.stock_table.setItem(r, 1, QTableWidgetItem(type_ar.get(itm["type"], itm["type"])))
-                
-                qty_item = QTableWidgetItem(str(itm["qty"]))
-                qty_item.setForeground(Qt.red)
-                qty_item.setTextAlignment(Qt.AlignCenter)
-                self.stock_table.setItem(r, 2, qty_item)
-
-                min_item = QTableWidgetItem(str(itm["min_stock"]))
-                min_item.setTextAlignment(Qt.AlignCenter)
-                self.stock_table.setItem(r, 3, min_item)
-
-        except Exception as e:
-            pass
-
+    def _fill_low_stock(self, m: dict) -> None:
+        items = m["low_stock"]
+        self.btn_reorder.setVisible(bool(items))
+        self.low_table.set_rows([[i["name"], i["qty"], i["min_stock"], ""] for i in items],
+                                [Qt.AlignRight | Qt.AlignVCenter, Qt.AlignCenter, Qt.AlignCenter, Qt.AlignCenter])
+        for r, i in enumerate(items):
+            b = icon_button("plus", ar.DASH_REORDER, "ghost")
+            b.clicked.connect(self.open_purchases_requested.emit)
+            self.low_table.setCellWidget(r, 3, b)

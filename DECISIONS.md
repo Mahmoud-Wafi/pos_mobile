@@ -67,3 +67,10 @@ Architectural and business-rule decisions made during development.
 - Icons: Lucide (ISC licence, not MIT as the brief said) bundled in `assets/icons`; `auto_icons.py` adds an icon to text buttons from Arabic keywords. Emoji are no longer used as icons.
 - Errors: `show_error` shows Arabic business messages only; any other exception is logged and replaced by a generic Arabic text. Success messages are toasts; destructive actions use `ConfirmDialog`.
 - Window geometry is stored in `DATA_DIR/window.ini`.
+
+## D-015 — Backups, import/export, dashboard, tables, sessions
+- Backup = zip of `shop.db` (SQLite online backup API) + `manifest.json` (format, app version, Alembic revision, UTC time, sha256). Restore verifies everything first, keeps a safety copy (plain `.damaged.db` copy if the live DB is corrupt), disposes the engine, removes `-wal`/`-shm`, replaces atomically and offers a restart. Retention default 14; auto-backup daily and on close (if the last one is over an hour old).
+- Import: Arabic/English headers (D-008), preview with per-row errors, then commit. Export: real RTL `.xlsx` or CSV with BOM; cost columns only with `cost.view`.
+- Dashboard data comes from `report_service.dashboard_overview`, which hides sections the user lacks permission for; charts use QtCharts (offline).
+- Tables: an app-wide event filter (`table_defaults.py`) applies row height ≥ 40, alternating rows and remembered column widths (`DATA_DIR/ui.ini`); `DataTable` adds numeric-aware sorting and keys that survive sorting. Existing screens that read rows by index must move to `selected_key()` before opting in to sorting.
+- Sessions: the shared session is rolled back and expired on every screen switch. A full session-per-action refactor was deliberately not done in this phase (risk vs. benefit; services still take a session argument so it can be done screen by screen later).

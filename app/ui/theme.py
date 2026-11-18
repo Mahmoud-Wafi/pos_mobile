@@ -60,3 +60,6 @@ def setup_theme(app: QApplication) -> None:
     from app.ui.design.auto_icons import AutoIcons
     app._auto_icons = AutoIcons(app)
     app.installEventFilter(app._auto_icons)
+    from app.ui.design.table_defaults import TableDefaults
+    app._table_defaults = TableDefaults(app)
+    app.installEventFilter(app._table_defaults)

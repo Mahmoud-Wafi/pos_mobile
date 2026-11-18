@@ -137,3 +137,107 @@ def test_import_wizard_shows_row_errors(qtbot, db_session, manager, tmp_path):
     w.load_file(tmp_path / "e.xlsx")
     assert "✗" in w.table.item(0, 2).text() and "✓" in w.table.item(1, 2).text()
     assert "1" in w.btn_confirm.text()
+
+
+def _dash_sale(db_session, manager):
+    from app.core.money import egp_to_piasters as E
+    from app.services import inventory_service, sales_service, shift_service
+
+    p = inventory_service.create_product(db_session, manager, {
+        "name": "Cable", "type": "accessory", "cost_price": E("50"), "sale_price": E("100"),
+        "min_price": E("80"), "min_stock": 8})
+    inventory_service.adjust_stock(db_session, manager, p, 5, "init")
+    shift_service.open_shift(db_session, manager, opening_cash=0)
+    db_session.commit()
+    sale = sales_service.start_sale(db_session, manager)
+    sales_service.add_line(db_session, manager, sale, p, quantity=2)
+    sales_service.post_sale(db_session, manager, sale, [{"method": "cash", "amount": sale.total}])
+    db_session.commit()
+
+
+def test_dashboard_with_data_shows_chart_top5_and_reorder(qtbot, db_session, manager):
+    from app.ui.dashboard.dashboard_widget import DashboardWidget
+
+    _dash_sale(db_session, manager)
+    w = DashboardWidget(db_session, manager)
+    qtbot.addWidget(w)
+    w.show()
+    assert w.stack.currentIndex() == 1
+    assert w.chart.bar_values[-1] == 200.0 and len(w.chart.bar_values) == 7
+    assert w.top_table.rowCount() == 1 and not w.chart_empty.isVisible() and w.chart.isVisible()
+    assert w.kpi_profit.isVisible() and "200" in w.kpi_sales.value_lbl.text()
+    assert w.low_table.rowCount() == 1 and w.btn_reorder.isVisible()      # 3 left, min 8
+    fired = []
+    w.open_purchases_requested.connect(lambda: fired.append(1))
+    w.btn_reorder.click()
+    assert fired == [1]
+
+
+def test_dashboard_empty_states_and_profit_hidden_for_cashier(qtbot, db_session):
+    from app.core.permissions import ROLE_CASHIER, ROLE_WALLET_EMPLOYEE
+    from app.models.user import Role, User
+    from app.ui.dashboard.dashboard_widget import DashboardWidget
+
+    cashier = db_session.query(User).join(Role).filter(Role.name == ROLE_CASHIER).first()
+    if cashier is None:
+        from app.core.security import hash_password
+        r = db_session.query(Role).filter_by(name=ROLE_CASHIER).first()
+        cashier = User(username="dc", password_hash=hash_password("Passw0rd!"), full_name="dc", role_id=r.id)
+        db_session.add(cashier); db_session.commit()
+    w = DashboardWidget(db_session, cashier)
+    qtbot.addWidget(w)
+    w.show()
+    assert w.chart_empty.isVisible() and not w.chart.isVisible()
+    assert not w.kpi_profit.isVisible()                                    # no profit permission
+    wallet_user = db_session.query(User).join(Role).filter(Role.name == ROLE_WALLET_EMPLOYEE).first()
+    if wallet_user is None:
+        from app.core.security import hash_password
+        r = db_session.query(Role).filter_by(name=ROLE_WALLET_EMPLOYEE).first()
+        wallet_user = User(username="dw", password_hash=hash_password("Passw0rd!"), full_name="dw", role_id=r.id)
+        db_session.add(wallet_user); db_session.commit()
+    w2 = DashboardWidget(db_session, wallet_user)
+    qtbot.addWidget(w2)
+    w2.show()
+    assert not w2.kpi_sales.isVisible() and not w2.chart_card.isVisible() and w2.wallet_card.isVisible()
+
+
+def test_tables_follow_shared_conventions(qtbot):
+    from PySide6.QtCore import Qt
+    from PySide6.QtWidgets import QTableWidget
+    from app.ui.components.data_table import DataTable, SortItem
+
+    from PySide6.QtWidgets import QApplication
+    from app.ui.design.table_defaults import TableDefaults
+
+    flt = TableDefaults(QApplication.instance())
+    QApplication.instance().installEventFilter(flt)
+    t = DataTable(["a", "b"], "empty")
+    qtbot.addWidget(t)
+    t.set_rows([["x", "1,500.00 ج.م"], ["y", "20.00 ج.م"]], keys=[10, 20])
+    t.show()
+    assert t.verticalHeader().minimumSectionSize() >= 40
+    assert t.isSortingEnabled()
+    t.sortItems(1, Qt.AscendingOrder)
+    assert t.item(0, 1).text().startswith("20")  # numeric, not text, order
+    assert t.selected_key() is None
+    plain = QTableWidget(1, 1)
+    qtbot.addWidget(plain)
+    plain.show()
+    assert plain.verticalHeader().minimumSectionSize() >= 40
+    assert isinstance(t.item(0, 0), SortItem)
+    QApplication.instance().removeEventFilter(flt)
+
+
+def test_imei_field_shows_luhn_state(qtbot):
+    from PySide6.QtWidgets import QLineEdit
+    from app.ui.components.basic import attach_imei_check
+
+    e = QLineEdit()
+    qtbot.addWidget(e)
+    attach_imei_check(e)
+    e.setText("123")
+    e.editingFinished.emit()
+    assert e.property("invalid") == "true"
+    e.setText("490154203237518")  # valid Luhn
+    e.editingFinished.emit()
+    assert e.property("invalid") == "false"

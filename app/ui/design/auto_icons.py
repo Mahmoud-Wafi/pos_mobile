@@ -29,6 +29,8 @@ def icon_for(text: str) -> str | None:
 
 class AutoIcons(QObject):
     def eventFilter(self, obj, ev):
+        if ev.type() == QEvent.Show and isinstance(obj, QPushButton) and obj.text() and not obj.toolTip():
+            obj.setToolTip(obj.text().split("[")[0].strip())
         if ev.type() == QEvent.Show and isinstance(obj, QPushButton) and obj.icon().isNull() \
                 and obj.text() and obj.property("nav") is None and obj.property("no_icon") is None:
             name = icon_for(obj.text())

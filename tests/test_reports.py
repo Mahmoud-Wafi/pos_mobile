@@ -210,3 +210,40 @@ def test_search_performance_benchmark(db_session: Session):
     elapsed = (time.perf_counter() - start) * 1000
     assert elapsed < 200, f"Search took too long: {elapsed:.2f}ms"
 
+
+
+def test_dashboard_overview_permissions_and_series(db_session):
+    from app.core import clock
+    from app.core.permissions import ROLE_CASHIER, ROLE_MANAGER, ROLE_WALLET_EMPLOYEE
+    from app.models.user import Role, User
+    from app.core.security import hash_password
+    from app.services import report_service, sales_service, shift_service, inventory_service
+    from app.core.money import egp_to_piasters as E
+
+    def mk(name, role):
+        r = db_session.query(Role).filter_by(name=role).first()
+        u = User(username=name, password_hash=hash_password("Passw0rd!"), full_name=name, role_id=r.id)
+        db_session.add(u); db_session.commit(); return u
+
+    mgr, cash, wallet = mk("om", ROLE_MANAGER), mk("oc", ROLE_CASHIER), mk("ow", ROLE_WALLET_EMPLOYEE)
+    p = inventory_service.create_product(db_session, mgr, {"name": "Cable", "type": "accessory", "cost_price": E("50"),
+                                                           "sale_price": E("100"), "min_price": E("80"), "min_stock": 1})
+    inventory_service.adjust_stock(db_session, mgr, p, 9, "init")
+    db_session.commit()
+    shift_service.open_shift(db_session, cash, opening_cash=0); db_session.commit()
+    sale = sales_service.start_sale(db_session, cash)
+    sales_service.add_line(db_session, cash, sale, p, quantity=2)
+    sales_service.post_sale(db_session, cash, sale, [{"method": "cash", "amount": sale.total}])
+    db_session.commit()
+
+    m = report_service.dashboard_overview(db_session, mgr)
+    assert m["sales"]["today"]["total"] == E("200") and m["sales"]["yesterday"]["total"] == 0
+    assert len(m["series"]) == 7 and m["series"][-1]["date"] == clock.local_today()
+    assert m["series"][-1]["total"] == E("200") and m["series"][0]["total"] == 0
+    assert m["top_products"] == [{"id": p.id, "name": "Cable", "qty": 2, "total": E("200")}]
+    assert m["sales"]["today"]["profit"] == E("100")                 # manager sees profit
+    c = report_service.dashboard_overview(db_session, cash)
+    assert c["sales"]["today"]["profit"] is None                     # cashier does not
+    w = report_service.dashboard_overview(db_session, wallet)
+    assert w["sales"] is None and w["series"] is None and w["top_products"] is None
+    assert report_service.change_percent(200, 100) == 100 and report_service.change_percent(5, 0) is None

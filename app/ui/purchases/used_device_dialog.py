@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (
     QGridLayout, QGroupBox,
 )
 
+from app.ui.components.basic import attach_imei_check
 from app.ui.components import show_error
 from app.core.money import egp_to_piasters, format_money
 from app.models.accounting import CashAccount
@@ -110,12 +111,14 @@ class UsedDeviceDialog(QDialog):
 
         grid_device.addWidget(QLabel("رقم السيريال IMEI 1: *"), 2, 0)
         self.imei1_edit = QLineEdit()
+        attach_imei_check(self.imei1_edit, required=True)
         self.imei1_edit.setMinimumHeight(40)
         self.imei1_edit.setPlaceholderText("امسح بالباركود أو اكتب 15 رقماً")
         grid_device.addWidget(self.imei1_edit, 3, 0)
 
         grid_device.addWidget(QLabel("رقم السيريال IMEI 2 (اختياري):"), 2, 1)
         self.imei2_edit = QLineEdit()
+        attach_imei_check(self.imei2_edit, required=False)
         self.imei2_edit.setMinimumHeight(40)
         self.imei2_edit.setPlaceholderText("السيريال الثاني إن وجد")
         grid_device.addWidget(self.imei2_edit, 3, 1)

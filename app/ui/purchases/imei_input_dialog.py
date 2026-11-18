@@ -9,6 +9,7 @@ from PySide6.QtWidgets import (
     QMessageBox, QFrame,
 )
 
+from app.ui.components.basic import attach_imei_check
 from app.ui.design.style import style_label, variant
 from app.ui.design import icons
 from app.ui.design.tokens import COLORS
@@ -58,11 +59,15 @@ class IMEIInputDialog(QDialog):
         scan_box.setSpacing(8)
 
         self.imei1_edit = QLineEdit()
+
+        attach_imei_check(self.imei1_edit, required=True)
         self.imei1_edit.setFixedHeight(40)
         self.imei1_edit.setPlaceholderText("امسح بالباركود أو اكتب IMEI 1 *")
         scan_box.addWidget(self.imei1_edit, 5)
 
         self.imei2_edit = QLineEdit()
+
+        attach_imei_check(self.imei2_edit, required=False)
         self.imei2_edit.setFixedHeight(40)
         self.imei2_edit.setPlaceholderText("IMEI 2 (اختياري)")
         scan_box.addWidget(self.imei2_edit, 4)

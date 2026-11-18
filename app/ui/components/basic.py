@@ -166,3 +166,33 @@ class EmptyState(QWidget):
         lay.addWidget(self.message)
         if action is not None:
             lay.addWidget(action, 0, Qt.AlignCenter)
+
+
+def attach_imei_check(edit: QLineEdit, required: bool = True) -> None:
+    """On blur: show ✓ (valid Luhn) or ✗ with a red border and tooltip. Never blocks typing."""
+    from PySide6.QtGui import QAction, QIcon
+
+    from app.core.imei import luhn_valid, normalize_imei
+
+    action = QAction(edit)
+    good, bad = icons.icon("circle-check", C["success"]), icons.icon("x", C["danger"])
+    edit.addAction(action, QLineEdit.TrailingPosition)
+
+    def check() -> None:
+        raw = edit.text().strip()
+        if not raw:
+            ok, mark, tip = (not required), None, ""
+            if required:
+                tip = ar.VALID_REQUIRED
+        else:
+            try:
+                ok = luhn_valid(normalize_imei(raw))
+            except Exception:  # noqa: BLE001 - malformed input is simply invalid
+                ok = False
+            mark, tip = (good, "") if ok else (bad, ar.VALID_IMEI)
+        action.setIcon(mark if mark is not None else QIcon())
+        edit.setToolTip(tip)
+        set_prop(edit, "invalid", "false" if ok else "true")
+
+    edit.editingFinished.connect(check)
+    edit.textEdited.connect(lambda _t: set_prop(edit, "invalid", "false"))

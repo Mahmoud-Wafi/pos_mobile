@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import datetime
+import logging
 from typing import Optional
 
 try:
@@ -37,6 +38,8 @@ from app.ui.customers.customers_window import CustomersWidget
 from app.ui.reports.reports_window import ReportsWidget
 from app.ui.settings.settings_window import SettingsWidget
 from app.ui.design.style import set_prop, style_label, variant
+
+log = logging.getLogger(__name__)
 
 
 NAV_ICONS = {
@@ -270,6 +273,7 @@ if HAS_QT:
                 self.stack.addWidget(self.settings_view)
 
             body_layout.addWidget(self.stack, 1)
+            self.stack.currentChanged.connect(self._fresh_session)
             root_layout.addLayout(body_layout)
 
             self.setCentralWidget(root_widget)
@@ -322,6 +326,14 @@ if HAS_QT:
             self.sb_backup.setText(f"{ar.STATUS_LAST_BACKUP}: {last}")
             self.sb_user.setText(f"{ar.STATUS_USER}: {self.current_user.full_name}")
             self.sb_version.setText(f"v{APP_VERSION}")
+
+        def _fresh_session(self, _index: int = 0) -> None:
+            """Drop any half-finished transaction and stale objects when the user changes screen."""
+            try:
+                self.session.rollback()
+                self.session.expire_all()
+            except Exception:  # noqa: BLE001 - never block navigation
+                log.exception("session refresh failed")
 
         def _update_time(self):
             now = datetime.datetime.now()
