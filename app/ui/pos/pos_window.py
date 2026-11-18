@@ -296,6 +296,7 @@ if HAS_QT:
                 self.current_sale = sales_service.start_sale(
                     self.session, self.user, customer_id=cust_id
                 )
+                self.session.commit()   # persist the draft so a rollback elsewhere cannot detach it
                 self.lbl_inv_no.setText(f"رقم الفاتورة: {self.current_sale.invoice_no}")
                 self.disc_edit.setText("0")
                 self._discount_manager = None
