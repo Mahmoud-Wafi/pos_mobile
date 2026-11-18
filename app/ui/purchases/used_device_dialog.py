@@ -1,5 +1,6 @@
 """Dialog for purchasing used phones with seller verification and declaration PDF."""
 from __future__ import annotations
+from app.i18n import ar
 
 import os
 import subprocess
@@ -15,11 +16,16 @@ from PySide6.QtWidgets import (
     QGridLayout, QGroupBox,
 )
 
+from app.ui.components.basic import attach_imei_check
+from app.ui.components import show_error
 from app.core.money import egp_to_piasters, format_money
 from app.models.accounting import CashAccount
 from app.models.product import Product
 from app.models.purchase import UsedDevicePurchase
 from app.services import purchase_service
+from app.ui.design.style import set_prop, style_label, variant
+from app.ui.design import icons
+from app.ui.design.tokens import COLORS
 
 
 class UsedDeviceDialog(QDialog):
@@ -28,49 +34,10 @@ class UsedDeviceDialog(QDialog):
         self.session = session
         self.user = user
         self.created_purchase: Optional[UsedDevicePurchase] = None
-        self.setWindowTitle("شراء جهاز مستعمل — إقرار وتنازل ملكية")
+        self.setWindowTitle(ar.USED_DEVICE_DIALOG_FD5AB2)
         self.resize(720, 680)
         self.setModal(True)
-        self.setStyleSheet("""
-            QDialog {
-                background-color: #F8FAFC;
-            }
-            QLabel {
-                color: #0F172A;
-                font-size: 13px;
-                font-weight: 600;
-            }
-            QLineEdit, QComboBox, QTextEdit {
-                background-color: #FFFFFF;
-                border: 1px solid #CBD5E1;
-                border-radius: 8px;
-                padding: 8px 12px;
-                font-size: 13px;
-                color: #0F172A;
-            }
-            QLineEdit:focus, QComboBox:focus, QTextEdit:focus {
-                border: 2px solid #2563EB;
-            }
-            QGroupBox {
-                background-color: #FFFFFF;
-                border: 1px solid #E2E8F0;
-                border-radius: 10px;
-                font-weight: bold;
-                font-size: 14px;
-                color: #0F172A;
-                margin-top: 12px;
-                padding-top: 18px;
-                padding-bottom: 12px;
-                padding-left: 12px;
-                padding-right: 12px;
-            }
-            QGroupBox::title {
-                subcontrol-origin: margin;
-                subcontrol-position: top right;
-                padding: 0 8px;
-                color: #2563EB;
-            }
-        """)
+
         self._build_ui()
         self._load_phone_products()
         self._load_cash_accounts()
@@ -82,16 +49,16 @@ class UsedDeviceDialog(QDialog):
 
         # Header
         hdr = QHBoxLayout()
-        icon = QLabel("📱")
-        icon.setStyleSheet("font-size: 28px;")
+        icon = QLabel()
+        icon.setPixmap(icons.pixmap("smartphone", COLORS["primary"], 28))
         hdr.addWidget(icon)
 
         t_box = QVBoxLayout()
         t_box.setSpacing(2)
-        lbl_t = QLabel("شراء هاتف مستعمل من عميل / بائع")
-        lbl_t.setStyleSheet("font-size: 18px; font-weight: bold; color: #0F172A;")
-        lbl_sub = QLabel("توثيق الهوية والرقم القومي وطباعة إقرار التنازل القانوني ضد السرقة")
-        lbl_sub.setStyleSheet("font-size: 12px; color: #64748B; font-weight: normal;")
+        lbl_t = QLabel(ar.USED_DEVICE_DIALOG_F43160)
+        style_label(lbl_t, size="h2", tone="text", bold=True)
+        lbl_sub = QLabel(ar.USED_DEVICE_DIALOG_D85C8C)
+        style_label(lbl_sub, size="caption", tone="muted")
         t_box.addWidget(lbl_t)
         t_box.addWidget(lbl_sub)
         hdr.addLayout(t_box)
@@ -99,114 +66,95 @@ class UsedDeviceDialog(QDialog):
         main_layout.addLayout(hdr)
 
         # ── Group 1: بيانات البائع ──────────────────────────
-        grp_seller = QGroupBox("👤 1. بيانات البائع الشخصية والبطاقة القومية")
+        grp_seller = QGroupBox(ar.USED_DEVICE_DIALOG_270D37)
         grid_seller = QGridLayout(grp_seller)
         grid_seller.setHorizontalSpacing(14)
         grid_seller.setVerticalSpacing(8)
 
-        grid_seller.addWidget(QLabel("اسم البائع الرباعي: *"), 0, 0)
+        grid_seller.addWidget(QLabel(ar.USED_DEVICE_DIALOG_7ED038), 0, 0)
         self.seller_name_edit = QLineEdit()
-        self.seller_name_edit.setFixedHeight(38)
-        self.seller_name_edit.setPlaceholderText("كما هو مدون ببطاقة الرقم القومي")
+        self.seller_name_edit.setMinimumHeight(40)
+        self.seller_name_edit.setPlaceholderText(ar.USED_DEVICE_DIALOG_A3EFFF)
         grid_seller.addWidget(self.seller_name_edit, 1, 0)
 
-        grid_seller.addWidget(QLabel("الرقم القومي (14 رقماً): *"), 0, 1)
+        grid_seller.addWidget(QLabel(ar.USED_DEVICE_DIALOG_98C35F), 0, 1)
         self.seller_nid_edit = QLineEdit()
-        self.seller_nid_edit.setFixedHeight(38)
+        self.seller_nid_edit.setMinimumHeight(40)
         self.seller_nid_edit.setMaxLength(14)
-        self.seller_nid_edit.setPlaceholderText("14 رقم قومي صحيح")
+        self.seller_nid_edit.setPlaceholderText(ar.USED_DEVICE_DIALOG_2F39DA)
         grid_seller.addWidget(self.seller_nid_edit, 1, 1)
 
-        grid_seller.addWidget(QLabel("رقم الهاتف للتواصل: *"), 2, 0)
+        grid_seller.addWidget(QLabel(ar.USED_DEVICE_DIALOG_49D14B), 2, 0)
         self.seller_phone_edit = QLineEdit()
-        self.seller_phone_edit.setFixedHeight(38)
+        self.seller_phone_edit.setMinimumHeight(40)
         self.seller_phone_edit.setPlaceholderText("010/011/012/015...")
         grid_seller.addWidget(self.seller_phone_edit, 3, 0)
 
         main_layout.addWidget(grp_seller)
 
         # ── Group 2: بيانات الجهاز ─────────────────────────
-        grp_device = QGroupBox("🔍 2. بيانات الجهاز وسيريالات الـ IMEI")
+        grp_device = QGroupBox(ar.USED_DEVICE_DIALOG_829114)
         grid_device = QGridLayout(grp_device)
         grid_device.setHorizontalSpacing(14)
         grid_device.setVerticalSpacing(8)
 
-        grid_device.addWidget(QLabel("موديل الهاتف: *"), 0, 0)
+        grid_device.addWidget(QLabel(ar.USED_DEVICE_DIALOG_C5C85E), 0, 0)
         self.phone_combo = QComboBox()
-        self.phone_combo.setFixedHeight(38)
+        self.phone_combo.setMinimumHeight(40)
         grid_device.addWidget(self.phone_combo, 1, 0)
 
-        grid_device.addWidget(QLabel("مبلغ الشراء المتفق عليه (ج.م): *"), 0, 1)
+        grid_device.addWidget(QLabel(ar.USED_DEVICE_DIALOG_9EBCBF), 0, 1)
         self.price_edit = QLineEdit()
-        self.price_edit.setFixedHeight(38)
-        self.price_edit.setPlaceholderText("0.00 ج.م")
+        self.price_edit.setMinimumHeight(40)
+        self.price_edit.setPlaceholderText(ar.DAILY_CLOSE_DIALOG_388B15)
         self.price_edit.setValidator(QDoubleValidator(0.01, 9999999.0, 2))
         grid_device.addWidget(self.price_edit, 1, 1)
 
-        grid_device.addWidget(QLabel("رقم السيريال IMEI 1: *"), 2, 0)
+        grid_device.addWidget(QLabel(ar.USED_DEVICE_DIALOG_4C79B7), 2, 0)
         self.imei1_edit = QLineEdit()
-        self.imei1_edit.setFixedHeight(38)
-        self.imei1_edit.setPlaceholderText("امسح بالباركود أو اكتب 15 رقماً")
+        attach_imei_check(self.imei1_edit, required=True)
+        self.imei1_edit.setMinimumHeight(40)
+        self.imei1_edit.setPlaceholderText(ar.USED_DEVICE_DIALOG_FC12C4)
         grid_device.addWidget(self.imei1_edit, 3, 0)
 
-        grid_device.addWidget(QLabel("رقم السيريال IMEI 2 (اختياري):"), 2, 1)
+        grid_device.addWidget(QLabel(ar.USED_DEVICE_DIALOG_4827E3), 2, 1)
         self.imei2_edit = QLineEdit()
-        self.imei2_edit.setFixedHeight(38)
-        self.imei2_edit.setPlaceholderText("السيريال الثاني إن وجد")
+        attach_imei_check(self.imei2_edit, required=False)
+        self.imei2_edit.setMinimumHeight(40)
+        self.imei2_edit.setPlaceholderText(ar.USED_DEVICE_DIALOG_622A39)
         grid_device.addWidget(self.imei2_edit, 3, 1)
 
-        grid_device.addWidget(QLabel("حالة الجهاز وملاحظات الفحص:"), 4, 0, 1, 2)
+        grid_device.addWidget(QLabel(ar.USED_DEVICE_DIALOG_5D3CD7), 4, 0, 1, 2)
         self.condition_edit = QTextEdit()
         self.condition_edit.setFixedHeight(60)
-        self.condition_edit.setPlaceholderText("نسبة البطارية، الخدوش، الملحقات المرفقة، الفحص الفني...")
+        self.condition_edit.setPlaceholderText(ar.USED_DEVICE_DIALOG_F348AC)
         grid_device.addWidget(self.condition_edit, 5, 0, 1, 2)
 
         main_layout.addWidget(grp_device)
 
         # ── Footer / Actions ───────────────────────────────
         foot_card = QFrame()
-        foot_card.setStyleSheet("background-color: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 10px; padding: 12px;")
+        set_prop(foot_card, "card", True)
         foot_layout = QHBoxLayout(foot_card)
         foot_layout.setSpacing(14)
 
-        foot_layout.addWidget(QLabel("خزينة الصرف:"))
+        foot_layout.addWidget(QLabel(ar.USED_DEVICE_DIALOG_9C5309))
         self.acc_combo = QComboBox()
-        self.acc_combo.setFixedHeight(38)
+        self.acc_combo.setMinimumHeight(40)
         self.acc_combo.setMinimumWidth(180)
         foot_layout.addWidget(self.acc_combo)
 
         foot_layout.addStretch()
 
-        btn_cancel = QPushButton("إلغاء")
+        btn_cancel = QPushButton(ar.CANCEL)
         btn_cancel.setFixedHeight(42)
-        btn_cancel.setStyleSheet("""
-            QPushButton {
-                background-color: #F1F5F9;
-                color: #475569;
-                border: 1px solid #CBD5E1;
-                border-radius: 8px;
-                font-weight: 600;
-                padding: 0 18px;
-            }
-        """)
+        variant(btn_cancel, "secondary")
         btn_cancel.clicked.connect(self.reject)
         foot_layout.addWidget(btn_cancel)
 
-        self.btn_save = QPushButton("📝 تسجيل الشراء وطباعة الإقرار (PDF)")
+        self.btn_save = QPushButton(ar.USED_DEVICE_DIALOG_E9193A)
         self.btn_save.setFixedHeight(42)
-        self.btn_save.setStyleSheet("""
-            QPushButton {
-                background-color: #16A34A;
-                color: white;
-                border-radius: 8px;
-                font-weight: bold;
-                font-size: 13px;
-                padding: 0 24px;
-            }
-            QPushButton:hover {
-                background-color: #15803D;
-            }
-        """)
+        variant(self.btn_save, "success")
         self.btn_save.clicked.connect(self._save_used_device)
         foot_layout.addWidget(self.btn_save)
 
@@ -221,7 +169,7 @@ class UsedDeviceDialog(QDialog):
             .all()
         )
         for p in phones:
-            self.phone_combo.addItem(f"📱 {p.name}", p.id)
+            self.phone_combo.addItem(f"{p.name}", p.id)
 
     def _load_cash_accounts(self):
         self.acc_combo.clear()
@@ -232,25 +180,25 @@ class UsedDeviceDialog(QDialog):
     def _save_used_device(self):
         name = self.seller_name_edit.text().strip()
         if not name:
-            QMessageBox.warning(self, "تنبيه", "يرجى كتابة اسم البائع الرباعي")
+            show_error(self, message=ar.USED_DEVICE_DIALOG_FCB39A)
             self.seller_name_edit.setFocus()
             return
 
         nid = self.seller_nid_edit.text().strip()
         if len(nid) != 14 or not nid.isdigit():
-            QMessageBox.warning(self, "تنبيه", "الرقم القومي للبائع يجب أن يتكون من 14 رقماً صحيحاً")
+            show_error(self, message=ar.USED_DEVICE_DIALOG_DBC731)
             self.seller_nid_edit.setFocus()
             return
 
         phone = self.seller_phone_edit.text().strip()
         if not phone:
-            QMessageBox.warning(self, "تنبيه", "يرجى كتابة رقم هاتف البائع")
+            show_error(self, message=ar.USED_DEVICE_DIALOG_6F9CAB)
             self.seller_phone_edit.setFocus()
             return
 
         product_id = self.phone_combo.currentData()
         if not product_id:
-            QMessageBox.warning(self, "تنبيه", "يرجى اختيار موديل الهاتف")
+            show_error(self, message=ar.USED_DEVICE_DIALOG_7E6A89)
             return
 
         price_text = self.price_edit.text().strip()
@@ -259,13 +207,13 @@ class UsedDeviceDialog(QDialog):
             if price_piasters <= 0:
                 raise ValueError()
         except Exception:
-            QMessageBox.warning(self, "تنبيه", "مبلغ الشراء غير صحيح")
+            show_error(self, message=ar.USED_DEVICE_DIALOG_D5864A)
             self.price_edit.setFocus()
             return
 
         imei1 = self.imei1_edit.text().strip()
         if not imei1:
-            QMessageBox.warning(self, "تنبيه", "يرجى مسح أو إدخال رقم IMEI 1")
+            show_error(self, message=ar.IMEI_INPUT_DIALOG_06FB49)
             self.imei1_edit.setFocus()
             return
 
@@ -300,13 +248,13 @@ class UsedDeviceDialog(QDialog):
 
             msg = QMessageBox(self)
             msg.setIcon(QMessageBox.Information)
-            msg.setWindowTitle("تم تسجيل الشراء بنجاح")
+            msg.setWindowTitle(ar.USED_DEVICE_DIALOG_46EF6B)
             msg.setText(
                 f"تم حفظ شراء الهاتف المستعمل بنجاح وتم إدراجه في المخزون كجهاز (مستعمل).\n\n"
                 f"تم إنشاء إقرار البيع والتنازل في:\n{pdf_path}"
             )
-            btn_open_pdf = msg.addButton("📄 فتح الإقرار PDF", QMessageBox.ActionRole)
-            btn_ok = msg.addButton("إغلاق", QMessageBox.AcceptRole)
+            btn_open_pdf = msg.addButton(ar.USED_DEVICE_DIALOG_BA0281, QMessageBox.ActionRole)
+            btn_ok = msg.addButton(ar.CLOSE, QMessageBox.AcceptRole)
             msg.exec()
 
             if msg.clickedButton() == btn_open_pdf:
@@ -315,7 +263,7 @@ class UsedDeviceDialog(QDialog):
             self.accept()
         except Exception as e:
             self.session.rollback()
-            QMessageBox.critical(self, "خطأ", f"تعذر تسجيل شراء الجهاز المستعمل:\n{str(e)}")
+            show_error(self, message=f"تعذر تسجيل شراء الجهاز المستعمل:\n{str(e)}")
 
     def _open_file(self, filepath: str):
         try:

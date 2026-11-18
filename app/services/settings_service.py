@@ -12,6 +12,8 @@ from app.models.user import Setting, User
 _INT_RANGES = {
     "cashier_discount_limit_pct": (0, 100),
     "idle_lock_minutes": (0, 1440),
+    "backup_retention": (1, 365),
+    "auto_backup": (0, 1),
 }
 
 

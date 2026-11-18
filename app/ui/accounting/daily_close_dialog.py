@@ -1,7 +1,9 @@
 """Consolidated daily close report dialog for managers."""
 from __future__ import annotations
+from app.i18n import ar
 
 import datetime
+from app.ui.components import show_error
 from app.core import clock
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
@@ -12,6 +14,9 @@ from PySide6.QtWidgets import (
 
 from app.core.money import format_money
 from app.services import accounting_service
+from app.ui.design.style import set_prop, style_label, variant
+from app.ui.design import icons
+from app.ui.design.tokens import COLORS
 
 
 class DailyCloseDialog(QDialog):
@@ -23,21 +28,7 @@ class DailyCloseDialog(QDialog):
         self.setWindowTitle(f"تقرير الإغلاق المالي اليومي — {self.ref_date.strftime('%Y-%m-%d')}")
         self.resize(750, 640)
         self.setModal(True)
-        self.setStyleSheet("""
-            QDialog {
-                background-color: #F8FAFC;
-            }
-            QLabel {
-                color: #0F172A;
-                font-size: 13px;
-            }
-            QFrame#ReportCard {
-                background-color: #FFFFFF;
-                border: 1px solid #E2E8F0;
-                border-radius: 10px;
-                padding: 12px;
-            }
-        """)
+
         self._build_ui()
         self._load_report()
 
@@ -48,16 +39,16 @@ class DailyCloseDialog(QDialog):
 
         # Header
         hdr = QHBoxLayout()
-        icon = QLabel("📊")
-        icon.setStyleSheet("font-size: 28px;")
+        icon = QLabel()
+        icon.setPixmap(icons.pixmap("chart-column", COLORS["primary"], 28))
         hdr.addWidget(icon)
 
         t_box = QVBoxLayout()
         t_box.setSpacing(2)
         lbl_t = QLabel(f"ملخص الإغلاق المالي والأرباح لليوم ({self.ref_date.strftime('%Y-%m-%d')})")
-        lbl_t.setStyleSheet("font-size: 17px; font-weight: bold; color: #0F172A;")
-        lbl_sub = QLabel("تقرير مالي شامل يجمع المبيعات والمشتريات والمصروفات وعمولات المحافظ وصافي الأرباح")
-        lbl_sub.setStyleSheet("font-size: 12px; color: #64748B;")
+        style_label(lbl_t, size="title", tone="text", bold=True)
+        lbl_sub = QLabel(ar.DAILY_CLOSE_DIALOG_D4B09E)
+        style_label(lbl_sub, size="caption", tone="muted")
         t_box.addWidget(lbl_t)
         t_box.addWidget(lbl_sub)
         hdr.addLayout(t_box)
@@ -72,36 +63,36 @@ class DailyCloseDialog(QDialog):
         grid.setVerticalSpacing(12)
 
         # Sales Section
-        grid.addWidget(self._make_sec_title("🛒 1. المبيعات والأرباح التجارية"), 0, 0, 1, 2)
-        self.lbl_sales_tot = QLabel("إجمالي المبيعات: 0.00 ج.م (عدد: 0)")
-        self.lbl_sales_paid = QLabel("المحصل نقداً: 0.00 ج.م")
-        self.lbl_sales_profit = QLabel("أرباح المبيعات المحققة: 0.00 ج.م")
-        self.lbl_sales_profit.setStyleSheet("font-weight: bold; color: #16A34A;")
+        grid.addWidget(self._make_sec_title(ar.DAILY_CLOSE_DIALOG_D20C4A), 0, 0, 1, 2)
+        self.lbl_sales_tot = QLabel(ar.DAILY_CLOSE_DIALOG_68AACF)
+        self.lbl_sales_paid = QLabel(ar.DAILY_CLOSE_DIALOG_DEF7D7)
+        self.lbl_sales_profit = QLabel(ar.DAILY_CLOSE_DIALOG_DD6B3A)
+        style_label(self.lbl_sales_profit, tone="success", bold=True)
         grid.addWidget(self.lbl_sales_tot, 1, 0)
         grid.addWidget(self.lbl_sales_paid, 1, 1)
         grid.addWidget(self.lbl_sales_profit, 2, 0)
 
         # Purchases Section
-        grid.addWidget(self._make_sec_title("📦 2. المشتريات والتوريدات"), 3, 0, 1, 2)
-        self.lbl_pur_tot = QLabel("إجمالي فواتير الشراء: 0.00 ج.م")
-        self.lbl_pur_paid = QLabel("المدفوع نقداً للموردين: 0.00 ج.م")
+        grid.addWidget(self._make_sec_title(ar.DAILY_CLOSE_DIALOG_3452B2), 3, 0, 1, 2)
+        self.lbl_pur_tot = QLabel(ar.DAILY_CLOSE_DIALOG_F3F2F7)
+        self.lbl_pur_paid = QLabel(ar.DAILY_CLOSE_DIALOG_52C0F0)
         grid.addWidget(self.lbl_pur_tot, 4, 0)
         grid.addWidget(self.lbl_pur_paid, 4, 1)
 
         # Wallets Section
-        grid.addWidget(self._make_sec_title("💳 3. عمولات المحافظ الإلكترونية"), 5, 0, 1, 2)
-        self.lbl_w_comm = QLabel("إجمالي العمولات المحصلة: 0.00 ج.م")
-        self.lbl_w_profit = QLabel("صافي أرباح المحافظ: 0.00 ج.م")
-        self.lbl_w_profit.setStyleSheet("font-weight: bold; color: #16A34A;")
+        grid.addWidget(self._make_sec_title(ar.DAILY_CLOSE_DIALOG_35E7C7), 5, 0, 1, 2)
+        self.lbl_w_comm = QLabel(ar.DAILY_CLOSE_DIALOG_594DDA)
+        self.lbl_w_profit = QLabel(ar.DAILY_CLOSE_DIALOG_16FBB7)
+        style_label(self.lbl_w_profit, tone="success", bold=True)
         grid.addWidget(self.lbl_w_comm, 6, 0)
         grid.addWidget(self.lbl_w_profit, 6, 1)
 
         # Expenses & Shifts
-        grid.addWidget(self._make_sec_title("💸 4. المصروفات وفروقات الورديات"), 7, 0, 1, 2)
-        self.lbl_expenses = QLabel("المصروفات التشغيلية: 0.00 ج.م")
-        self.lbl_expenses.setStyleSheet("font-weight: bold; color: #DC2626;")
-        self.lbl_shifts = QLabel("عجز / زيادة الورديات: 0.00 ج.م")
-        self.lbl_draws = QLabel("مسحوبات المالك الشخصية: 0.00 ج.م")
+        grid.addWidget(self._make_sec_title(ar.DAILY_CLOSE_DIALOG_9D8EC5), 7, 0, 1, 2)
+        self.lbl_expenses = QLabel(ar.DAILY_CLOSE_DIALOG_453048)
+        style_label(self.lbl_expenses, tone="danger", bold=True)
+        self.lbl_shifts = QLabel(ar.DAILY_CLOSE_DIALOG_4228B4)
+        self.lbl_draws = QLabel(ar.DAILY_CLOSE_DIALOG_F08E32)
         grid.addWidget(self.lbl_expenses, 8, 0)
         grid.addWidget(self.lbl_shifts, 8, 1)
         grid.addWidget(self.lbl_draws, 9, 0)
@@ -110,12 +101,12 @@ class DailyCloseDialog(QDialog):
 
         # Net Profit Card Banner
         net_card = QFrame()
-        net_card.setStyleSheet("background-color: #EFF6FF; border: 2px solid #2563EB; border-radius: 10px; padding: 14px;")
+        set_prop(net_card, "banner", "info")
         n_layout = QHBoxLayout(net_card)
-        n_lbl = QLabel("صافي ربح اليوم التقديري (Net Profit):")
-        n_lbl.setStyleSheet("font-size: 16px; font-weight: bold; color: #1E3A8A;")
-        self.lbl_net_profit = QLabel("0.00 ج.م")
-        self.lbl_net_profit.setStyleSheet("font-size: 20px; font-weight: bold; color: #2563EB;")
+        n_lbl = QLabel(ar.DAILY_CLOSE_DIALOG_92FE3A)
+        style_label(n_lbl, size="title", tone="primary", bold=True)
+        self.lbl_net_profit = QLabel(ar.DAILY_CLOSE_DIALOG_388B15)
+        style_label(self.lbl_net_profit, size="h2", tone="primary", bold=True)
         n_layout.addWidget(n_lbl)
         n_layout.addStretch()
         n_layout.addWidget(self.lbl_net_profit)
@@ -123,15 +114,15 @@ class DailyCloseDialog(QDialog):
 
         layout.addStretch()
 
-        btn_close = QPushButton("إغلاق")
+        btn_close = QPushButton(ar.CLOSE)
         btn_close.setFixedHeight(40)
-        btn_close.setStyleSheet("background-color: #F1F5F9; color: #475569; border: 1px solid #CBD5E1; border-radius: 8px; font-weight: bold;")
+        variant(btn_close, "secondary")
         btn_close.clicked.connect(self.accept)
         layout.addWidget(btn_close)
 
     def _make_sec_title(self, text: str) -> QLabel:
         lbl = QLabel(text)
-        lbl.setStyleSheet("font-size: 14px; font-weight: bold; color: #0F172A; border-bottom: 1px solid #E2E8F0; padding-bottom: 4px; margin-top: 6px;")
+        style_label(lbl, size="label", tone="text", bold=True)
         return lbl
 
     def _load_report(self):
@@ -160,9 +151,9 @@ class DailyCloseDialog(QDialog):
             net = rep["net_profit"]
             self.lbl_net_profit.setText(format_money(net))
             if net >= 0:
-                self.lbl_net_profit.setStyleSheet("font-size: 20px; font-weight: bold; color: #16A34A;")
+                style_label(self.lbl_net_profit, size="h2", tone="success", bold=True)
             else:
-                self.lbl_net_profit.setStyleSheet("font-size: 20px; font-weight: bold; color: #DC2626;")
+                style_label(self.lbl_net_profit, size="h2", tone="danger", bold=True)
         except Exception as e:
-            QMessageBox.critical(self, "خطأ", f"تعذر تحميل التقرير اليومي:\n{str(e)}")
+            show_error(self, message=f"تعذر تحميل التقرير اليومي:\n{str(e)}")
 

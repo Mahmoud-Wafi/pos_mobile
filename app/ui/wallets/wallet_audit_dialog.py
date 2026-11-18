@@ -1,6 +1,9 @@
 """Dialog for performing physical vs recorded wallet audit at shift or day close."""
 from __future__ import annotations
 
+from typing import Optional
+from app.i18n import ar
+
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QDoubleValidator
 from PySide6.QtWidgets import (
@@ -8,9 +11,13 @@ from PySide6.QtWidgets import (
     QComboBox, QPushButton, QMessageBox, QFrame,
 )
 
+from app.ui.components import show_error, show_toast
 from app.core.money import egp_to_piasters, format_money
 from app.models.wallet import Wallet
 from app.services import wallet_service
+from app.ui.design.style import set_prop, style_label, variant
+from app.ui.design import icons
+from app.ui.design.tokens import COLORS
 
 
 class WalletAuditDialog(QDialog):
@@ -18,31 +25,10 @@ class WalletAuditDialog(QDialog):
         super().__init__(parent)
         self.session = session
         self.user = user
-        self.setWindowTitle("جرد وتدقيق رصيد المحفظة (Audit)")
+        self.setWindowTitle(ar.WALLET_AUDIT_DIALOG_39F83F)
         self.resize(480, 420)
         self.setModal(True)
-        self.setStyleSheet("""
-            QDialog {
-                background-color: #FFFFFF;
-            }
-            QLabel {
-                color: #0F172A;
-                font-size: 13px;
-                font-weight: 600;
-            }
-            QLineEdit, QComboBox {
-                background-color: #F8FAFC;
-                border: 1px solid #CBD5E1;
-                border-radius: 8px;
-                padding: 10px 12px;
-                font-size: 13px;
-                color: #0F172A;
-            }
-            QLineEdit:focus, QComboBox:focus {
-                background-color: #FFFFFF;
-                border: 2px solid #2563EB;
-            }
-        """)
+
         self._build_ui()
         self._load_wallets()
 
@@ -53,16 +39,16 @@ class WalletAuditDialog(QDialog):
 
         # Header
         hdr = QHBoxLayout()
-        icon = QLabel("⚖️")
-        icon.setStyleSheet("font-size: 28px;")
+        icon = QLabel()
+        icon.setPixmap(icons.pixmap("scale", COLORS["primary"], 28))
         hdr.addWidget(icon)
 
         t_box = QVBoxLayout()
         t_box.setSpacing(2)
-        lbl_t = QLabel("مطابقة الرصيد الدفتري والفعلي للمحفظة")
-        lbl_t.setStyleSheet("font-size: 16px; font-weight: bold; color: #0F172A;")
-        lbl_sub = QLabel("مقارنة رصيد السيستم مع رسالة الرصيد الفعلي من الشبكة وتسجيل الفروقات")
-        lbl_sub.setStyleSheet("font-size: 12px; color: #64748B; font-weight: normal;")
+        lbl_t = QLabel(ar.WALLET_AUDIT_DIALOG_446804)
+        style_label(lbl_t, size="title", tone="text", bold=True)
+        lbl_sub = QLabel(ar.WALLET_AUDIT_DIALOG_F9068C)
+        style_label(lbl_sub, size="caption", tone="muted")
         t_box.addWidget(lbl_t)
         t_box.addWidget(lbl_sub)
         hdr.addLayout(t_box)
@@ -70,7 +56,7 @@ class WalletAuditDialog(QDialog):
         layout.addLayout(hdr)
 
         # Select Wallet
-        layout.addWidget(QLabel("اختر المحفظة المراد جردها: *"))
+        layout.addWidget(QLabel(ar.WALLET_AUDIT_DIALOG_396FB0))
         self.wallet_combo = QComboBox()
         self.wallet_combo.setFixedHeight(42)
         self.wallet_combo.currentIndexChanged.connect(self._on_wallet_changed)
@@ -78,44 +64,44 @@ class WalletAuditDialog(QDialog):
 
         # Current System Balance Card
         card = QFrame()
-        card.setStyleSheet("background-color: #EFF6FF; border: 1px solid #BFDBFE; border-radius: 8px; padding: 12px;")
+        set_prop(card, "banner", "info")
         c_layout = QHBoxLayout(card)
-        c_title = QLabel("الرصيد الدفتري المسجل بالسيستم:")
-        c_title.setStyleSheet("color: #1E3A8A; font-weight: bold;")
-        self.lbl_sys_bal = QLabel("0.00 ج.م")
-        self.lbl_sys_bal.setStyleSheet("color: #1D4ED8; font-weight: bold; font-size: 16px;")
+        c_title = QLabel(ar.WALLET_AUDIT_DIALOG_FE5280)
+        style_label(c_title, tone="primary", bold=True)
+        self.lbl_sys_bal = QLabel(ar.DAILY_CLOSE_DIALOG_388B15)
+        style_label(self.lbl_sys_bal, size="title", tone="primary", bold=True)
         c_layout.addWidget(c_title)
         c_layout.addStretch()
         c_layout.addWidget(self.lbl_sys_bal)
         layout.addWidget(card)
 
         # Actual Balance Input
-        layout.addWidget(QLabel("الرصيد الفعلي بالخط الآن (ج.م): *"))
+        layout.addWidget(QLabel(ar.WALLET_AUDIT_DIALOG_50E709))
         self.actual_edit = QLineEdit()
         self.actual_edit.setFixedHeight(42)
-        self.actual_edit.setPlaceholderText("0.00 ج.م (كما يظهر برسالة كود الاستعلام)")
+        self.actual_edit.setPlaceholderText(ar.WALLET_AUDIT_DIALOG_79DE28)
         self.actual_edit.setValidator(QDoubleValidator(0.0, 9999999.0, 2))
         self.actual_edit.textChanged.connect(self._recalc_diff)
         layout.addWidget(self.actual_edit)
 
         # Diff Card
         self.diff_card = QFrame()
-        self.diff_card.setStyleSheet("background-color: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 12px;")
+        set_prop(self.diff_card, "card", True)
         d_layout = QHBoxLayout(self.diff_card)
-        d_title = QLabel("فرق الجرد (عجز / زيادة):")
-        d_title.setStyleSheet("font-weight: bold;")
-        self.lbl_diff = QLabel("0.00 ج.م")
-        self.lbl_diff.setStyleSheet("font-weight: bold; font-size: 16px; color: #16A34A;")
+        d_title = QLabel(ar.WALLET_AUDIT_DIALOG_2E3D7C)
+        style_label(d_title, bold=True)
+        self.lbl_diff = QLabel(ar.DAILY_CLOSE_DIALOG_388B15)
+        style_label(self.lbl_diff, size="title", tone="success", bold=True)
         d_layout.addWidget(d_title)
         d_layout.addStretch()
         d_layout.addWidget(self.lbl_diff)
         layout.addWidget(self.diff_card)
 
         # Note
-        layout.addWidget(QLabel("ملاحظات الجرد:"))
+        layout.addWidget(QLabel(ar.WALLET_AUDIT_DIALOG_33325D))
         self.note_edit = QLineEdit()
         self.note_edit.setFixedHeight(40)
-        self.note_edit.setPlaceholderText("سبب العجز أو الزيادة إن وجد...")
+        self.note_edit.setPlaceholderText(ar.WALLET_AUDIT_DIALOG_F24530)
         layout.addWidget(self.note_edit)
 
         layout.addStretch()
@@ -124,35 +110,15 @@ class WalletAuditDialog(QDialog):
         btn_box = QHBoxLayout()
         btn_box.setSpacing(12)
 
-        btn_cancel = QPushButton("إلغاء")
+        btn_cancel = QPushButton(ar.CANCEL)
         btn_cancel.setFixedHeight(42)
-        btn_cancel.setStyleSheet("""
-            QPushButton {
-                background-color: #F1F5F9;
-                color: #475569;
-                border: 1px solid #CBD5E1;
-                border-radius: 8px;
-                font-weight: 600;
-                padding: 0 18px;
-            }
-        """)
+        variant(btn_cancel, "secondary")
         btn_cancel.clicked.connect(self.reject)
         btn_box.addWidget(btn_cancel)
 
-        btn_save = QPushButton("💾 اعتماد وتسجيل الجرد")
+        btn_save = QPushButton(ar.STOCKTAKE_WIDGET_54E462)
         btn_save.setFixedHeight(42)
-        btn_save.setStyleSheet("""
-            QPushButton {
-                background-color: #2563EB;
-                color: white;
-                border-radius: 8px;
-                font-weight: bold;
-                padding: 0 24px;
-            }
-            QPushButton:hover {
-                background-color: #1D4ED8;
-            }
-        """)
+        variant(btn_save, "primary")
         btn_save.clicked.connect(self._save_audit)
         btn_box.addWidget(btn_save)
 
@@ -183,28 +149,28 @@ class WalletAuditDialog(QDialog):
         diff_piasters = actual_piasters - w.balance
         self.lbl_diff.setText(format_money(diff_piasters))
         if diff_piasters < 0:
-            self.lbl_diff.setStyleSheet("font-weight: bold; font-size: 16px; color: #DC2626;")
+            style_label(self.lbl_diff, size="title", tone="danger", bold=True)
         elif diff_piasters > 0:
-            self.lbl_diff.setStyleSheet("font-weight: bold; font-size: 16px; color: #2563EB;")
+            style_label(self.lbl_diff, size="title", tone="primary", bold=True)
         else:
-            self.lbl_diff.setStyleSheet("font-weight: bold; font-size: 16px; color: #16A34A;")
+            style_label(self.lbl_diff, size="title", tone="success", bold=True)
 
     def _save_audit(self):
         w: Optional[Wallet] = self.wallet_combo.currentData()
         if not w:
-            QMessageBox.warning(self, "تنبيه", "يرجى اختيار المحفظة")
+            show_error(self, message=ar.WALLET_AUDIT_DIALOG_EDD8BE)
             return
 
         actual_str = self.actual_edit.text().strip()
         if not actual_str:
-            QMessageBox.warning(self, "تنبيه", "يرجى كتابة الرصيد الفعلي المستعلم عنه")
+            show_error(self, message=ar.WALLET_AUDIT_DIALOG_B882CE)
             self.actual_edit.setFocus()
             return
 
         try:
             actual_piasters = egp_to_piasters(actual_str)
         except Exception:
-            QMessageBox.warning(self, "تنبيه", "صيغة الرصيد الفعلي غير صحيحة")
+            show_error(self, message=ar.WALLET_AUDIT_DIALOG_9536CA)
             return
 
         note = self.note_edit.text().strip()
@@ -217,13 +183,9 @@ class WalletAuditDialog(QDialog):
                 note=note,
             )
             self.session.commit()
-            QMessageBox.information(
-                self,
-                "تم تسجيل الجرد",
-                f"تم تدقيق وجرد المحفظة بنجاح.\nفرق الجرد: {format_money(audit.diff)}"
-            )
+            show_toast(self, f"تم تدقيق وجرد المحفظة بنجاح.\nفرق الجرد: {format_money(audit.diff)}")
             self.accept()
         except Exception as e:
             self.session.rollback()
-            QMessageBox.critical(self, "خطأ", f"تعذر تسجيل الجرد:\n{str(e)}")
+            show_error(self, message=f"تعذر تسجيل الجرد:\n{str(e)}")
 

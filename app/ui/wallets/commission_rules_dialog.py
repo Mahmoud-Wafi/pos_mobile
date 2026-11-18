@@ -1,5 +1,6 @@
 """Dialog for viewing and editing data-driven commission rules for mobile wallets."""
 from __future__ import annotations
+from app.i18n import ar
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QDoubleValidator
@@ -10,11 +11,15 @@ from PySide6.QtWidgets import (
 )
 
 from decimal import Decimal
+from app.ui.components import show_error, show_toast
 from app.core.money import parse_egp_input, parse_percent_to_bp
 from app.core.money import egp_to_piasters, format_money, piasters_to_egp
 from app.core.money import piasters_to_input
 from app.models.wallet import CommissionRule
 from app.services import wallet_service
+from app.ui.design.style import set_prop, style_label, variant
+from app.ui.design import icons
+from app.ui.design.tokens import COLORS
 
 
 class CommissionRulesDialog(QDialog):
@@ -22,43 +27,10 @@ class CommissionRulesDialog(QDialog):
         super().__init__(parent)
         self.session = session
         self.user = user
-        self.setWindowTitle("قواعد ونسب العمولات للمحافظ الإلكترونية")
+        self.setWindowTitle(ar.COMMISSION_RULES_DIALOG_CD77D6)
         self.resize(850, 580)
         self.setModal(True)
-        self.setStyleSheet("""
-            QDialog {
-                background-color: #F8FAFC;
-            }
-            QLabel {
-                color: #0F172A;
-                font-size: 13px;
-                font-weight: 600;
-            }
-            QLineEdit, QComboBox {
-                background-color: #FFFFFF;
-                border: 1px solid #CBD5E1;
-                border-radius: 8px;
-                padding: 8px 12px;
-                font-size: 13px;
-                color: #0F172A;
-            }
-            QLineEdit:focus, QComboBox:focus {
-                border: 2px solid #2563EB;
-            }
-            QTableWidget {
-                background-color: #FFFFFF;
-                border: 1px solid #E2E8F0;
-                border-radius: 8px;
-            }
-            QHeaderView::section {
-                background-color: #F1F5F9;
-                color: #334155;
-                font-weight: bold;
-                padding: 8px;
-                border: none;
-                border-bottom: 1px solid #E2E8F0;
-            }
-        """)
+
         self._build_ui()
         self.load_rules()
 
@@ -69,16 +41,16 @@ class CommissionRulesDialog(QDialog):
 
         # Header
         hdr = QHBoxLayout()
-        icon = QLabel("⚙️")
-        icon.setStyleSheet("font-size: 26px;")
+        icon = QLabel()
+        icon.setPixmap(icons.pixmap("settings", COLORS["primary"], 28))
         hdr.addWidget(icon)
 
         t_box = QVBoxLayout()
         t_box.setSpacing(2)
-        lbl_t = QLabel("قواعد حساب عمولات العمليات (إيداع، سحب، فواتير)")
-        lbl_t.setStyleSheet("font-size: 17px; font-weight: bold; color: #0F172A;")
-        lbl_sub = QLabel("يتم احتساب العمولة تلقائياً عند إدخال المبلغ بناءً على هذه الشرائح")
-        lbl_sub.setStyleSheet("font-size: 12px; color: #64748B; font-weight: normal;")
+        lbl_t = QLabel(ar.COMMISSION_RULES_DIALOG_AD1845)
+        style_label(lbl_t, size="title", tone="text", bold=True)
+        lbl_sub = QLabel(ar.COMMISSION_RULES_DIALOG_0C59A2)
+        style_label(lbl_sub, size="caption", tone="muted")
         t_box.addWidget(lbl_t)
         t_box.addWidget(lbl_sub)
         hdr.addLayout(t_box)
@@ -87,38 +59,38 @@ class CommissionRulesDialog(QDialog):
 
         # Add Rule Quick Bar
         add_box = QFrame()
-        add_box.setStyleSheet("background-color: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 8px; padding: 10px;")
+        set_prop(add_box, "card", True)
         add_grid = QGridLayout(add_box)
         add_grid.setHorizontalSpacing(10)
         add_grid.setVerticalSpacing(6)
 
-        add_grid.addWidget(QLabel("الشبكة:"), 0, 0)
+        add_grid.addWidget(QLabel(ar.COMMISSION_RULES_DIALOG_070370), 0, 0)
         self.net_combo = QComboBox()
-        self.net_combo.addItem("فودافون", "vodafone")
-        self.net_combo.addItem("أورنج", "orange")
-        self.net_combo.addItem("اتصالات", "etisalat")
-        self.net_combo.addItem("إنستاباي", "instapay")
+        self.net_combo.addItem(ar.COMMISSION_RULES_DIALOG_908763, "vodafone")
+        self.net_combo.addItem(ar.COMMISSION_RULES_DIALOG_BED4C8, "orange")
+        self.net_combo.addItem(ar.COMMISSION_RULES_DIALOG_1900CB, "etisalat")
+        self.net_combo.addItem(ar.COMMISSION_RULES_DIALOG_2E4091, "instapay")
         add_grid.addWidget(self.net_combo, 1, 0)
 
-        add_grid.addWidget(QLabel("نوع العملية:"), 0, 1)
+        add_grid.addWidget(QLabel(ar.COMMISSION_RULES_DIALOG_2325DF), 0, 1)
         self.op_combo = QComboBox()
-        self.op_combo.addItem("إيداع (Cash In)", "cash_in")
-        self.op_combo.addItem("سحب (Cash Out)", "cash_out")
-        self.op_combo.addItem("فواتير (Bill)", "bill")
-        self.op_combo.addItem("شحن (Recharge)", "recharge")
+        self.op_combo.addItem(ar.COMMISSION_RULES_DIALOG_77C021, "cash_in")
+        self.op_combo.addItem(ar.COMMISSION_RULES_DIALOG_B46F7A, "cash_out")
+        self.op_combo.addItem(ar.COMMISSION_RULES_DIALOG_492E1F, "bill")
+        self.op_combo.addItem(ar.COMMISSION_RULES_DIALOG_D791E6, "recharge")
         add_grid.addWidget(self.op_combo, 1, 1)
 
-        add_grid.addWidget(QLabel("الحد الأدنى (ج.م):"), 0, 2)
+        add_grid.addWidget(QLabel(ar.COMMISSION_RULES_DIALOG_1F6570), 0, 2)
         self.min_edit = QLineEdit("1.00")
         self.min_edit.setValidator(QDoubleValidator(0.0, 9999999.0, 2))
         add_grid.addWidget(self.min_edit, 1, 2)
 
-        add_grid.addWidget(QLabel("الحد الأقصى (ج.م):"), 0, 3)
+        add_grid.addWidget(QLabel(ar.COMMISSION_RULES_DIALOG_96C52A), 0, 3)
         self.max_edit = QLineEdit("5000.00")
         self.max_edit.setValidator(QDoubleValidator(0.0, 9999999.0, 2))
         add_grid.addWidget(self.max_edit, 1, 3)
 
-        add_grid.addWidget(QLabel("عمولة ثابتة (ج.م):"), 0, 4)
+        add_grid.addWidget(QLabel(ar.COMMISSION_RULES_DIALOG_E10280), 0, 4)
         self.fix_edit = QLineEdit("5.00")
         self.fix_edit.setValidator(QDoubleValidator(0.0, 9999.0, 2))
         add_grid.addWidget(self.fix_edit, 1, 4)
@@ -128,9 +100,9 @@ class CommissionRulesDialog(QDialog):
         self.pct_edit.setValidator(QDoubleValidator(0.0, 100.0, 2))
         add_grid.addWidget(self.pct_edit, 1, 5)
 
-        btn_add = QPushButton("➕ إضافة قاعدة")
-        btn_add.setFixedHeight(36)
-        btn_add.setStyleSheet("background-color: #2563EB; color: white; border-radius: 6px; font-weight: bold; padding: 0 14px;")
+        btn_add = QPushButton(ar.COMMISSION_RULES_DIALOG_F17096)
+        btn_add.setMinimumHeight(40)
+        variant(btn_add, "primary")
         btn_add.clicked.connect(self._add_rule)
         add_grid.addWidget(btn_add, 1, 6)
 
@@ -140,7 +112,7 @@ class CommissionRulesDialog(QDialog):
         self.table = QTableWidget()
         self.table.setColumnCount(8)
         self.table.setHorizontalHeaderLabels([
-            "#", "الشبكة", "العملية", "من مبلغ", "إلى مبلغ", "العمولة الثابتة", "النسبة %", "المسدد"
+            "#", ar.COMMISSION_RULES_DIALOG_5A8DD9, ar.COMMISSION_RULES_DIALOG_99EEE1, ar.COMMISSION_RULES_DIALOG_3B9B76, ar.COMMISSION_RULES_DIALOG_3DB011, ar.COMMISSION_RULES_DIALOG_29D91A, "النسبة %", ar.COMMISSION_RULES_DIALOG_C35185
         ])
         self.table.verticalHeader().setVisible(False)
         self.table.setEditTriggers(QTableWidget.NoEditTriggers)
@@ -156,9 +128,9 @@ class CommissionRulesDialog(QDialog):
         h.setSectionResizeMode(7, QHeaderView.Fixed); self.table.setColumnWidth(7, 90)
         layout.addWidget(self.table)
 
-        btn_close = QPushButton("إغلاق")
+        btn_close = QPushButton(ar.CLOSE)
         btn_close.setFixedHeight(40)
-        btn_close.setStyleSheet("background-color: #F1F5F9; color: #475569; border: 1px solid #CBD5E1; border-radius: 8px; font-weight: bold;")
+        variant(btn_close, "secondary")
         btn_close.clicked.connect(self.accept)
         layout.addWidget(btn_close)
 
@@ -170,11 +142,11 @@ class CommissionRulesDialog(QDialog):
             self.table.setItem(idx, 1, QTableWidgetItem(r.network.title()))
             self.table.setItem(idx, 2, QTableWidgetItem(r.op_type))
             self.table.setItem(idx, 3, QTableWidgetItem(format_money(r.min_amount)))
-            self.table.setItem(idx, 4, QTableWidgetItem(format_money(r.max_amount) if r.max_amount else "بلا سقف"))
+            self.table.setItem(idx, 4, QTableWidgetItem(format_money(r.max_amount) if r.max_amount else ar.COMMISSION_RULES_DIALOG_39C68E))
             self.table.setItem(idx, 5, QTableWidgetItem(format_money(r.fixed_fee)))
             pct_val = f"{piasters_to_input(r.percent_bp)}%"
             self.table.setItem(idx, 6, QTableWidgetItem(pct_val))
-            self.table.setItem(idx, 7, QTableWidgetItem("العميل" if r.paid_by == "customer" else "الشبكة"))
+            self.table.setItem(idx, 7, QTableWidgetItem(ar.RECEIPT_CUSTOMER if r.paid_by == "customer" else ar.COMMISSION_RULES_DIALOG_5A8DD9))
 
     def _add_rule(self):
         try:
@@ -192,8 +164,8 @@ class CommissionRulesDialog(QDialog):
             )
             self.session.commit()
             self.load_rules()
-            QMessageBox.information(self, "نجاح", "تم حفظ قاعدة العمولة بنجاح!")
+            show_toast(self, ar.COMMISSION_RULES_DIALOG_21AA6E)
         except Exception as e:
             self.session.rollback()
-            QMessageBox.critical(self, "خطأ", f"تعذر إضافة القاعدة:\n{str(e)}")
+            show_error(self, message=f"تعذر إضافة القاعدة:\n{str(e)}")
 

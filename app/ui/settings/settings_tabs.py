@@ -11,6 +11,7 @@ from PySide6.QtWidgets import (
     QTableWidgetItem, QTextEdit, QVBoxLayout, QWidget,
 )
 
+from app.ui.components import show_error, show_toast
 from app.core import clock
 from app.core.permissions import PermissionDenied
 from app.i18n import ar
@@ -32,9 +33,9 @@ def _table(headers: list[str]) -> QTableWidget:
 
 def _error(parent, exc: Exception) -> None:
     if isinstance(exc, PermissionDenied):
-        QMessageBox.warning(parent, ar.WARNING, ar.PERMISSION_DENIED)
+        show_error(parent, message=ar.PERMISSION_DENIED)
     else:
-        QMessageBox.warning(parent, ar.WARNING, str(exc))
+        show_error(parent, exc)
 
 
 # ── Shop settings ─────────────────────────────────────────────────────────────
@@ -48,6 +49,8 @@ class ShopSettingsTab(QWidget):
         ("warranty_text", ar.SET_WARRANTY_TEXT),
         ("cashier_discount_limit_pct", ar.SET_DISCOUNT_LIMIT),
         ("idle_lock_minutes", ar.SET_IDLE_LOCK),
+        ("backup_retention", ar.SET_BACKUP_RETENTION),
+        ("auto_backup", ar.SET_AUTO_BACKUP),
     ]
 
     def __init__(self, session, user, parent=None):
@@ -88,7 +91,7 @@ class ShopSettingsTab(QWidget):
             self.session.rollback()
             _error(self, exc)
             return
-        QMessageBox.information(self, ar.SUCCESS, ar.SET_SAVED)
+        show_toast(self, ar.SET_SAVED)
 
 
 # ── Users ─────────────────────────────────────────────────────────────────────

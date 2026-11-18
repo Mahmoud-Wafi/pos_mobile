@@ -16,6 +16,11 @@ from app.core import clock
 from app.core.money import format_money
 from app.core.money import piasters_to_input
 from app.core.permissions import (
+    PERM_CASH_VIEW,
+    PERM_CUSTOMERS_MANAGE,
+    PERM_SALES_CREATE,
+    PERM_WALLET_MANAGE,
+    PERM_WALLET_USE,
     PERM_PROFIT_VIEW,
     PERM_REPORTS_PROFIT,
     PERM_REPORTS_VIEW,
@@ -498,3 +503,68 @@ def export_report_to_csv(report_data: dict[str, Any], filepath: str) -> str:
             writer.writerow(clean_row)
 
     return str(p)
+
+
+# ── 9. Dashboard overview (charts) ────────────────────────────────────────────
+
+def dashboard_overview(session: Session, user: User) -> dict[str, Any]:
+    """Data for the dashboard: today vs yesterday, 7-day sales, top products, wallets, low stock.
+
+    Sections the user may not see are ``None`` (sales figures need sales/report permission, profit
+    needs ``profit.view``, wallet balances need wallet permission).
+    """
+    perms = user.permission_codes()
+    can_sales = PERM_SALES_CREATE in perms or PERM_REPORTS_VIEW in perms
+    can_profit = PERM_PROFIT_VIEW in perms
+    can_wallets = PERM_WALLET_USE in perms or PERM_WALLET_MANAGE in perms
+    can_cash = PERM_CASH_VIEW in perms
+    today = clock.local_today()
+
+    def day_stats(day: datetime.date) -> dict[str, Any]:
+        start, end = _date_bounds(day, day)
+        sales = session.query(Sale).filter(Sale.created_at >= start, Sale.created_at <= end,
+                                           Sale.status == "posted").all()
+        return {"date": day, "count": len(sales), "total": sum(s.total for s in sales),
+                "profit": sum(s.total_profit for s in sales) if can_profit else None}
+
+    out: dict[str, Any] = {"today": today, "sales": None, "series": None, "top_products": None,
+                           "wallets": None, "cash": None, "receivables": None}
+    if can_sales:
+        t, y = day_stats(today), day_stats(today - datetime.timedelta(days=1))
+        out["sales"] = {"today": t, "yesterday": y}
+        out["series"] = [day_stats(today - datetime.timedelta(days=i)) for i in range(6, -1, -1)]
+        start, _ = _date_bounds(today - datetime.timedelta(days=6), today)
+        rows = (
+            session.query(Product.id, Product.name, func.sum(SaleItem.quantity), func.sum(SaleItem.line_total))
+            .join(SaleItem, SaleItem.product_id == Product.id)
+            .join(Sale, Sale.id == SaleItem.sale_id)
+            .filter(Sale.status == "posted", Sale.created_at >= start)
+            .group_by(Product.id, Product.name)
+            .order_by(func.sum(SaleItem.line_total).desc())
+            .limit(5).all()
+        )
+        out["top_products"] = [{"id": r[0], "name": r[1], "qty": int(r[2] or 0), "total": int(r[3] or 0)} for r in rows]
+    if can_wallets:
+        out["wallets"] = [{"id": w.id, "label": w.label, "network": w.network, "balance": w.balance}
+                          for w in session.query(Wallet).filter_by(is_active=True).order_by(Wallet.label).all()]
+    if can_cash:
+        drawer = session.query(CashAccount).filter_by(type="drawer").first()
+        safe = session.query(CashAccount).filter_by(type="safe").first()
+        out["cash"] = {"drawer": drawer.balance if drawer else 0, "safe": safe.balance if safe else 0}
+    if PERM_CUSTOMERS_MANAGE in perms or PERM_REPORTS_VIEW in perms:
+        out["receivables"] = sum(c.balance for c in session.query(Customer).filter(Customer.balance > 0))
+    low = []
+    for p in session.query(Product).filter_by(is_active=True).all():
+        qty = p.current_quantity()
+        if qty <= p.min_stock:
+            low.append({"id": p.id, "name": p.name, "qty": qty, "min_stock": p.min_stock})
+    out["low_stock"] = sorted(low, key=lambda r: r["qty"])[:10]
+    out["low_stock_count"] = len(low)
+    return out
+
+
+def change_percent(today: int, yesterday: int) -> Optional[int]:
+    """Whole-number percent change vs yesterday; None when yesterday was zero."""
+    if yesterday <= 0:
+        return None
+    return round((today - yesterday) * 100 / yesterday)

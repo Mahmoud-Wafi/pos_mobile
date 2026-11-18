@@ -1,231 +1,124 @@
-"""Used device sale & ownership non-theft declaration PDF generator.
+"""Used-device sale & ownership declaration (A4, Arabic RTL).
 
-Creates an official A4 legal declaration document certifying the seller
-owns the used device, it is not stolen, and they received the purchase amount.
+Certifies that the seller owns the device, it is not stolen, and they received the price.
 """
 from __future__ import annotations
 
-import datetime
 from pathlib import Path
-from typing import Optional
 
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.platypus import SimpleDocTemplate, Spacer, Table, TableStyle
 
+from app.core import clock
 from app.core.money import format_money
 from app.models.purchase import UsedDevicePurchase
+from app.printing import pdf_common as pc
+
+PAGE_W = A4[0] - 72     # usable width (36pt margins)
+
+PLEDGE_AR = (
+    "تعهد وإقرار صريح: أقر أنا الموقع أدناه وبكامل قواي العقلية وإرادتي الحرة، وبصفتي المالك الشرعي والقانوني "
+    "الوحيد للجهاز الموضحة بياناته وأرقامه التسلسلية (IMEI) أعلاه، بأن الجهاز ملكي الشخصي الخالص وليس مسروقاً أو "
+    "مختلساً أو محلاً لأي بلاغ سرقة أو نزاع قضائي أو حظر أمني. وأتحمل وحدي كامل المسؤولية الجنائية والمدنية "
+    "والتعويضات القانونية أمام كافة الجهات الرسمية والقضائية في جمهورية مصر العربية حال ثبوت خلاف ذلك، "
+    "كما أقر باستلامي كامل المبلغ النقدي الموضح بعاليه من المحل بصورة نهائية وباتة."
+)
+PLEDGE_EN = (
+    "I hereby certify that I am the sole, lawful owner of the device listed above, that it is not stolen "
+    "or subject to any dispute or legal claim, and that I have received the full agreed purchase price in cash."
+)
+
+
+def _kv_table(rows: list[list[tuple[str, str]]], col_w: float) -> Table:
+    """rows of (label, value) pairs; two pairs per row, laid out right-to-left."""
+    label_st = pc.style("lbl", 9, bold=True, color="#0F172A")
+    val_st = pc.style("val", 9)
+    data = []
+    for row in rows:
+        cells = []
+        for label, value in row:
+            cells += [pc.para(label, label_st, col_w), pc.para(value, val_st, col_w)]
+        data.append(pc.rtl_row(cells))
+    t = Table(data, colWidths=[col_w] * 4)
+    t.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#F8FAFC")),
+        ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#CBD5E1")),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("TOPPADDING", (0, 0), (-1, -1), 6),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+    ]))
+    return t
 
 
 def generate_used_device_declaration_pdf(
     used_purchase: UsedDevicePurchase,
     dest_path: Path | str,
     shop_name: str = "محل الموبايلات",
+    shop_phone: str = "",
+    shop_address: str = "",
 ) -> Path:
-    """Generate a formal A4 Used Mobile Device Sale & Ownership Declaration PDF."""
+    pc.register_fonts()
     dest = Path(dest_path)
     dest.parent.mkdir(parents=True, exist_ok=True)
+    doc = SimpleDocTemplate(str(dest), pagesize=A4, rightMargin=36, leftMargin=36, topMargin=36, bottomMargin=36,
+                            title="إقرار بيع وتنازل ملكية جهاز مستعمل")
 
-    doc = SimpleDocTemplate(
-        str(dest),
-        pagesize=A4,
-        rightMargin=36,
-        leftMargin=36,
-        topMargin=36,
-        bottomMargin=36,
-    )
+    h1 = pc.style("h1", 18, bold=True, align=pc.TEXT_ALIGN_CENTER, color="#0F172A")
+    h2 = pc.style("h2", 14, bold=True, align=pc.TEXT_ALIGN_CENTER, color="#1E3A8A")
+    meta = pc.style("meta", 9, align=pc.TEXT_ALIGN_CENTER, color="#475569")
+    sec = pc.style("sec", 11, bold=True, color="#0F172A")
+    body = pc.style("body", 10.5, leading=19)
+    body_en = pc.style("body_en", 8.5, align=pc.TEXT_ALIGN_LEFT, color="#475569", leading=12)
 
-    styles = getSampleStyleSheet()
-
-    header_shop_style = ParagraphStyle(
-        "ShopTitle",
-        parent=styles["Normal"],
-        fontName="Helvetica-Bold",
-        fontSize=18,
-        leading=22,
-        alignment=1,  # Center
-        textColor=colors.HexColor("#0F172A"),
-    )
-
-    title_style = ParagraphStyle(
-        "DocTitle",
-        parent=styles["Normal"],
-        fontName="Helvetica-Bold",
-        fontSize=14,
-        leading=18,
-        alignment=1,
-        textColor=colors.HexColor("#1E3A8A"),
-    )
-
-    legal_text_style = ParagraphStyle(
-        "LegalNotice",
-        parent=styles["Normal"],
-        fontName="Helvetica",
-        fontSize=10,
-        leading=16,
-        alignment=0,
-        textColor=colors.HexColor("#1E293B"),
-    )
-
-    meta_style = ParagraphStyle(
-        "MetaText",
-        parent=styles["Normal"],
-        fontName="Helvetica",
-        fontSize=9,
-        leading=13,
-        textColor=colors.HexColor("#475569"),
-    )
-
-    story = []
-
-    # Shop Name & Declaration Header
-    story.append(Paragraph(f"<b>{shop_name}</b>", header_shop_style))
-    story.append(Spacer(1, 6))
-    story.append(
-        Paragraph(
-            "<b>Used Mobile Device Sale &amp; Ownership Declaration / إقرار بيع وتنازل ملكية جهاز مستعمل</b>",
-            title_style,
-        )
-    )
-    story.append(Spacer(1, 4))
-    date_str = used_purchase.created_at.strftime("%Y-%m-%d  %I:%M %p")
-    story.append(
-        Paragraph(
-            f"Declaration Ref: #UDP-{used_purchase.id:05d}  |  Date: {date_str}",
-            ParagraphStyle("CenterMeta", parent=meta_style, alignment=1),
-        )
-    )
+    story = [pc.para(shop_name, h1, PAGE_W)]
+    contact = "  |  ".join(x for x in (shop_address, shop_phone) if x)
+    if contact:
+        story.append(pc.para(contact, meta, PAGE_W))
+    story += [Spacer(1, 6), pc.para("إقرار بيع وتنازل ملكية جهاز مستعمل", h2, PAGE_W), Spacer(1, 4)]
+    story.append(pc.para(
+        f"رقم الإقرار: UDP-{used_purchase.id:05d}   |   التاريخ: {pc.ltr(clock.fmt_local(used_purchase.created_at, '%Y-%m-%d %H:%M'))}",
+        meta, PAGE_W))
     story.append(Spacer(1, 14))
 
-    # Seller Information Box
-    story.append(Paragraph("<b>1. Seller Information / بيانات البائع المتنازل:</b>", legal_text_style))
-    story.append(Spacer(1, 4))
-
-    seller_rows = [
-        [
-            "Full Name / اسم البائع الرباعي:",
-            used_purchase.seller_name,
-            "National ID / الرقم القومي:",
-            used_purchase.seller_national_id,
-        ],
-        [
-            "Phone / رقم الهاتف:",
-            used_purchase.seller_phone,
-            "Purchasing Staff / المستلم:",
-            used_purchase.user.full_name if used_purchase.user else "Staff",
-        ],
-    ]
-    seller_table = Table(seller_rows, colWidths=[140, 130, 130, 120])
-    seller_table.setStyle(
-        TableStyle([
-            ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#F8FAFC")),
-            ("TEXTCOLOR", (0, 0), (-1, -1), colors.HexColor("#0F172A")),
-            ("FONTNAME", (0, 0), (-1, -1), "Helvetica"),
-            ("FONTNAME", (0, 0), (0, -1), "Helvetica-Bold"),
-            ("FONTNAME", (2, 0), (2, -1), "Helvetica-Bold"),
-            ("FONTSIZE", (0, 0), (-1, -1), 9),
-            ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#CBD5E1")),
-            ("TOPPADDING", (0, 0), (-1, -1), 6),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
-        ])
-    )
-    story.append(seller_table)
-    story.append(Spacer(1, 14))
-
-    # Device Information Box
-    story.append(Paragraph("<b>2. Device Specifications &amp; Purchase Price / بيانات الجهاز والسعر:</b>", legal_text_style))
-    story.append(Spacer(1, 4))
+    col_w = PAGE_W / 4
+    story += [pc.para("١. بيانات البائع المتنازل", sec, PAGE_W), Spacer(1, 4), _kv_table([
+        [("اسم البائع", used_purchase.seller_name), ("الرقم القومي", used_purchase.seller_national_id)],
+        [("رقم الهاتف", used_purchase.seller_phone),
+         ("المستلم", used_purchase.user.full_name if used_purchase.user else "—")],
+    ], col_w), Spacer(1, 14)]
 
     device = used_purchase.device
-    dev_name = device.product.name if device and device.product else "Mobile Device"
-    imei1 = device.imei1 if device else "—"
-    imei2 = device.imei2 if (device and device.imei2) else "—"
-    price_str = f"{format_money(used_purchase.price)}"
+    dev_name = device.product.name if device and device.product else "جهاز محمول"
+    story += [pc.para("٢. بيانات الجهاز والسعر", sec, PAGE_W), Spacer(1, 4), _kv_table([
+        [("الجهاز", dev_name), ("الحالة", "مستعمل")],
+        [("IMEI 1", device.imei1 if device else "—"), ("IMEI 2", device.imei2 if device and device.imei2 else "—")],
+        [("مبلغ الشراء", format_money(used_purchase.price)), ("طريقة الدفع", "نقداً من الدرج")],
+        [("ملاحظات الفحص", used_purchase.condition_notes or "فحص مطابق"), ("", "")],
+    ], col_w), Spacer(1, 16)]
 
-    device_rows = [
-        ["Device / نوع وموديل الجهاز:", dev_name, "Condition / الحالة:", "Used / مستعمل"],
-        ["IMEI 1 / السيريال الأول:", imei1, "IMEI 2 / السيريال الثاني:", imei2],
-        [
-            "Purchase Price / مبلغ الشراء:",
-            f"<b>{price_str}</b>",
-            "Payment / طريقة الدفع:",
-            "Cash / نقداً من الدرج",
-        ],
-        [
-            "Inspection Notes / ملاحظات الفحص:",
-            used_purchase.condition_notes or "Passed standard inspection / فحص مطابق",
-            "",
-            "",
-        ],
-    ]
-    device_table = Table(device_rows, colWidths=[140, 130, 130, 120])
-    device_table.setStyle(
-        TableStyle([
-            ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#F8FAFC")),
-            ("TEXTCOLOR", (0, 0), (-1, -1), colors.HexColor("#0F172A")),
-            ("FONTNAME", (0, 0), (-1, -1), "Helvetica"),
-            ("FONTNAME", (0, 0), (0, -1), "Helvetica-Bold"),
-            ("FONTNAME", (2, 0), (2, -1), "Helvetica-Bold"),
-            ("FONTSIZE", (0, 0), (-1, -1), 9),
-            ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#CBD5E1")),
-            ("SPAN", (1, 3), (3, 3)),
-            ("TOPPADDING", (0, 0), (-1, -1), 6),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
-        ])
-    )
-    story.append(device_table)
-    story.append(Spacer(1, 16))
+    story += [pc.para("٣. نص الإقرار والتعهد القانوني", sec, PAGE_W), Spacer(1, 4)]
+    pledge = Table([[pc.para(PLEDGE_AR, body, PAGE_W - 30)], [pc.para(PLEDGE_EN, body_en, PAGE_W - 30)]],
+                   colWidths=[PAGE_W])
+    pledge.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#EFF6FF")),
+        ("BOX", (0, 0), (-1, -1), 1, colors.HexColor("#3B82F6")),
+        ("TOPPADDING", (0, 0), (-1, -1), 10), ("BOTTOMPADDING", (0, 0), (-1, -1), 10),
+        ("LEFTPADDING", (0, 0), (-1, -1), 12), ("RIGHTPADDING", (0, 0), (-1, -1), 12),
+    ]))
+    story += [pledge, Spacer(1, 28)]
 
-    # Legal Declaration Statement
-    story.append(Paragraph("<b>3. Legal Declaration &amp; Non-Theft Pledge / نص الإقرار والتعهد القانوني:</b>", legal_text_style))
-    story.append(Spacer(1, 4))
-
-    pledge_text = (
-        "<b>تعهد وإقرار صريح:</b> أقر أنا الموقع أدناه وبكامل قواي العقلية وإرادتي الحرة، وبصفتي المالك الشرعي والقانوني "
-        "الوحيد للجهاز الموضحة بياناته وأرقامه التسلسلية (IMEI) أعلاه، بأن الجهاز ملكي الشخصي الخالص وليس مسروقاً أو "
-        "مختلساً أو محلاً لأي بلاغ سرقة أو نزاع قضائي أو حظر أمني. وأتحمل وحدي كامل المسؤولية الجنائية والمدنية "
-        "والتعويضات القانونية أمام كافة الجهات الرسمية والقضائية في جمهورية مصر العربية حال ثبوت خلاف ذلك، "
-        "كما أقر باستلامي كامل المبلغ النقدي الموضح بعاليه من المحل بصورة نهائية وباتة.<br/><br/>"
-        "<i>I hereby certify under penalty of law that I am the sole, lawful owner of the device listed above, that it is not "
-        "stolen or subject to any dispute or legal claim, and that I have received the full agreed purchase price in cash.</i>"
-    )
-    pledge_box = Table([[Paragraph(pledge_text, legal_text_style)]], colWidths=[520])
-    pledge_box.setStyle(
-        TableStyle([
-            ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#EFF6FF")),
-            ("BOX", (0, 0), (-1, -1), 1, colors.HexColor("#3B82F6")),
-            ("TOPPADDING", (0, 0), (-1, -1), 10),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 10),
-            ("LEFTPADDING", (0, 0), (-1, -1), 12),
-            ("RIGHTPADDING", (0, 0), (-1, -1), 12),
-        ])
-    )
-    story.append(pledge_box)
-    story.append(Spacer(1, 24))
-
-    # Signature & Thumbprint Blocks
-    sign_rows = [
-        [
-            "توقيع البائع (Seller Signature)\n\n\n__________________________",
-            "بصمة إبهام البائع (Thumbprint)\n\n\n[                      ]",
-            "توقيع المستلم وختم المحل\n\n\n__________________________",
-        ]
-    ]
-    sign_table = Table(sign_rows, colWidths=[175, 170, 175])
-    sign_table.setStyle(
-        TableStyle([
-            ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-            ("FONTNAME", (0, 0), (-1, -1), "Helvetica"),
-            ("FONTSIZE", (0, 0), (-1, -1), 9),
-            ("TEXTCOLOR", (0, 0), (-1, -1), colors.HexColor("#334155")),
-            ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#E2E8F0")),
-            ("TOPPADDING", (0, 0), (-1, -1), 10),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 14),
-        ])
-    )
-    story.append(sign_table)
+    sign_st = pc.style("sign", 9.5, align=pc.TEXT_ALIGN_CENTER, color="#334155", leading=15)
+    sign = Table([pc.rtl_row([
+        pc.para("توقيع البائع\n\n\n______________________", sign_st, PAGE_W / 3),
+        pc.para("بصمة إبهام البائع\n\n\n[                    ]", sign_st, PAGE_W / 3),
+        pc.para("توقيع المستلم وختم المحل\n\n\n______________________", sign_st, PAGE_W / 3),
+    ])], colWidths=[PAGE_W / 3] * 3)
+    sign.setStyle(TableStyle([
+        ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#CBD5E1")),
+        ("TOPPADDING", (0, 0), (-1, -1), 10), ("BOTTOMPADDING", (0, 0), (-1, -1), 14),
+    ]))
+    story.append(sign)
 
     doc.build(story)
     return dest
-

@@ -216,7 +216,111 @@ def remove_line(session: Session, user: User, sale: Sale, item_id: int) -> None:
     if item and item.sale_id == sale.id:
         session.delete(item)
         session.flush()
+        session.expire(sale, ["items"])   # drop the deleted row from the loaded collection
         _recalculate_sale_totals(sale)
+
+
+def update_line(
+    session: Session,
+    user: User,
+    sale: Sale,
+    item_id: int,
+    quantity: Optional[int] = None,
+    unit_price: Optional[int] = None,
+    discount: Optional[int] = None,
+    manager_override: Optional[User] = None,
+) -> SaleItem:
+    """Edit quantity / unit price / line discount of a line on an unposted sale.
+
+    * IMEI lines are always quantity 1.
+    * Changing the unit price away from the catalogue price, or a line
+      discount above the cashier limit, needs a manager (the user or
+      ``manager_override``).
+    """
+    if sale.status != "held":
+        raise SaleError("لا يمكن تعديل فاتورة بعد حفظها")
+    item = session.get(SaleItem, item_id)
+    if item is None or item.sale_id != sale.id:
+        raise SaleError("البند غير موجود في هذه الفاتورة")
+    product = session.get(Product, item.product_id)
+    is_manager = user.role.name == ROLE_MANAGER or (
+        manager_override is not None and manager_override.role.name == ROLE_MANAGER
+    )
+
+    if quantity is not None:
+        if quantity <= 0:
+            raise ValueError("الكمية يجب أن تكون أكبر من الصفر")
+        if product.track_imei and quantity != 1:
+            raise SaleError("الجهاز المسجل بسيريال كميته 1 فقط")
+        if not product.track_imei and quantity > product.current_quantity():
+            raise InsufficientStockError(
+                f"الكمية المتاحة من {product.name} هي {product.current_quantity()} فقط"
+            )
+        item.quantity = quantity
+
+    if unit_price is not None:
+        if unit_price < 0:
+            raise ValueError("السعر لا يمكن أن يكون سالباً")
+        if unit_price != item.unit_price and unit_price != product.sale_price and not is_manager:
+            raise DiscountLimitExceededError("تغيير السعر يحتاج موافقة المدير")
+        item.unit_price = unit_price
+
+    if discount is not None:
+        if discount < 0:
+            raise ValueError("الخصم لا يمكن أن يكون سالباً")
+        gross = item.unit_price * item.quantity
+        if discount > gross:
+            raise ValueError("الخصم لا يمكن أن يتجاوز قيمة البند")
+        if discount > 0 and not is_manager:
+            allowed = percent_of(gross, _get_cashier_discount_limit(session) * 100)
+            if discount > allowed:
+                raise DiscountLimitExceededError(
+                    "نسبة الخصم تجاوزت الحد المسموح للكاشير. مطلوب موافقة المدير."
+                )
+        item.discount = discount
+
+    item.line_total = item.unit_price * item.quantity - item.discount
+    session.flush()
+    _recalculate_sale_totals(sale)
+    return item
+
+
+def search_sales(
+    session: Session,
+    user: User,
+    date_from: Optional[datetime.date] = None,
+    date_to: Optional[datetime.date] = None,
+    customer_id: Optional[int] = None,
+    cashier_id: Optional[int] = None,
+    status: Optional[str] = None,
+    text: str = "",
+    limit: int = 500,
+) -> list[Sale]:
+    """Invoice history search (local-date range, newest first).
+
+    ``text`` matches invoice number or any IMEI sold on the invoice.
+    """
+    q = session.query(Sale).filter(Sale.status != "held")
+    if user.role.name != ROLE_MANAGER:      # cashiers only see their own invoices
+        cashier_id = user.id
+    if date_from:
+        q = q.filter(Sale.created_at >= clock.day_bounds_utc(date_from)[0])
+    if date_to:
+        q = q.filter(Sale.created_at <= clock.day_bounds_utc(date_to)[1])
+    if customer_id:
+        q = q.filter(Sale.customer_id == customer_id)
+    if cashier_id:
+        q = q.filter(Sale.user_id == cashier_id)
+    if status:
+        q = q.filter(Sale.status == status)
+    text = (text or "").strip()
+    if text:
+        like = f"%{text}%"
+        imei_ids = session.query(SaleItem.sale_id).join(Device, Device.id == SaleItem.device_id).filter(
+            (Device.imei1.like(like)) | (Device.imei2.like(like))
+        )
+        q = q.filter((Sale.invoice_no.like(like)) | (Sale.id.in_(imei_ids)))
+    return q.order_by(Sale.id.desc()).limit(limit).all()
 
 
 def apply_discount(
@@ -261,8 +365,21 @@ def _recalculate_sale_totals(sale: Sale) -> None:
 # ── Holds ─────────────────────────────────────────────────────────────────────
 
 def list_held_sales(session: Session) -> list[Sale]:
-    """List all currently held sales drafts."""
-    return session.query(Sale).filter_by(status="held").order_by(Sale.id.desc()).all()
+    """Held invoices that actually contain items (empty drafts are not listed)."""
+    has_items = session.query(SaleItem.sale_id).filter(SaleItem.sale_id == Sale.id).exists()
+    return (
+        session.query(Sale).filter(Sale.status == "held", has_items)
+        .order_by(Sale.id.desc()).all()
+    )
+
+
+def discard_empty_draft(session: Session, sale: Sale) -> bool:
+    """Delete a held draft that has no lines. Returns True when deleted."""
+    if sale.status == "held" and not sale.items:
+        session.delete(sale)
+        session.flush()
+        return True
+    return False
 
 
 def resume_sale(session: Session, sale_id: int) -> Sale:

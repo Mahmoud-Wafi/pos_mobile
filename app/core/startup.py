@@ -64,3 +64,10 @@ def install_excepthook(show_dialog=None) -> None:
                 log.exception("Error dialog failed")
 
     sys.excepthook = _hook
+
+
+def restart_command() -> tuple[str, list[str]]:
+    """Program and arguments that start this application again (frozen exe or python main)."""
+    if getattr(sys, "frozen", False):
+        return sys.executable, sys.argv[1:]
+    return sys.executable, sys.argv

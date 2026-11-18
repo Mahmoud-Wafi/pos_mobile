@@ -72,105 +72,92 @@ def generate_warranty_invoice_pdf(
     dest_path: Path | str,
     shop_name: str = "محل الموبايلات",
     warranty_text: str = "الضمان وفق شروط الوكيل المعتمد",
+    shop_phone: str = "",
+    shop_address: str = "",
+    footer: str = "شكراً لتعاملكم معنا",
 ) -> Path:
-    """Generate a formal A4 sales and warranty certificate invoice PDF using ReportLab."""
-    from reportlab.lib.pagesizes import A4
+    """Formal A4 sales invoice and warranty certificate (Arabic, right-to-left)."""
     from reportlab.lib import colors
-    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
-    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.pagesizes import A4
+    from reportlab.platypus import SimpleDocTemplate, Spacer, Table, TableStyle
 
+    from app.printing import pdf_common as pc
+
+    pc.register_fonts()
     dest = Path(dest_path)
     dest.parent.mkdir(parents=True, exist_ok=True)
+    doc = SimpleDocTemplate(str(dest), pagesize=A4, rightMargin=36, leftMargin=36, topMargin=36, bottomMargin=36,
+                            title=f"فاتورة {sale.invoice_no}")
+    W = A4[0] - 72
 
-    doc = SimpleDocTemplate(
-        str(dest),
-        pagesize=A4,
-        rightMargin=36,
-        leftMargin=36,
-        topMargin=36,
-        bottomMargin=36,
-    )
+    h1 = pc.style("h1", 18, bold=True, align=pc.TEXT_ALIGN_CENTER, color="#0F172A")
+    h2 = pc.style("h2", 13, bold=True, align=pc.TEXT_ALIGN_CENTER, color="#1E3A8A")
+    meta = pc.style("meta", 9.5, color="#334155")
+    cell = pc.style("cell", 9, align=pc.TEXT_ALIGN_CENTER)
+    cell_r = pc.style("cell_r", 9)
+    head = pc.style("head", 9.5, bold=True, align=pc.TEXT_ALIGN_CENTER, color="#FFFFFF")
+    tot_l = pc.style("tot_l", 9.5, bold=True)
+    tot_v = pc.style("tot_v", 9.5, bold=True, align=pc.TEXT_ALIGN_CENTER)
 
-    styles = getSampleStyleSheet()
-    title_style = ParagraphStyle(
-        "InvoiceTitle",
-        parent=styles["Normal"],
-        fontName="Helvetica-Bold",
-        fontSize=18,
-        leading=22,
-        alignment=1,  # Center
-        textColor=colors.HexColor("#0F172A"),
-    )
-    meta_style = ParagraphStyle(
-        "InvoiceMeta",
-        parent=styles["Normal"],
-        fontName="Helvetica",
-        fontSize=10,
-        leading=14,
-        textColor=colors.HexColor("#334155"),
-    )
+    story = [pc.para(shop_name, h1, W)]
+    contact = "  |  ".join(x for x in (shop_address, shop_phone) if x)
+    if contact:
+        story.append(pc.para(contact, pc.style("c", 9, align=pc.TEXT_ALIGN_CENTER, color="#475569"), W))
+    story += [Spacer(1, 4), pc.para(f"فاتورة بيع وشهادة ضمان — رقم {sale.invoice_no}", h2, W), Spacer(1, 12)]
 
-    story = []
+    cust = sale.customer.name if sale.customer else "عميل نقدي"
+    cashier = sale.user.full_name if sale.user else "—"
+    info = Table([pc.rtl_row([
+        pc.para(f"رقم الفاتورة: {sale.invoice_no}", meta, W / 2),
+        pc.para(f"التاريخ: {pc.ltr(clock.fmt_local(sale.created_at, '%Y-%m-%d %H:%M'))}", meta, W / 2),
+    ]), pc.rtl_row([
+        pc.para(f"العميل: {cust}", meta, W / 2),
+        pc.para(f"الكاشير: {cashier}", meta, W / 2),
+    ])], colWidths=[W / 2, W / 2])
+    story += [info, Spacer(1, 12)]
 
-    # Title & Header
-    story.append(Paragraph(f"<b>{shop_name}</b>", title_style))
-    story.append(Paragraph(f"Sales Invoice &amp; Warranty Certificate — #{sale.invoice_no}", title_style))
-    story.append(Spacer(1, 14))
-
-    # Meta Info Table
-    meta_data = [
-        [f"Invoice: {sale.invoice_no}", f"Date: {clock.fmt_local(sale.created_at, '%Y-%m-%d %H:%M')}"],
-        [f"Customer: {sale.customer.name}", f"Cashier: {sale.user.full_name if sale.user else 'Admin'}"],
-    ]
-    meta_table = Table(meta_data, colWidths=[260, 260])
-    meta_table.setStyle(TableStyle([
-        ("FONTNAME", (0, 0), (-1, -1), "Helvetica"),
-        ("FONTSIZE", (0, 0), (-1, -1), 10),
-        ("TEXTCOLOR", (0, 0), (-1, -1), colors.HexColor("#334155")),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
-    ]))
-    story.append(meta_table)
-    story.append(Spacer(1, 16))
-
-    # Items Table
-    table_data = [["#", "Item Description", "IMEI / Serial", "Qty", "Unit Price", "Total (EGP)"]]
+    widths = [28, 185, 105, 38, 78, 78]          # logical order: #, item, IMEI, qty, price, total
+    scale = W / sum(widths)
+    widths = [w * scale for w in widths]
+    headers = ["#", "الصنف", "السيريال (IMEI)", "الكمية", "سعر الوحدة", "الإجمالي"]
+    data = [pc.rtl_row([pc.para(h, head, w) for h, w in zip(headers, widths)])]
     for idx, it in enumerate(sale.items, start=1):
-        imei_str = it.device.imei1 if it.device else "—"
-        price_egp = f"{piasters_to_egp(it.unit_price):,.2f}"
-        total_egp = f"{piasters_to_egp(it.line_total):,.2f}"
-        table_data.append([str(idx), it.product.name, imei_str, str(it.quantity), price_egp, total_egp])
-
-    # Totals rows
-    table_data.append(["", "", "", "", "Subtotal:", f"{piasters_to_egp(sale.subtotal):,.2f}"])
-    if sale.discount > 0:
-        table_data.append(["", "", "", "", "Discount:", f"-{piasters_to_egp(sale.discount):,.2f}"])
-    table_data.append(["", "", "", "", "Net Total:", f"{piasters_to_egp(sale.total):,.2f}"])
-    table_data.append(["", "", "", "", "Paid:", f"{piasters_to_egp(sale.paid):,.2f}"])
-    if sale.remaining > 0:
-        table_data.append(["", "", "", "", "Remaining:", f"{piasters_to_egp(sale.remaining):,.2f}"])
-
-    items_table = Table(table_data, colWidths=[30, 180, 120, 40, 80, 80])
+        imei = it.device.imei1 if it.device else "—"
+        vals = [str(idx), it.product.name, imei, str(it.quantity), format_money(it.unit_price), format_money(it.line_total)]
+        data.append(pc.rtl_row([
+            pc.para(v, cell_r if i == 1 else cell, widths[i]) for i, v in enumerate(vals)
+        ]))
+    n_items = len(sale.items)
+    items_table = Table(data, colWidths=list(reversed(widths)), repeatRows=1)
     items_table.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#0F172A")),
-        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-        ("FONTSIZE", (0, 0), (-1, 0), 10),
-        ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-        ("ALIGN", (1, 1), (1, -1), "LEFT"),
-        ("GRID", (0, 0), (-1, len(sale.items)), 0.5, colors.HexColor("#CBD5E1")),
-        ("FONTNAME", (0, 1), (-1, -1), "Helvetica"),
-        ("FONTSIZE", (0, 1), (-1, -1), 9),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
-        ("TOPPADDING", (0, 0), (-1, -1), 6),
+        ("GRID", (0, 0), (-1, n_items), 0.5, colors.HexColor("#CBD5E1")),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("TOPPADDING", (0, 0), (-1, -1), 5), ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
     ]))
-    story.append(items_table)
-    story.append(Spacer(1, 20))
+    story += [items_table, Spacer(1, 8)]
 
-    # Warranty notice
-    story.append(Paragraph(f"<b>Warranty Terms:</b> {warranty_text}", meta_style))
-    story.append(Spacer(1, 8))
-    story.append(Paragraph("All devices are guaranteed against manufacturer defects. Keep this invoice for warranty claims.", meta_style))
+    totals = [("المجموع الفرعي", sale.subtotal)]
+    if sale.discount > 0:
+        totals.append(("الخصم", -sale.discount))
+    totals += [("الإجمالي الصافي", sale.total), ("المدفوع", sale.paid)]
+    if sale.remaining > 0:
+        totals.append(("المتبقي (آجل)", sale.remaining))
+    tw = [W * 0.28, W * 0.22]
+    ttable = Table([pc.rtl_row([pc.para(label, tot_l, tw[0]), pc.para(format_money(val), tot_v, tw[1])])
+                    for label, val in totals], colWidths=list(reversed(tw)), hAlign="RIGHT")
+    ttable.setStyle(TableStyle([
+        ("BOX", (0, 0), (-1, -1), 0.5, colors.HexColor("#CBD5E1")),
+        ("LINEBELOW", (0, 0), (-1, -2), 0.25, colors.HexColor("#E2E8F0")),
+        ("TOPPADDING", (0, 0), (-1, -1), 4), ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+    ]))
+    story += [ttable, Spacer(1, 18)]
+
+    story.append(pc.para("شروط الضمان", pc.style("wh", 11, bold=True, color="#0F172A"), W))
+    story.append(pc.para(warranty_text, pc.style("w", 9.5, color="#334155"), W))
+    story.append(pc.para("الأجهزة مضمونة ضد عيوب الصناعة. يرجى الاحتفاظ بالفاتورة لتفعيل الضمان.",
+                         pc.style("w2", 9.5, color="#334155"), W))
+    story += [Spacer(1, 14), pc.para(footer, pc.style("f", 10, bold=True, align=pc.TEXT_ALIGN_CENTER), W)]
 
     doc.build(story)
     return dest
-

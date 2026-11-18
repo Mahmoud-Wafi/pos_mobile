@@ -1,5 +1,8 @@
 """Modern Stocktake (physical inventory count) widget with clean card layout."""
 from __future__ import annotations
+from app.i18n import ar
+from app.ui.components import show_error, show_toast
+from app.ui.design.style import set_prop, style_label
 
 try:
     from PySide6.QtWidgets import (
@@ -32,13 +35,13 @@ if HAS_QT:
 
             # Card 1: Input Form
             form_card = QFrame()
-            form_card.setStyleSheet("background-color: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 10px; padding: 16px;")
+            set_prop(form_card, "card", True)
             form_layout = QVBoxLayout(form_card)
 
-            card_title = QLabel("📋 تسجيل الجرد الفعلي للمخزون")
-            card_title.setStyleSheet("font-size: 15px; font-weight: bold; color: #0F172A;")
-            card_sub = QLabel("اختر الصنف وأدخل الكمية الفعلية الموجودة في المحل لتسجيل حركة تسوية آلية")
-            card_sub.setStyleSheet("font-size: 12px; color: #64748B; margin-bottom: 8px;")
+            card_title = QLabel(ar.STOCKTAKE_WIDGET_A628BE)
+            style_label(card_title, size="title", tone="text", bold=True)
+            card_sub = QLabel(ar.STOCKTAKE_WIDGET_D7A4DC)
+            style_label(card_sub, size="caption", tone="muted")
             form_layout.addWidget(card_title)
             form_layout.addWidget(card_sub)
 
@@ -46,21 +49,21 @@ if HAS_QT:
             grid.setHorizontalSpacing(16)
             grid.setVerticalSpacing(10)
 
-            lbl_prod = QLabel("الصنف المراد جرده *")
-            lbl_prod.setStyleSheet("font-weight: 600; color: #334155;")
+            lbl_prod = QLabel(ar.STOCKTAKE_WIDGET_1AC56E)
+            style_label(lbl_prod, tone="text", bold=True)
             self.product_combo = QComboBox()
             self._load_products()
 
-            lbl_actual = QLabel("الكمية الفعلية الموجودة *")
-            lbl_actual.setStyleSheet("font-weight: 600; color: #334155;")
+            lbl_actual = QLabel(ar.STOCKTAKE_WIDGET_22B850)
+            style_label(lbl_actual, tone="text", bold=True)
             self.actual_qty = QSpinBox()
             self.actual_qty.setRange(0, 99999)
-            self.actual_qty.setSuffix(" قطعة")
+            self.actual_qty.setSuffix(ar.STOCKTAKE_WIDGET_C35BDF)
 
-            lbl_reason = QLabel("سبب أو بيان الجرد")
-            lbl_reason.setStyleSheet("font-weight: 600; color: #334155;")
+            lbl_reason = QLabel(ar.STOCKTAKE_WIDGET_F6C98C)
+            style_label(lbl_reason, tone="text", bold=True)
             self.reason_edit = QLineEdit()
-            self.reason_edit.setPlaceholderText("مثال: جرد نهاية الشهر، تسوية عجز...")
+            self.reason_edit.setPlaceholderText(ar.STOCKTAKE_WIDGET_0FA5D5)
 
             grid.addWidget(lbl_prod, 0, 0)
             grid.addWidget(lbl_actual, 0, 1)
@@ -74,7 +77,7 @@ if HAS_QT:
 
             btn_box = QHBoxLayout()
             btn_box.addStretch()
-            self.btn_submit = QPushButton("💾 اعتماد وتسجيل الجرد")
+            self.btn_submit = QPushButton(ar.STOCKTAKE_WIDGET_54E462)
             self.btn_submit.setProperty("class", "PrimaryBtn")
             self.btn_submit.setFixedWidth(180)
             self.btn_submit.clicked.connect(self._do_stocktake)
@@ -84,13 +87,13 @@ if HAS_QT:
             layout.addWidget(form_card)
 
             # Card 2: History Table
-            history_title = QLabel("📜 سجل حركات التسوية والجرد الأخيرة:")
-            history_title.setStyleSheet("font-size: 14px; font-weight: bold; color: #0F172A;")
+            history_title = QLabel(ar.STOCKTAKE_WIDGET_4BCE15)
+            style_label(history_title, size="label", tone="text", bold=True)
             layout.addWidget(history_title)
 
             self.history_table = QTableWidget()
             self.history_table.setColumnCount(4)
-            self.history_table.setHorizontalHeaderLabels(["اسم الصنف", "فرق التسوية", "البيان / السبب", "تاريخ ووقت الجرد"])
+            self.history_table.setHorizontalHeaderLabels([ar.STOCKTAKE_WIDGET_FA4E1F, ar.STOCKTAKE_WIDGET_2A169F, ar.STOCKTAKE_WIDGET_4F7006, ar.STOCKTAKE_WIDGET_514A6A])
             self.history_table.verticalHeader().setVisible(False)
             self.history_table.verticalHeader().setDefaultSectionSize(40)
             self.history_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Stretch)
@@ -114,26 +117,26 @@ if HAS_QT:
 
         def _do_stocktake(self):
             if not self._products:
-                QMessageBox.warning(self, "تنبيه", "لا توجد منتجات غير IMEI للجرد")
+                show_error(self, message=ar.STOCKTAKE_WIDGET_5F986A)
                 return
             product = self.product_combo.currentData()
             actual = self.actual_qty.value()
-            reason = self.reason_edit.text().strip() or "جرد دوري للمخزن"
+            reason = self.reason_edit.text().strip() or ar.STOCKTAKE_WIDGET_657678
             try:
                 mv = inventory_service.stocktake(self.session, self.user, product, actual, reason)
                 self.session.commit()
                 if mv is None:
-                    QMessageBox.information(self, "معلومة", "الكمية الفعلية مطابقة لرصيد السيستم — لم يتطلب أي تسوية.")
+                    QMessageBox.information(self, ar.STOCKTAKE_WIDGET_BFECD1, ar.STOCKTAKE_WIDGET_85CCAA)
                 else:
                     sign = "+" if mv.quantity > 0 else ""
-                    QMessageBox.information(self, "تم بنجاح", f"تم اعتماد الجرد وتسجيل حركة تسوية: {sign}{mv.quantity} قطعة")
+                    show_toast(self, f"تم اعتماد الجرد وتسجيل حركة تسوية: {sign}{mv.quantity} قطعة")
                 self._load_products()
                 self._load_history()
             except PermissionDenied as e:
-                QMessageBox.critical(self, "خطأ في الصلاحية", str(e))
+                show_error(self, e)
             except Exception as e:
                 self.session.rollback()
-                QMessageBox.critical(self, "خطأ", str(e))
+                show_error(self, e)
 
         def _load_history(self):
             from app.models.stock import StockMovement

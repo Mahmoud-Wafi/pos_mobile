@@ -1,5 +1,6 @@
 """Dialog for transferring cash between accounts (e.g. Drawer -> Safe, Safe -> Bank)."""
 from __future__ import annotations
+from app.i18n import ar
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QDoubleValidator
@@ -8,9 +9,13 @@ from PySide6.QtWidgets import (
     QComboBox, QPushButton, QMessageBox, QFrame,
 )
 
+from app.ui.components import show_error, show_toast
 from app.core.money import egp_to_piasters, format_money
 from app.models.accounting import CashAccount
 from app.services import accounting_service
+from app.ui.design.style import set_prop, style_label, variant
+from app.ui.design import icons
+from app.ui.design.tokens import COLORS
 
 
 class TransferDialog(QDialog):
@@ -18,31 +23,10 @@ class TransferDialog(QDialog):
         super().__init__(parent)
         self.session = session
         self.user = user
-        self.setWindowTitle("تحويل نقدية بين الحسابات")
+        self.setWindowTitle(ar.TRANSFER_DIALOG_A45046)
         self.resize(480, 420)
         self.setModal(True)
-        self.setStyleSheet("""
-            QDialog {
-                background-color: #FFFFFF;
-            }
-            QLabel {
-                color: #0F172A;
-                font-size: 13px;
-                font-weight: 600;
-            }
-            QLineEdit, QComboBox {
-                background-color: #F8FAFC;
-                border: 1px solid #CBD5E1;
-                border-radius: 8px;
-                padding: 10px 12px;
-                font-size: 13px;
-                color: #0F172A;
-            }
-            QLineEdit:focus, QComboBox:focus {
-                background-color: #FFFFFF;
-                border: 2px solid #2563EB;
-            }
-        """)
+
         self._build_ui()
         self._load_accounts()
 
@@ -53,16 +37,16 @@ class TransferDialog(QDialog):
 
         # Header
         hdr = QHBoxLayout()
-        icon = QLabel("🔄")
-        icon.setStyleSheet("font-size: 28px;")
+        icon = QLabel()
+        icon.setPixmap(icons.pixmap("rotate-ccw", COLORS["primary"], 28))
         hdr.addWidget(icon)
 
         t_box = QVBoxLayout()
         t_box.setSpacing(2)
-        lbl_t = QLabel("تحويل رصيد داخلي")
-        lbl_t.setStyleSheet("font-size: 16px; font-weight: bold; color: #0F172A;")
-        lbl_sub = QLabel("نقل الأموال بين الدرج والخزنة أو الحساب البنكي بحركة مزدوجة مؤمنة")
-        lbl_sub.setStyleSheet("font-size: 12px; color: #64748B; font-weight: normal;")
+        lbl_t = QLabel(ar.TRANSFER_DIALOG_8F62F9)
+        style_label(lbl_t, size="title", tone="text", bold=True)
+        lbl_sub = QLabel(ar.TRANSFER_DIALOG_744014)
+        style_label(lbl_sub, size="caption", tone="muted")
         t_box.addWidget(lbl_t)
         t_box.addWidget(lbl_sub)
         hdr.addLayout(t_box)
@@ -71,34 +55,34 @@ class TransferDialog(QDialog):
 
         sep = QFrame()
         sep.setFrameShape(QFrame.HLine)
-        sep.setStyleSheet("color: #E2E8F0;")
+        set_prop(sep, "hline", True)
         layout.addWidget(sep)
 
         # From Account
-        layout.addWidget(QLabel("من حساب (المرسل): *"))
+        layout.addWidget(QLabel(ar.TRANSFER_DIALOG_E0797A))
         self.from_combo = QComboBox()
         self.from_combo.setFixedHeight(42)
         layout.addWidget(self.from_combo)
 
         # To Account
-        layout.addWidget(QLabel("إلى حساب (المستلم): *"))
+        layout.addWidget(QLabel(ar.TRANSFER_DIALOG_15BE4F))
         self.to_combo = QComboBox()
         self.to_combo.setFixedHeight(42)
         layout.addWidget(self.to_combo)
 
         # Amount
-        layout.addWidget(QLabel("مبلغ التحويل (ج.م): *"))
+        layout.addWidget(QLabel(ar.TRANSFER_DIALOG_4619D6))
         self.amount_edit = QLineEdit()
         self.amount_edit.setFixedHeight(42)
-        self.amount_edit.setPlaceholderText("0.00 ج.م")
+        self.amount_edit.setPlaceholderText(ar.DAILY_CLOSE_DIALOG_388B15)
         self.amount_edit.setValidator(QDoubleValidator(0.01, 9999999.0, 2))
         layout.addWidget(self.amount_edit)
 
         # Notes
-        layout.addWidget(QLabel("سبب أو بيان التحويل:"))
+        layout.addWidget(QLabel(ar.TRANSFER_DIALOG_790957))
         self.note_edit = QLineEdit()
         self.note_edit.setFixedHeight(40)
-        self.note_edit.setPlaceholderText("مثال: توريد نقدية المساء من الدرج إلى الخزنة...")
+        self.note_edit.setPlaceholderText(ar.TRANSFER_DIALOG_DAE0D4)
         layout.addWidget(self.note_edit)
 
         layout.addStretch()
@@ -107,35 +91,15 @@ class TransferDialog(QDialog):
         btn_box = QHBoxLayout()
         btn_box.setSpacing(12)
 
-        btn_cancel = QPushButton("إلغاء")
+        btn_cancel = QPushButton(ar.CANCEL)
         btn_cancel.setFixedHeight(42)
-        btn_cancel.setStyleSheet("""
-            QPushButton {
-                background-color: #F1F5F9;
-                color: #475569;
-                border: 1px solid #CBD5E1;
-                border-radius: 8px;
-                font-weight: 600;
-                padding: 0 18px;
-            }
-        """)
+        variant(btn_cancel, "secondary")
         btn_cancel.clicked.connect(self.reject)
         btn_box.addWidget(btn_cancel)
 
-        btn_transfer = QPushButton("🔄 تأكيد التحويل")
+        btn_transfer = QPushButton(ar.TRANSFER_DIALOG_5C8600)
         btn_transfer.setFixedHeight(42)
-        btn_transfer.setStyleSheet("""
-            QPushButton {
-                background-color: #2563EB;
-                color: white;
-                border-radius: 8px;
-                font-weight: bold;
-                padding: 0 24px;
-            }
-            QPushButton:hover {
-                background-color: #1D4ED8;
-            }
-        """)
+        variant(btn_transfer, "primary")
         btn_transfer.clicked.connect(self._transfer)
         btn_box.addWidget(btn_transfer)
 
@@ -158,12 +122,12 @@ class TransferDialog(QDialog):
         to_id = self.to_combo.currentData()
 
         if from_id == to_id:
-            QMessageBox.warning(self, "تنبيه", "لا يمكن التحويل من وإلى نفس الحساب")
+            show_error(self, message=ar.TRANSFER_DIALOG_B2AFB0)
             return
 
         amt_str = self.amount_edit.text().strip()
         if not amt_str:
-            QMessageBox.warning(self, "تنبيه", "يرجى إدخال مبلغ التحويل")
+            show_error(self, message=ar.TRANSFER_DIALOG_30CF4A)
             self.amount_edit.setFocus()
             return
 
@@ -172,7 +136,7 @@ class TransferDialog(QDialog):
             if amt_piasters <= 0:
                 raise ValueError()
         except Exception:
-            QMessageBox.warning(self, "تنبيه", "صيغة المبلغ غير صحيحة")
+            show_error(self, message=ar.EXPENSE_DIALOG_51D7FD)
             self.amount_edit.setFocus()
             return
 
@@ -187,9 +151,9 @@ class TransferDialog(QDialog):
                 note=note,
             )
             self.session.commit()
-            QMessageBox.information(self, "نجاح", f"تم تحويل {amt_str} ج.م بنجاح بين الحسابين!")
+            show_toast(self, f"تم تحويل {amt_str} ج.م بنجاح بين الحسابين!")
             self.accept()
         except Exception as e:
             self.session.rollback()
-            QMessageBox.critical(self, "خطأ", f"تعذر إتمام التحويل:\n{str(e)}")
+            show_error(self, message=f"تعذر إتمام التحويل:\n{str(e)}")
 
