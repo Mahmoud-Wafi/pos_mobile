@@ -90,6 +90,13 @@ class Product(TimestampMixin, Base):
     devices: Mapped[list[Device]] = relationship("Device", back_populates="product")
     movements: Mapped[list[StockMovement]] = relationship("StockMovement", back_populates="product")
 
+    extra_barcodes: Mapped[list["ProductBarcode"]] = relationship(
+        "ProductBarcode", back_populates="product", cascade="all, delete-orphan", order_by="ProductBarcode.id")
+
+    def all_barcodes(self) -> list[str]:
+        """The main barcode followed by the extra ones (a product can be scanned by any of them)."""
+        return ([self.barcode] if self.barcode else []) + [b.code for b in self.extra_barcodes]
+
     def current_quantity(self) -> int:
         """Return available quantity (stock row for accessories, in_stock devices for phones)."""
         if self.track_imei:
@@ -101,5 +108,17 @@ class Product(TimestampMixin, Base):
 
 
 # Import here to avoid circular references — Stock and Device defined in stock.py
+class ProductBarcode(Base):
+    """Additional barcodes of one product (e.g. different packagings or suppliers)."""
+    __tablename__ = "product_barcodes"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    product_id: Mapped[int] = mapped_column(Integer, ForeignKey("products.id"), nullable=False, index=True)
+    code: Mapped[str] = mapped_column(String(100), nullable=False, unique=True, index=True)
+    created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=utcnow, nullable=False)
+
+    product: Mapped[Product] = relationship("Product", back_populates="extra_barcodes")
+
+
 from app.models.stock import Stock, Device, StockMovement  # noqa: E402, F401
 

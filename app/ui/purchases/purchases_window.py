@@ -1,5 +1,6 @@
 """Purchases and Suppliers management screen (Tab 1: Invoices, Tab 2: Used Phones, Tab 3: Suppliers)."""
 from __future__ import annotations
+from app.core import clock
 from app.i18n import ar
 
 import os
@@ -106,6 +107,19 @@ class PurchasesWidget(QWidget):
         h.setSectionResizeMode(6, QHeaderView.Fixed); self.inv_table.setColumnWidth(6, 110)
         h.setSectionResizeMode(7, QHeaderView.Fixed); self.inv_table.setColumnWidth(7, 80)
         layout.addWidget(self.inv_table)
+        self.inv_table.doubleClicked.connect(self._show_invoice_detail)
+        self.btn_view_inv = QPushButton(ar.PURCHASE_DETAIL_VIEW)
+        self.btn_view_inv.setMinimumHeight(40)
+        self.btn_view_inv.clicked.connect(self._show_invoice_detail)
+        bar.insertWidget(1, self.btn_view_inv)
+
+    def _show_invoice_detail(self, *_):
+        from app.ui.purchases.purchase_detail_dialog import PurchaseDetailDialog
+
+        row = self.inv_table.currentRow()
+        shown = getattr(self, "_shown_invoices", [])
+        if 0 <= row < len(shown):
+            PurchaseDetailDialog(self.session, shown[row], self).exec()
 
     def _open_new_invoice_dialog(self):
         dlg = PurchaseInvoiceDialog(self.session, self.user, parent=self)
@@ -131,12 +145,13 @@ class PurchasesWidget(QWidget):
         self._render_invoices(filtered)
 
     def _render_invoices(self, invoices: list[Purchase]):
+        self._shown_invoices = list(invoices)
         self.inv_table.setRowCount(len(invoices))
         for idx, inv in enumerate(invoices):
             self.inv_table.setItem(idx, 0, QTableWidgetItem(str(inv.id)))
             self.inv_table.setItem(idx, 1, QTableWidgetItem(inv.invoice_number))
             self.inv_table.setItem(idx, 2, QTableWidgetItem(inv.supplier.name if inv.supplier else "—"))
-            self.inv_table.setItem(idx, 3, QTableWidgetItem(inv.created_at.strftime("%Y-%m-%d %H:%M")))
+            self.inv_table.setItem(idx, 3, QTableWidgetItem(clock.fmt_local(inv.created_at)))
 
             tot_item = QTableWidgetItem(format_money(inv.total))
             tot_item.setTextAlignment(Qt.AlignCenter)

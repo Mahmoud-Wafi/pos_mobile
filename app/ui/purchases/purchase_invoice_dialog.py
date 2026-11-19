@@ -39,6 +39,7 @@ class PurchaseInvoiceDialog(QDialog):
         self.resize(960, 680)
         self.setModal(True)
 
+        self._current_pending_imeis: list[dict] = []
         self._build_ui()
         self._load_suppliers()
         self._load_products()
@@ -115,6 +116,13 @@ class PurchaseInvoiceDialog(QDialog):
 
         # Product Selector
         line_grid.addWidget(QLabel(ar.PURCHASE_INVOICE_DIALOG_6AA60B), 0, 0)
+        self.product_search = QLineEdit()
+        self.product_search.setMinimumHeight(40)
+        self.product_search.setPlaceholderText(ar.PURCHASE_PRODUCT_SEARCH)
+        self.product_search.setClearButtonEnabled(True)
+        self.product_search.textChanged.connect(self._load_products)
+        self.product_search.returnPressed.connect(self._pick_by_barcode)
+        line_grid.addWidget(self.product_search, 2, 0, 1, 5)
         self.product_combo = QComboBox()
         self.product_combo.setMinimumHeight(40)
         self.product_combo.currentIndexChanged.connect(self._on_product_selected)
@@ -127,6 +135,7 @@ class PurchaseInvoiceDialog(QDialog):
         self.qty_edit.setFixedWidth(80)
         self.qty_edit.setValidator(QIntValidator(1, 99999))
         self.qty_edit.textChanged.connect(self._recalc_line_hint)
+        self.qty_edit.returnPressed.connect(self._add_line_item)
         line_grid.addWidget(self.qty_edit, 1, 1)
 
         # Unit Cost
@@ -136,6 +145,7 @@ class PurchaseInvoiceDialog(QDialog):
         self.cost_edit.setFixedWidth(120)
         self.cost_edit.setValidator(QDoubleValidator(0.0, 9999999.0, 2))
         self.cost_edit.textChanged.connect(self._recalc_line_hint)
+        self.cost_edit.returnPressed.connect(self._add_line_item)
         line_grid.addWidget(self.cost_edit, 1, 2)
 
         # IMEI Action (for phones)
@@ -237,13 +247,40 @@ class PurchaseInvoiceDialog(QDialog):
         for s in suppliers:
             bal_str = f" (رصيد: {format_money(s.balance)})" if s.balance else ""
             self.supplier_combo.addItem(f"{s.name}{bal_str}", s.id)
+        if not suppliers:
+            self.supplier_combo.addItem(ar.PURCHASE_NO_SUPPLIERS, None)
 
-    def _load_products(self):
+    def _load_products(self, *_args):
+        text = self.product_search.text().strip().lower() if hasattr(self, "product_search") else ""
+        self.product_combo.blockSignals(True)
         self.product_combo.clear()
         products = self.session.query(Product).filter(Product.is_active == True).order_by(Product.name.asc()).all()
         for p in products:
-            icon = "📱 " if p.track_imei else "🎧 "
-            self.product_combo.addItem(f"{icon}{p.name}", p)
+            if text and text not in p.name.lower() and not any(text in b.lower() for b in p.all_barcodes()):
+                continue
+            self.product_combo.addItem(p.name, p)
+        if self.product_combo.count() == 0:
+            self.product_combo.addItem(ar.PURCHASE_NO_PRODUCTS, None)
+        self.product_combo.blockSignals(False)
+        self._on_product_selected()
+
+    def _pick_by_barcode(self):
+        """A scanned (or typed) barcode that belongs to a product selects it and moves on to the quantity."""
+        from app.services import inventory_service
+        product = inventory_service.find_product_by_barcode(self.session, self.product_search.text())
+        if product is None or not product.is_active:
+            return
+        self.product_search.blockSignals(True)
+        self.product_search.setText(product.name)
+        self.product_search.blockSignals(False)
+        self._load_products()
+        idx = next((i for i in range(self.product_combo.count())
+                    if getattr(self.product_combo.itemData(i), "id", None) == product.id), -1)
+        if idx >= 0:
+            self.product_combo.setCurrentIndex(idx)
+            self._on_product_selected()
+            self.qty_edit.setFocus()
+            self.qty_edit.selectAll()
 
     def _load_cash_accounts(self):
         self.acc_combo.clear()

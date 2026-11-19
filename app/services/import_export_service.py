@@ -22,7 +22,7 @@ from app.core.money import parse_egp_input, piasters_to_input
 from app.core.permissions import (
     PERM_COST_VIEW, PERM_INVENTORY_EDIT, PERM_INVENTORY_VIEW, PERM_REPORTS_VIEW, require_permission,
 )
-from app.models.product import Brand, Product
+from app.models.product import Brand, Product, ProductBarcode
 from app.models.stock import Device
 from app.models.user import User
 from app.services import inventory_service
@@ -178,6 +178,7 @@ def preview_products(session: Session, user: User, path: str | Path) -> ImportPr
     if "name" not in cols:
         raise ImportExportError("لم يتم العثور على عمود الاسم (name / الاسم) في الملف")
     existing_barcodes = {b for (b,) in session.query(Product.barcode).filter(Product.barcode.isnot(None))}
+    existing_barcodes |= {c for (c,) in session.query(ProductBarcode.code)}
     seen_barcodes: set[str] = set()
     results: list[RowResult] = []
     for n, row in enumerate(rows, start=2):

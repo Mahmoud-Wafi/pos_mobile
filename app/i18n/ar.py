@@ -1044,3 +1044,20 @@ INV_OFFER_DEACTIVATE = "هذا المنتج له حركة ولا يمكن حذف
 DEVICE_COST_LABEL = "سعر الشراء (ج.م)"
 DEVICE_EXTRA_COST_LABEL = "تكاليف إضافية (ج.م)"
 DEVICE_NOTES_LABEL = "ملاحظات"
+
+# --- opening stock / purchases ---
+PRODUCT_OPENING_QTY = "الكمية الحالية بالمخزن"
+PRODUCT_OPENING_REASON = "رصيد افتتاحي"
+PRODUCT_OPENING_IMEI_HINT = "الهواتف المتتبعة بـ IMEI يزيد مخزونها بإضافة الأجهزة (تبويب «الأجهزة / IMEI») أو من فاتورة شراء."
+PURCHASE_DETAIL_TITLE = "تفاصيل فاتورة الشراء"
+PURCHASE_DETAIL_VIEW = "عرض الأصناف"
+PURCHASE_COL_PRODUCT = "الصنف"
+PURCHASE_NO_SUPPLIERS = "— لا يوجد موردون: اضغط «جديد» لإضافة مورد —"
+PURCHASE_PRODUCT_SEARCH = "ابحث عن صنف بالاسم أو الباركود"
+PURCHASE_NO_PRODUCTS = "لا توجد أصناف مطابقة"
+
+# --- barcodes ---
+PRODUCT_EXTRA_BARCODES = "باركودات إضافية (اختياري)"
+PRODUCT_EXTRA_BARCODES_HINT = "افصل بين الباركودات بمسافة أو فاصلة — أي باركود منها يفتح نفس المنتج"
+PRODUCT_BARCODE_OWNER = "هذا الباركود مسجل للمنتج"
+PRODUCT_BARCODE_OPEN = "هل تريد فتح المنتج للتعديل؟"

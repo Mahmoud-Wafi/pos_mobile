@@ -1,8 +1,9 @@
 """Modern Product List widget with instant search, filters, badges, and clean dialogs."""
 from __future__ import annotations
-from app.core.permissions import PERM_COST_VIEW
+from app.core.permissions import PERM_COST_VIEW, PERM_INVENTORY_ADJUST
 from app.i18n import ar
 
+import re
 from decimal import Decimal
 from app.ui.components import show_error, show_toast
 from app.ui.design.style import set_prop, style_label, variant
@@ -153,7 +154,7 @@ if HAS_QT:
                     continue
                 if search_text:
                     name_match = search_text in p.name.lower()
-                    barcode_match = p.barcode and search_text in p.barcode.lower()
+                    barcode_match = any(search_text in b.lower() for b in p.all_barcodes())
                     if not (name_match or barcode_match):
                         continue
                 filtered.append(p)
@@ -334,12 +335,14 @@ if HAS_QT:
                 self.lbl_cost.setVisible(False)
             if product is not None:
                 self._prefill(product)
+            self._update_opening_visibility()
 
         def _prefill(self, p):
             from app.core.money import piasters_to_input
             from app.services import inventory_service as inv
             self.name_edit.setText(p.name)
             self.barcode_edit.setText(p.barcode or "")
+            self.extra_edit.setText("، ".join(b.code for b in p.extra_barcodes))
             self.type_combo.blockSignals(True)
             self.type_combo.setCurrentIndex(max(0, self.type_combo.findData(p.type)))
             self.type_combo.blockSignals(False)
@@ -393,6 +396,14 @@ if HAS_QT:
             grid_basic.addWidget(self.name_edit, 1, 0, 1, 2)
 
             # Type & Barcode
+            self.barcode_note = QLabel("")
+            style_label(self.barcode_note, size="caption", tone="danger")
+            self.barcode_note.setVisible(False)
+            lbl_extra = QLabel(ar.PRODUCT_EXTRA_BARCODES)
+            style_label(lbl_extra, bold=True)
+            self.extra_edit = QLineEdit()
+            self.extra_edit.setFixedHeight(40)
+            self.extra_edit.setPlaceholderText(ar.PRODUCT_EXTRA_BARCODES_HINT)
             lbl_type = QLabel(ar.PRODUCT_LIST_65F25B)
             style_label(lbl_type, bold=True)
             self.type_combo = QComboBox()
@@ -412,6 +423,10 @@ if HAS_QT:
             grid_basic.addWidget(self.type_combo, 3, 0)
             grid_basic.addWidget(self.barcode_edit, 3, 1)
 
+            grid_basic.addWidget(self.barcode_note, 4, 0, 1, 2)
+            grid_basic.addWidget(lbl_extra, 5, 0, 1, 2)
+            grid_basic.addWidget(self.extra_edit, 6, 0, 1, 2)
+            self.barcode_edit.editingFinished.connect(self._check_barcode)
             main_layout.addWidget(grp_basic)
 
             # ─── Group 2: الأسعار والتسعير ───
@@ -475,6 +490,18 @@ if HAS_QT:
             grid_stock.addWidget(self.min_stock_edit, 1, 0)
             grid_stock.addWidget(self.warranty_edit, 1, 1)
 
+            self.lbl_opening = QLabel(ar.PRODUCT_OPENING_QTY)
+            style_label(self.lbl_opening, bold=True)
+            self.opening_edit = QLineEdit("0")
+            self.opening_edit.setFixedHeight(40)
+            self.opening_edit.setValidator(QIntValidator(0, 999999))
+            self.opening_hint = QLabel(ar.PRODUCT_OPENING_IMEI_HINT)
+            style_label(self.opening_hint, size="caption", tone="muted")
+            self.opening_hint.setWordWrap(True)
+            grid_stock.addWidget(self.lbl_opening, 0, 2)
+            grid_stock.addWidget(self.opening_edit, 1, 2)
+            grid_stock.addWidget(self.opening_hint, 3, 0, 1, 3)
+
             # IMEI Tracking Card
             imei_card = QFrame()
             set_prop(imei_card, "card", True)
@@ -493,6 +520,7 @@ if HAS_QT:
 
             # Auto-check IMEI when type is phone
             self.type_combo.currentIndexChanged.connect(self._on_type_changed)
+            self.track_imei_check.toggled.connect(self._update_opening_visibility)
 
             grid_stock.addWidget(imei_card, 2, 0, 1, 2)
             main_layout.addWidget(grp_stock)
@@ -518,6 +546,35 @@ if HAS_QT:
             btn_layout.addWidget(btn_cancel)
             btn_layout.addWidget(btn_save)
             main_layout.addLayout(btn_layout)
+
+        def _check_barcode(self):
+            """A scanned barcode that already belongs to a product: say so, and offer to open that product."""
+            code = inventory_service.normalize_barcode(self.barcode_edit.text())
+            self.barcode_edit.setText(code)
+            owner = inventory_service.find_product_by_barcode(self.session, code) if code else None
+            mine = self.product is not None and owner is not None and owner.id == self.product.id
+            if owner is None or mine:
+                self.barcode_note.setVisible(False)
+                return
+            self.barcode_note.setText(f"{ar.PRODUCT_BARCODE_OWNER}: {owner.name}")
+            self.barcode_note.setVisible(True)
+            if self.product is None:
+                from app.ui.components import confirm
+                if confirm(self, ar.INV_EDIT_PRODUCT, f"{ar.PRODUCT_BARCODE_OWNER}: {owner.name}\n{ar.PRODUCT_BARCODE_OPEN}",
+                           ar.INV_BTN_EDIT):
+                    self.product = owner
+                    self.setWindowTitle(ar.INV_EDIT_PRODUCT)
+                    self._prefill(owner)
+                    self._update_opening_visibility()
+                    self.barcode_note.setVisible(False)
+
+        def _update_opening_visibility(self):
+            """Opening stock only for new, non-IMEI products and only for people who may adjust stock."""
+            can = PERM_INVENTORY_ADJUST in self.user.permission_codes() and self.product is None
+            imei = self.track_imei_check.isChecked()
+            for w in (self.lbl_opening, self.opening_edit):
+                w.setVisible(can and not imei)
+            self.opening_hint.setVisible(self.product is None and imei)
 
         def _on_type_changed(self):
             is_phone = self.type_combo.currentData() == "phone"
@@ -565,6 +622,7 @@ if HAS_QT:
                 "min_stock": min_stock,
                 "warranty_days": warranty_days,
                 "track_imei": self.track_imei_check.isChecked(),
+                "extra_barcodes": [c for c in re.split(r"[\s,،;]+", self.extra_edit.text()) if c],
             }
 
             try:
@@ -573,7 +631,10 @@ if HAS_QT:
                         data.pop("cost_price")
                     inventory_service.update_product(self.session, self.user, self.product.id, data)
                 else:
-                    inventory_service.create_product(self.session, self.user, data)
+                    created = inventory_service.create_product(self.session, self.user, data)
+                    opening = int(self.opening_edit.text() or "0") if self.opening_edit.isVisible() else 0
+                    if opening > 0 and not created.track_imei:
+                        inventory_service.adjust_stock(self.session, self.user, created, opening, ar.PRODUCT_OPENING_REASON)
                 self.session.commit()
                 self.accept()
             except PermissionDenied as e:
