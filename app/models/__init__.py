@@ -1,5 +1,5 @@
 from app.models.user import User, Role, RolePermission, AuditLog, Setting
-from app.models.product import Category, Brand, Product
+from app.models.product import Category, Brand, Product, ProductBarcode
 from app.models.stock import Stock, Device, StockMovement
 from app.models.customer import Customer, CustomerPayment
 from app.models.accounting import CashAccount, CashTransaction, Expense, ExpenseCategory, OwnerDraw
@@ -11,6 +11,7 @@ from app.models.repair import RepairTicket
 from app.models.wallet import Wallet, CommissionRule, WalletTransaction, WalletAudit
 
 __all__ = [
+    "ProductBarcode",
     "WarrantyClaim",
     "RepairTicket",
     "User",

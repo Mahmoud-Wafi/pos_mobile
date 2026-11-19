@@ -12,6 +12,7 @@ Business rules (AGENTS.md §6):
 """
 from __future__ import annotations
 
+import re
 from typing import Optional
 
 from sqlalchemy import func
@@ -24,7 +25,7 @@ from app.core.permissions import (
     require_permission,
 )
 from app.i18n import ar
-from app.models.product import Brand, Category, Product
+from app.models.product import Brand, Category, Product, ProductBarcode
 from app.models.purchase import PurchaseItem, UsedDevicePurchase
 from app.models.sale import SaleItem
 from app.models.stock import Device, Stock, StockMovement
@@ -92,6 +93,57 @@ def _add_movement(
     return mv
 
 
+# ── Barcodes ──────────────────────────────────────────────────────────────────
+
+_AR_DIGITS = str.maketrans("٠١٢٣٤٥٦٧٨٩۰۱۲۳۴۵۶۷۸۹", "01234567890123456789")
+_INTERNAL_CODE = re.compile(r"^P(\d{6})$")          # the fallback code printed on labels (label_service)
+
+
+def normalize_barcode(text: str | None) -> str:
+    """Trim, turn Arabic-Indic digits into Western ones and drop spaces / scanner line breaks."""
+    return "".join((text or "").translate(_AR_DIGITS).split())
+
+
+def find_product_by_barcode(session: Session, code: str) -> Optional[Product]:
+    """The product that owns this barcode: main barcode, any extra barcode, or its internal label code."""
+    code = normalize_barcode(code)
+    if not code:
+        return None
+    product = session.query(Product).filter(Product.barcode == code).first()
+    if product is None:
+        extra = session.query(ProductBarcode).filter(ProductBarcode.code == code).first()
+        product = extra.product if extra else None
+    if product is None:
+        m = _INTERNAL_CODE.match(code)
+        if m:
+            product = session.get(Product, int(m.group(1)))
+    return product
+
+
+def _check_barcode_free(session: Session, code: str, product_id: Optional[int]) -> None:
+    owner = find_product_by_barcode(session, code)
+    if owner is not None and owner.id != product_id and not _INTERNAL_CODE.match(code):
+        raise InventoryError(ar.PRODUCT_BARCODE_TAKEN)
+
+
+def set_extra_barcodes(session: Session, product: Product, codes: list[str]) -> None:
+    """Replace the product's extra barcodes. Each code must be free (not used by another product)."""
+    wanted: list[str] = []
+    for raw in codes:
+        code = normalize_barcode(raw)
+        if code and code != product.barcode and code not in wanted:
+            _check_barcode_free(session, code, product.id)
+            wanted.append(code)
+    keep = {b.code: b for b in product.extra_barcodes}
+    for code, row in list(keep.items()):
+        if code not in wanted:
+            product.extra_barcodes.remove(row)
+    for code in wanted:
+        if code not in keep:
+            product.extra_barcodes.append(ProductBarcode(code=code))
+    session.flush()
+
+
 # ── Category & Brand ──────────────────────────────────────────────────────────
 
 def create_category(session: Session, user: User, name: str, parent_id: Optional[int] = None) -> Category:
@@ -124,10 +176,13 @@ def create_product(session: Session, user: User, data: dict) -> Product:
     if product_type not in ("phone", "accessory", "card"):
         raise InvalidProductType(f"نوع المنتج غير صحيح: {product_type}")
 
+    barcode = normalize_barcode(data.get("barcode")) or None
+    if barcode:
+        _check_barcode_free(session, barcode, None)
     product = Product(
         name=data["name"],
         type=product_type,
-        barcode=data.get("barcode"),
+        barcode=barcode,
         category_id=data.get("category_id"),
         brand_id=data.get("brand_id"),
         cost_price=int(data.get("cost_price", 0)),
@@ -144,6 +199,8 @@ def create_product(session: Session, user: User, data: dict) -> Product:
 
     # Always create a Stock row (for IMEI products it reflects device count)
     _ensure_stock_row(session, product)
+    if data.get("extra_barcodes"):
+        set_extra_barcodes(session, product, list(data["extra_barcodes"]))
 
     log_action(session, "create_product", user_id=user.id,
                table_name="products", record_id=product.id,
@@ -181,11 +238,10 @@ def update_product(session: Session, user: User, product_id: int, data: dict) ->
             raise InventoryError(ar.PRODUCT_TYPE_LOCKED)
         if "type" in data and data["type"] not in ("phone", "accessory", "card"):
             raise InvalidProductType(f"نوع المنتج غير صحيح: {data['type']}")
-    barcode = data.get("barcode")
-    if barcode:
-        clash = session.query(Product.id).filter(Product.barcode == barcode, Product.id != product.id).first()
-        if clash:
-            raise InventoryError(ar.PRODUCT_BARCODE_TAKEN)
+    if "barcode" in data:
+        data = {**data, "barcode": normalize_barcode(data["barcode"]) or None}
+        if data["barcode"]:
+            _check_barcode_free(session, data["barcode"], product.id)
     old = {"name": product.name, "sale_price": product.sale_price, "cost_price": product.cost_price}
     for field in ("name", "barcode", "type", "category_id", "brand_id", "sale_price", "min_price",
                   "cost_price", "min_stock", "warranty_days", "track_imei", "is_active"):
@@ -196,6 +252,8 @@ def update_product(session: Session, user: User, product_id: int, data: dict) ->
             if field == "barcode":
                 value = value or None
             setattr(product, field, value)
+    if "extra_barcodes" in data:
+        set_extra_barcodes(session, product, list(data["extra_barcodes"]))
     log_action(session, "update_product", user_id=user.id,
                table_name="products", record_id=product.id,
                old_value=old, new_value={k: v for k, v in data.items()})
@@ -391,9 +449,8 @@ def find_by_barcode_or_imei(session: Session, query: str) -> Optional[Product | 
     ).first()
     if device:
         return device
-    # Try barcode
-    product = session.query(Product).filter_by(barcode=query).first()
-    return product
+    # Try barcode (main, extra, or the internal label code)
+    return find_product_by_barcode(session, query)
 
 
 def get_all_products(session: Session, active_only: bool = True):
@@ -420,7 +477,8 @@ def search_products(session: Session, text: str, limit: int = 50) -> list[Produc
     return (
         session.query(Product)
         .filter(Product.is_active == True)  # noqa: E712
-        .filter((Product.name.ilike(like)) | (Product.barcode.like(like)))
+        .filter((Product.name.ilike(like)) | (Product.barcode.like(like))
+                | Product.id.in_(session.query(ProductBarcode.product_id).filter(ProductBarcode.code.like(like))))
         .order_by(Product.name)
         .limit(limit)
         .all()

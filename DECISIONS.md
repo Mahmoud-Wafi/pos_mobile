@@ -90,3 +90,7 @@ Architectural and business-rule decisions made during development.
 - Type and IMEI tracking are locked once a product has history. A device's IMEI, condition and costs can only be edited while it is in stock; sold devices accept notes only.
 - Cost fields (product cost, device purchase/extra cost, the device list's cost column) need `cost.view`; a cashier no longer sees them.
 - Not covered yet: renaming/deleting categories and brands.
+
+## D-018 — Several barcodes per product
+- A product keeps its main `barcode` and any number of extra codes in `product_barcodes` (unique across both). Lookups (`find_product_by_barcode`) accept the main code, an extra code, or the internal label code `P` + 6-digit id, after normalising Arabic-Indic digits, spaces and scanner line breaks.
+- A barcode can belong to one product only; entering a code that exists opens that product instead of creating a duplicate.

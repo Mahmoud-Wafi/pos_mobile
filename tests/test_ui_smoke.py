@@ -428,3 +428,30 @@ def test_new_product_with_opening_stock_and_purchase_detail(qtbot, db_session):
         detail = PurchaseDetailDialog(s, purchase)
         qtbot.addWidget(detail)
         assert detail.table.item(0, 1).text() == "Charger"
+
+
+def test_scanning_a_barcode_autofills_purchase_line_and_product_form(qtbot, db_session, monkeypatch):
+    from app.core.money import egp_to_piasters as egp
+    from app.services import inventory_service as inv
+    from app.ui.inventory.product_list import ProductDialog
+    from app.ui.purchases.purchase_invoice_dialog import PurchaseInvoiceDialog
+
+    s, mgr = db_session, _mgr(db_session, "bc")
+    a = inv.create_product(s, mgr, {"name": "Cable", "type": "accessory", "cost_price": egp("12"), "sale_price": egp("20"),
+                                    "min_price": 0, "min_stock": 0, "track_imei": False, "warranty_days": 0,
+                                    "barcode": "111", "extra_barcodes": ["222"]})
+    inv.create_product(s, mgr, {"name": "Charger", "type": "accessory", "cost_price": egp("30"), "sale_price": egp("50"),
+                                "min_price": 0, "min_stock": 0, "track_imei": False, "warranty_days": 0, "barcode": "333"})
+    s.commit()
+    dlg = PurchaseInvoiceDialog(s, mgr)
+    qtbot.addWidget(dlg)
+    dlg.product_search.setText("222")                      # scanner types the code then presses Enter
+    dlg.product_search.returnPressed.emit()
+    assert dlg.product_combo.currentText() == "Cable" and dlg.cost_edit.text() in ("12", "12.00")
+
+    monkeypatch.setattr("app.ui.components.confirm", lambda *a, **k: True)
+    form = ProductDialog(s, mgr)
+    qtbot.addWidget(form)
+    form.barcode_edit.setText("222")
+    form.barcode_edit.editingFinished.emit()
+    assert form.product is a and form.name_edit.text() == "Cable"      # existing product opened for editing

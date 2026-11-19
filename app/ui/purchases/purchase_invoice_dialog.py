@@ -121,6 +121,7 @@ class PurchaseInvoiceDialog(QDialog):
         self.product_search.setPlaceholderText(ar.PURCHASE_PRODUCT_SEARCH)
         self.product_search.setClearButtonEnabled(True)
         self.product_search.textChanged.connect(self._load_products)
+        self.product_search.returnPressed.connect(self._pick_by_barcode)
         line_grid.addWidget(self.product_search, 2, 0, 1, 5)
         self.product_combo = QComboBox()
         self.product_combo.setMinimumHeight(40)
@@ -255,13 +256,31 @@ class PurchaseInvoiceDialog(QDialog):
         self.product_combo.clear()
         products = self.session.query(Product).filter(Product.is_active == True).order_by(Product.name.asc()).all()
         for p in products:
-            if text and text not in p.name.lower() and text not in (p.barcode or "").lower():
+            if text and text not in p.name.lower() and not any(text in b.lower() for b in p.all_barcodes()):
                 continue
             self.product_combo.addItem(p.name, p)
         if self.product_combo.count() == 0:
             self.product_combo.addItem(ar.PURCHASE_NO_PRODUCTS, None)
         self.product_combo.blockSignals(False)
         self._on_product_selected()
+
+    def _pick_by_barcode(self):
+        """A scanned (or typed) barcode that belongs to a product selects it and moves on to the quantity."""
+        from app.services import inventory_service
+        product = inventory_service.find_product_by_barcode(self.session, self.product_search.text())
+        if product is None or not product.is_active:
+            return
+        self.product_search.blockSignals(True)
+        self.product_search.setText(product.name)
+        self.product_search.blockSignals(False)
+        self._load_products()
+        idx = next((i for i in range(self.product_combo.count())
+                    if getattr(self.product_combo.itemData(i), "id", None) == product.id), -1)
+        if idx >= 0:
+            self.product_combo.setCurrentIndex(idx)
+            self._on_product_selected()
+            self.qty_edit.setFocus()
+            self.qty_edit.selectAll()
 
     def _load_cash_accounts(self):
         self.acc_combo.clear()

@@ -1055,3 +1055,9 @@ PURCHASE_COL_PRODUCT = "الصنف"
 PURCHASE_NO_SUPPLIERS = "— لا يوجد موردون: اضغط «جديد» لإضافة مورد —"
 PURCHASE_PRODUCT_SEARCH = "ابحث عن صنف بالاسم أو الباركود"
 PURCHASE_NO_PRODUCTS = "لا توجد أصناف مطابقة"
+
+# --- barcodes ---
+PRODUCT_EXTRA_BARCODES = "باركودات إضافية (اختياري)"
+PRODUCT_EXTRA_BARCODES_HINT = "افصل بين الباركودات بمسافة أو فاصلة — أي باركود منها يفتح نفس المنتج"
+PRODUCT_BARCODE_OWNER = "هذا الباركود مسجل للمنتج"
+PRODUCT_BARCODE_OPEN = "هل تريد فتح المنتج للتعديل؟"

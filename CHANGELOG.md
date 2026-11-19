@@ -3,6 +3,7 @@
 ## Unreleased (branch `fix-purchases-stock-reset`)
 - New product form has "current quantity" (opening stock) so a new product no longer shows 0.
 - Purchase invoices: product search box, Enter adds the line, hint when no supplier exists; the invoices list now opens a details view (products, quantities, costs, IMEIs) and shows local time.
+- Products can have several barcodes; scanning any of them finds the product in POS, purchase invoices, search and the product form (which opens the existing product instead of creating a duplicate). Label codes (`P000123`) are scannable too.
 - `scripts/reset_data.py`: wipe all data, leaving only `admin / admin123` and the built-in cash customer.
 
 ## Unreleased (branch `crud-inventory`)

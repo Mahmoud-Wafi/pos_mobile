@@ -3,6 +3,7 @@ from __future__ import annotations
 from app.core.permissions import PERM_COST_VIEW, PERM_INVENTORY_ADJUST
 from app.i18n import ar
 
+import re
 from decimal import Decimal
 from app.ui.components import show_error, show_toast
 from app.ui.design.style import set_prop, style_label, variant
@@ -153,7 +154,7 @@ if HAS_QT:
                     continue
                 if search_text:
                     name_match = search_text in p.name.lower()
-                    barcode_match = p.barcode and search_text in p.barcode.lower()
+                    barcode_match = any(search_text in b.lower() for b in p.all_barcodes())
                     if not (name_match or barcode_match):
                         continue
                 filtered.append(p)
@@ -341,6 +342,7 @@ if HAS_QT:
             from app.services import inventory_service as inv
             self.name_edit.setText(p.name)
             self.barcode_edit.setText(p.barcode or "")
+            self.extra_edit.setText("، ".join(b.code for b in p.extra_barcodes))
             self.type_combo.blockSignals(True)
             self.type_combo.setCurrentIndex(max(0, self.type_combo.findData(p.type)))
             self.type_combo.blockSignals(False)
@@ -394,6 +396,14 @@ if HAS_QT:
             grid_basic.addWidget(self.name_edit, 1, 0, 1, 2)
 
             # Type & Barcode
+            self.barcode_note = QLabel("")
+            style_label(self.barcode_note, size="caption", tone="danger")
+            self.barcode_note.setVisible(False)
+            lbl_extra = QLabel(ar.PRODUCT_EXTRA_BARCODES)
+            style_label(lbl_extra, bold=True)
+            self.extra_edit = QLineEdit()
+            self.extra_edit.setFixedHeight(40)
+            self.extra_edit.setPlaceholderText(ar.PRODUCT_EXTRA_BARCODES_HINT)
             lbl_type = QLabel(ar.PRODUCT_LIST_65F25B)
             style_label(lbl_type, bold=True)
             self.type_combo = QComboBox()
@@ -413,6 +423,10 @@ if HAS_QT:
             grid_basic.addWidget(self.type_combo, 3, 0)
             grid_basic.addWidget(self.barcode_edit, 3, 1)
 
+            grid_basic.addWidget(self.barcode_note, 4, 0, 1, 2)
+            grid_basic.addWidget(lbl_extra, 5, 0, 1, 2)
+            grid_basic.addWidget(self.extra_edit, 6, 0, 1, 2)
+            self.barcode_edit.editingFinished.connect(self._check_barcode)
             main_layout.addWidget(grp_basic)
 
             # ─── Group 2: الأسعار والتسعير ───
@@ -533,6 +547,27 @@ if HAS_QT:
             btn_layout.addWidget(btn_save)
             main_layout.addLayout(btn_layout)
 
+        def _check_barcode(self):
+            """A scanned barcode that already belongs to a product: say so, and offer to open that product."""
+            code = inventory_service.normalize_barcode(self.barcode_edit.text())
+            self.barcode_edit.setText(code)
+            owner = inventory_service.find_product_by_barcode(self.session, code) if code else None
+            mine = self.product is not None and owner is not None and owner.id == self.product.id
+            if owner is None or mine:
+                self.barcode_note.setVisible(False)
+                return
+            self.barcode_note.setText(f"{ar.PRODUCT_BARCODE_OWNER}: {owner.name}")
+            self.barcode_note.setVisible(True)
+            if self.product is None:
+                from app.ui.components import confirm
+                if confirm(self, ar.INV_EDIT_PRODUCT, f"{ar.PRODUCT_BARCODE_OWNER}: {owner.name}\n{ar.PRODUCT_BARCODE_OPEN}",
+                           ar.INV_BTN_EDIT):
+                    self.product = owner
+                    self.setWindowTitle(ar.INV_EDIT_PRODUCT)
+                    self._prefill(owner)
+                    self._update_opening_visibility()
+                    self.barcode_note.setVisible(False)
+
         def _update_opening_visibility(self):
             """Opening stock only for new, non-IMEI products and only for people who may adjust stock."""
             can = PERM_INVENTORY_ADJUST in self.user.permission_codes() and self.product is None
@@ -587,6 +622,7 @@ if HAS_QT:
                 "min_stock": min_stock,
                 "warranty_days": warranty_days,
                 "track_imei": self.track_imei_check.isChecked(),
+                "extra_barcodes": [c for c in re.split(r"[\s,،;]+", self.extra_edit.text()) if c],
             }
 
             try:
