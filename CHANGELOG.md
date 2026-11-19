@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased (branch `fix-purchases-stock-reset`)
+- New product form has "current quantity" (opening stock) so a new product no longer shows 0.
+- Purchase invoices: product search box, Enter adds the line, hint when no supplier exists; the invoices list now opens a details view (products, quantities, costs, IMEIs) and shows local time.
+- `scripts/reset_data.py`: wipe all data, leaving only `admin / admin123` and the built-in cash customer.
+
 ## Unreleased (branch `crud-inventory`)
 - Edit / delete / deactivate products and edit / delete / write off devices, with history-aware rules (D-017); cashiers no longer see cost fields.
 

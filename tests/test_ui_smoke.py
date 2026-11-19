@@ -389,3 +389,42 @@ def test_device_edit_dialog_and_actions(qtbot, db_session, monkeypatch):
     target = w._shown[0]
     w._delete_device()
     assert s.get(type(target), target.id) is None
+
+
+def test_new_product_with_opening_stock_and_purchase_detail(qtbot, db_session):
+    from app.core.money import egp_to_piasters as egp
+    from app.models.product import Product
+    from app.services import purchase_service
+    from app.ui.inventory.product_list import ProductDialog
+    from app.ui.purchases.purchase_detail_dialog import PurchaseDetailDialog
+    from app.ui.purchases.purchase_invoice_dialog import PurchaseInvoiceDialog
+
+    s, mgr = db_session, _mgr(db_session, "pm2")
+    dlg = ProductDialog(s, mgr)
+    qtbot.addWidget(dlg)
+    dlg.show()
+    dlg.name_edit.setText("Charger")
+    dlg.sale_edit.setText("100")
+    dlg.opening_edit.setText("7")
+    dlg._save()
+    product = s.query(Product).filter_by(name="Charger").one()
+    assert product.current_quantity() == 7                       # no longer 0
+
+    sup = purchase_service.create_supplier(s, mgr, "Sup")
+    inv_dlg = PurchaseInvoiceDialog(s, mgr)
+    qtbot.addWidget(inv_dlg)
+    inv_dlg.product_search.setText("charg")
+    assert inv_dlg.product_combo.count() == 1 and inv_dlg.product_combo.currentText() == "Charger"
+    inv_dlg.qty_edit.setText("3")
+    inv_dlg.cost_edit.setText("40")
+    inv_dlg._add_line_item()
+    assert inv_dlg.table.item(0, 1).text() == "Charger"
+    if sup is not None:
+        inv_dlg.supplier_combo.setCurrentIndex(inv_dlg.supplier_combo.findData(sup.id))
+        inv_dlg.inv_no_edit.setText("P-1")
+        inv_dlg._save_purchase()
+        assert product.current_quantity() == 10
+        purchase = purchase_service.list_purchases(s, mgr)[0]
+        detail = PurchaseDetailDialog(s, purchase)
+        qtbot.addWidget(detail)
+        assert detail.table.item(0, 1).text() == "Charger"
