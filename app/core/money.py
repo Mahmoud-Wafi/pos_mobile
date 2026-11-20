@@ -3,12 +3,13 @@
 All monetary values are stored and passed as **integer piasters** (100 piasters = 1 EGP).
 Never use float for money.
 """
+import re
 from decimal import Decimal, ROUND_HALF_UP
 
 
 def egp_to_piasters(egp: Decimal | int | str) -> int:
     """Convert an EGP amount (Decimal/str) to integer piasters, rounding half-up."""
-    d = Decimal(str(egp))
+    d = Decimal(normalize_number_text(egp) if isinstance(egp, str) else str(egp))
     piasters = (d * 100).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
     return int(piasters)
 
@@ -63,6 +64,28 @@ def weighted_average_cost(old_qty: int, old_avg_piasters: int, new_qty: int, new
 _ARABIC_DIGITS = str.maketrans("٠١٢٣٤٥٦٧٨٩٫٬،", "0123456789.,,")
 
 
+_GROUPED = re.compile(r"^\d{1,3}(,\d{3})+(\.\d+)?$")
+
+
+def normalize_number_text(text: str) -> str:
+    """Arabic digits/marks -> ASCII; ',' is a thousands mark only when it groups
+    3 digits ('1,234'), otherwise a decimal mark ('500,5')."""
+    cleaned = (text or "").strip().translate(_ARABIC_DIGITS).replace(" ", "")
+    if "," in cleaned:
+        cleaned = cleaned.replace(",", "") if _GROUPED.match(cleaned) else cleaned.replace(",", ".", 1).replace(",", "")
+    return cleaned
+
+
+def parse_int_input(text: str, default: int = 0) -> int:
+    """Whole number from user text (Arabic digits ok); empty -> default."""
+    cleaned = normalize_number_text(text)
+    if not cleaned:
+        return default
+    if not re.fullmatch(r"\d+", cleaned):
+        raise ValueError(f"invalid number: {text!r}")
+    return int(cleaned)
+
+
 def parse_egp_input(text: str) -> int:
     """Parse user-typed EGP text into integer piasters. Decimal only, never float.
 
@@ -71,8 +94,7 @@ def parse_egp_input(text: str) -> int:
     """
     from decimal import InvalidOperation
 
-    cleaned = (text or "").strip().translate(_ARABIC_DIGITS).replace(",", "").replace(" ", "")
-    cleaned = cleaned.replace("ج.م", "").replace("EGP", "")
+    cleaned = normalize_number_text(text).replace("ج.م", "").replace("EGP", "")
     if not cleaned:
         raise ValueError("empty amount")
     try:
@@ -93,7 +115,7 @@ def parse_percent_to_bp(text: str) -> int:
     """'2.5' (percent) -> 250 basis points, via Decimal."""
     from decimal import InvalidOperation
 
-    cleaned = (text or "").strip().translate(_ARABIC_DIGITS).replace("%", "").replace(",", "")
+    cleaned = normalize_number_text((text or "").replace("%", ""))
     try:
         value = Decimal(cleaned or "0")
     except InvalidOperation as exc:

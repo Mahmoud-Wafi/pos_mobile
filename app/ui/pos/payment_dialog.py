@@ -9,7 +9,7 @@ try:
         QLineEdit, QComboBox, QCheckBox, QMessageBox, QFrame, QGridLayout,
     )
     from PySide6.QtCore import Qt
-    from PySide6.QtGui import QDoubleValidator
+
     HAS_QT = True
 except ImportError:
     HAS_QT = False
@@ -18,6 +18,7 @@ from app.core.money import parse_egp_input
 from app.core.money import format_money, egp_to_piasters
 from app.core.money import piasters_to_input
 from app.i18n import ar
+from app.ui.components.numeric import set_int_validator, set_money_validator
 from app.ui.design.style import set_prop, style_label, variant
 
 
@@ -77,7 +78,7 @@ if HAS_QT:
             lbl_cash = QLabel(ar.PAYMENT_DIALOG_6B7806)
             style_label(lbl_cash, tone="success", bold=True)
             self.cash_edit = QLineEdit(piasters_to_input(self.total_piasters))
-            self.cash_edit.setValidator(QDoubleValidator(0.0, 9999999.0, 2))
+            set_money_validator(self.cash_edit, 0.0, 9999999.0)
             self.cash_edit.textChanged.connect(self._recalculate)
             self.cash_edit.textEdited.connect(lambda _t: setattr(self, "_cash_touched", True))
 
@@ -85,7 +86,7 @@ if HAS_QT:
             lbl_wallet = QLabel(ar.PAYMENT_DIALOG_924455)
             style_label(lbl_wallet, tone="info", bold=True)
             self.wallet_edit = QLineEdit("0")
-            self.wallet_edit.setValidator(QDoubleValidator(0.0, 9999999.0, 2))
+            set_money_validator(self.wallet_edit, 0.0, 9999999.0)
             self.wallet_edit.textChanged.connect(self._recalculate)
             self.wallet_edit.textEdited.connect(self._autofill_cash)
 
@@ -93,7 +94,7 @@ if HAS_QT:
             lbl_bank = QLabel(ar.PAYMENT_DIALOG_8353AE)
             style_label(lbl_bank, tone="primary", bold=True)
             self.bank_edit = QLineEdit("0")
-            self.bank_edit.setValidator(QDoubleValidator(0.0, 9999999.0, 2))
+            set_money_validator(self.bank_edit, 0.0, 9999999.0)
             self.bank_edit.textChanged.connect(self._recalculate)
             self.bank_edit.textEdited.connect(self._autofill_cash)
 
@@ -101,7 +102,7 @@ if HAS_QT:
             lbl_credit = QLabel(ar.PAYMENT_DIALOG_D41A2A)
             style_label(lbl_credit, tone="warning", bold=True)
             self.credit_edit = QLineEdit("0")
-            self.credit_edit.setValidator(QDoubleValidator(0.0, 9999999.0, 2))
+            set_money_validator(self.credit_edit, 0.0, 9999999.0)
             self.credit_edit.textChanged.connect(self._recalculate)
             self.credit_edit.textEdited.connect(self._autofill_cash)
 

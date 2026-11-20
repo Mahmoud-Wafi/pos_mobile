@@ -1,20 +1,22 @@
 """Modern Purchase Invoice Dialog for entering supplier invoices with IMEI support."""
 from __future__ import annotations
 from app.i18n import ar
+from app.ui.components.numeric import set_int_validator, set_money_validator
 
 import datetime
 from decimal import Decimal
 from typing import Optional
 
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QColor, QDoubleValidator, QIntValidator
+from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
     QComboBox, QPushButton, QTableWidget, QTableWidgetItem,
     QHeaderView, QMessageBox, QFrame, QGroupBox, QGridLayout,
 )
 
-from app.core.money import egp_to_piasters, format_money, piasters_to_egp, piasters_to_input
+from app.core.permissions import PERM_INVENTORY_EDIT
+from app.core.money import egp_to_piasters, format_money, parse_int_input, piasters_to_egp, piasters_to_input
 from app.models.accounting import CashAccount
 from app.models.product import Product
 from app.models.purchase import Supplier
@@ -128,12 +130,19 @@ class PurchaseInvoiceDialog(QDialog):
         self.product_combo.currentIndexChanged.connect(self._on_product_selected)
         line_grid.addWidget(self.product_combo, 1, 0)
 
+        self.btn_new_product = QPushButton(ar.PURCHASE_NEW_PRODUCT)
+        self.btn_new_product.setMinimumHeight(30)
+        variant(self.btn_new_product, "secondary")
+        self.btn_new_product.setVisible(PERM_INVENTORY_EDIT in self.user.permission_codes())
+        self.btn_new_product.clicked.connect(self._add_new_product)
+        line_grid.addWidget(self.btn_new_product, 0, 4)
+
         # Quantity
         line_grid.addWidget(QLabel(ar.PURCHASE_INVOICE_DIALOG_EA028B), 0, 1)
         self.qty_edit = QLineEdit("1")
         self.qty_edit.setMinimumHeight(40)
         self.qty_edit.setFixedWidth(80)
-        self.qty_edit.setValidator(QIntValidator(1, 99999))
+        set_int_validator(self.qty_edit, 1, 99999)
         self.qty_edit.textChanged.connect(self._recalc_line_hint)
         self.qty_edit.returnPressed.connect(self._add_line_item)
         line_grid.addWidget(self.qty_edit, 1, 1)
@@ -143,7 +152,7 @@ class PurchaseInvoiceDialog(QDialog):
         self.cost_edit = QLineEdit()
         self.cost_edit.setMinimumHeight(40)
         self.cost_edit.setFixedWidth(120)
-        self.cost_edit.setValidator(QDoubleValidator(0.0, 9999999.0, 2))
+        set_money_validator(self.cost_edit, 0.0, 9999999.0)
         self.cost_edit.textChanged.connect(self._recalc_line_hint)
         self.cost_edit.returnPressed.connect(self._add_line_item)
         line_grid.addWidget(self.cost_edit, 1, 2)
@@ -204,7 +213,7 @@ class PurchaseInvoiceDialog(QDialog):
         self.paid_edit = QLineEdit("0.00")
         self.paid_edit.setMinimumHeight(40)
         self.paid_edit.setFixedWidth(130)
-        self.paid_edit.setValidator(QDoubleValidator(0.0, 9999999.0, 2))
+        set_money_validator(self.paid_edit, 0.0, 9999999.0)
         self.paid_edit.textChanged.connect(self._recalc_totals)
         paid_box.addWidget(self.paid_edit)
         foot_layout.addLayout(paid_box)
@@ -264,6 +273,26 @@ class PurchaseInvoiceDialog(QDialog):
         self.product_combo.blockSignals(False)
         self._on_product_selected()
 
+    def _add_new_product(self):
+        """Create a product without leaving the invoice, then select it for the next line."""
+        from app.ui.inventory.product_list import ProductDialog
+        dlg = ProductDialog(self.session, self.user, parent=self, allow_opening=False)
+        if dlg.exec() != QDialog.Accepted or dlg.created_product is None:
+            return
+        product = dlg.created_product
+        self.product_search.blockSignals(True)
+        self.product_search.setText(product.name)
+        self.product_search.blockSignals(False)
+        self._load_products()
+        idx = next((i for i in range(self.product_combo.count())
+                    if getattr(self.product_combo.itemData(i), "id", None) == product.id), -1)
+        if idx >= 0:
+            self.product_combo.setCurrentIndex(idx)
+            self._on_product_selected()
+            self.cost_edit.setFocus()
+            self.cost_edit.selectAll()
+        show_toast(self, ar.PURCHASE_NEW_PRODUCT_ADDED)
+
     def _pick_by_barcode(self):
         """A scanned (or typed) barcode that belongs to a product selects it and moves on to the quantity."""
         from app.services import inventory_service
@@ -304,7 +333,7 @@ class PurchaseInvoiceDialog(QDialog):
             self.cost_edit.setText(f"{piasters_to_input(product.cost_price)}")
             if product.track_imei:
                 self.btn_imei.setEnabled(True)
-                qty = int(self.qty_edit.text() or 1)
+                qty = parse_int_input(self.qty_edit.text(), 1)
                 self.btn_imei.setText(f"إدخال ({qty}) سيريال IMEI")
                 variant(self.btn_imei, "secondary")
             else:
@@ -315,14 +344,14 @@ class PurchaseInvoiceDialog(QDialog):
     def _recalc_line_hint(self):
         product: Optional[Product] = self.product_combo.currentData()
         if product and product.track_imei:
-            qty = int(self.qty_edit.text() or 1)
+            qty = parse_int_input(self.qty_edit.text(), 1)
             self.btn_imei.setText(f"إدخال ({qty}) سيريال IMEI")
 
     def _open_imei_dialog(self):
         product: Optional[Product] = self.product_combo.currentData()
         if not product or not product.track_imei:
             return
-        qty = int(self.qty_edit.text() or 1)
+        qty = parse_int_input(self.qty_edit.text(), 1)
         dlg = IMEIInputDialog(product.name, qty, existing_imeis=self._current_pending_imeis, parent=self)
         if dlg.exec() == QDialog.Accepted:
             self._current_pending_imeis = dlg.imeis
@@ -336,7 +365,7 @@ class PurchaseInvoiceDialog(QDialog):
             return
 
         try:
-            qty = int(self.qty_edit.text() or 0)
+            qty = parse_int_input(self.qty_edit.text(), 0)
             if qty <= 0:
                 raise ValueError()
         except ValueError:

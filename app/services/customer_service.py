@@ -92,6 +92,7 @@ def collect_payment(
     method: str = "cash",
     shift_id: Optional[int] = None,
     notes: Optional[str] = None,
+    account_id: Optional[int] = None,
 ) -> CustomerPayment:
     """Collect a debt payment from a customer.
 
@@ -119,13 +120,15 @@ def collect_payment(
         notes=notes,
     )
     session.add(payment)
+    session.flush()                      # payment.id is needed for the cash-transaction reference
 
     # Reduce customer balance (positive = owes shop)
     customer.balance -= amount_piasters
 
     # If cash, increase drawer balance
     if method == "cash":
-        drawer = session.query(CashAccount).filter_by(type="drawer").first()
+        drawer = (session.get(CashAccount, account_id) if account_id
+                  else session.query(CashAccount).filter_by(type="drawer").first())
         if drawer:
             drawer.balance += amount_piasters
             session.add(CashTransaction(

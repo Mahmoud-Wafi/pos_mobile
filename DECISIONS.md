@@ -94,3 +94,10 @@ Architectural and business-rule decisions made during development.
 ## D-018 — Several barcodes per product
 - A product keeps its main `barcode` and any number of extra codes in `product_barcodes` (unique across both). Lookups (`find_product_by_barcode`) accept the main code, an extra code, or the internal label code `P` + 6-digit id, after normalising Arabic-Indic digits, spaces and scanner line breaks.
 - A barcode can belong to one product only; entering a code that exists opens that product instead of creating a duplicate.
+
+## D-019 — Locale-independent number input; wallet management is manager-only
+- Qt's `QDoubleValidator`/`QIntValidator` follow the OS locale. On an Arabic (Egypt) Windows they reject `500.00`, so users could not type decimals in any money field. All 48 uses are replaced by `app/ui/components/numeric.py` (`set_money_validator`, `set_int_validator`), which accept ASCII and Arabic-Indic digits and `.`, `,` or `٫` as the decimal mark on every machine.
+- `app.core.money.normalize_number_text` is the single normaliser: a comma is a thousands mark only when it groups three digits (`1,234`), otherwise it is a decimal mark (`500,5`). `parse_egp_input`, `egp_to_piasters(str)`, `parse_percent_to_bp` and `parse_int_input` all use it.
+- Creating wallets and commission rules needs `wallet.manage` (manager). The wallet screen now hides those buttons for roles without it; the service still enforces the rule. Change the role grants if the wallet employee should manage wallets too.
+- A purchase invoice can create a product in place ("+ منتج جديد"). The opening-quantity field is hidden there because the invoice itself adds the stock.
+- `tests/test_ui_service_calls.py` statically checks that every `*_service.fn(...)` call in the UI matches the real signature.

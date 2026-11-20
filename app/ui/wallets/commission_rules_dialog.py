@@ -1,9 +1,10 @@
 """Dialog for viewing and editing data-driven commission rules for mobile wallets."""
 from __future__ import annotations
 from app.i18n import ar
+from app.ui.components.numeric import set_int_validator, set_money_validator
 
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QDoubleValidator
+
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
     QComboBox, QPushButton, QTableWidget, QTableWidgetItem,
@@ -82,22 +83,22 @@ class CommissionRulesDialog(QDialog):
 
         add_grid.addWidget(QLabel(ar.COMMISSION_RULES_DIALOG_1F6570), 0, 2)
         self.min_edit = QLineEdit("1.00")
-        self.min_edit.setValidator(QDoubleValidator(0.0, 9999999.0, 2))
+        set_money_validator(self.min_edit, 0.0, 9999999.0)
         add_grid.addWidget(self.min_edit, 1, 2)
 
         add_grid.addWidget(QLabel(ar.COMMISSION_RULES_DIALOG_96C52A), 0, 3)
         self.max_edit = QLineEdit("5000.00")
-        self.max_edit.setValidator(QDoubleValidator(0.0, 9999999.0, 2))
+        set_money_validator(self.max_edit, 0.0, 9999999.0)
         add_grid.addWidget(self.max_edit, 1, 3)
 
         add_grid.addWidget(QLabel(ar.COMMISSION_RULES_DIALOG_E10280), 0, 4)
         self.fix_edit = QLineEdit("5.00")
-        self.fix_edit.setValidator(QDoubleValidator(0.0, 9999.0, 2))
+        set_money_validator(self.fix_edit, 0.0, 9999.0)
         add_grid.addWidget(self.fix_edit, 1, 4)
 
         add_grid.addWidget(QLabel("نسبة %:"), 0, 5)
         self.pct_edit = QLineEdit("0.0")
-        self.pct_edit.setValidator(QDoubleValidator(0.0, 100.0, 2))
+        set_money_validator(self.pct_edit, 0.0, 100.0)
         add_grid.addWidget(self.pct_edit, 1, 5)
 
         btn_add = QPushButton(ar.COMMISSION_RULES_DIALOG_F17096)

@@ -1,9 +1,10 @@
 """Dialog for transferring cash between accounts (e.g. Drawer -> Safe, Safe -> Bank)."""
 from __future__ import annotations
 from app.i18n import ar
+from app.ui.components.numeric import set_int_validator, set_money_validator
 
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QDoubleValidator
+
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
     QComboBox, QPushButton, QMessageBox, QFrame,
@@ -75,7 +76,7 @@ class TransferDialog(QDialog):
         self.amount_edit = QLineEdit()
         self.amount_edit.setFixedHeight(42)
         self.amount_edit.setPlaceholderText(ar.DAILY_CLOSE_DIALOG_388B15)
-        self.amount_edit.setValidator(QDoubleValidator(0.01, 9999999.0, 2))
+        set_money_validator(self.amount_edit, 0.01, 9999999.0)
         layout.addWidget(self.amount_edit)
 
         # Notes

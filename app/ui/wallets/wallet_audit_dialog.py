@@ -3,9 +3,10 @@ from __future__ import annotations
 
 from typing import Optional
 from app.i18n import ar
+from app.ui.components.numeric import set_int_validator, set_money_validator
 
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QDoubleValidator
+
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
     QComboBox, QPushButton, QMessageBox, QFrame,
@@ -80,7 +81,7 @@ class WalletAuditDialog(QDialog):
         self.actual_edit = QLineEdit()
         self.actual_edit.setFixedHeight(42)
         self.actual_edit.setPlaceholderText(ar.WALLET_AUDIT_DIALOG_79DE28)
-        self.actual_edit.setValidator(QDoubleValidator(0.0, 9999999.0, 2))
+        set_money_validator(self.actual_edit, 0.0, 9999999.0)
         self.actual_edit.textChanged.connect(self._recalc_diff)
         layout.addWidget(self.actual_edit)
 
