@@ -1,10 +1,11 @@
 """Modern dialog for adding and editing suppliers."""
 from __future__ import annotations
 from app.i18n import ar
+from app.ui.components.numeric import set_int_validator, set_money_validator
 
 from typing import Optional
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QDoubleValidator
+
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
     QTextEdit, QPushButton, QMessageBox, QFrame,
@@ -81,7 +82,7 @@ class SupplierDialog(QDialog):
             self.balance_edit = QLineEdit()
             self.balance_edit.setFixedHeight(42)
             self.balance_edit.setPlaceholderText(ar.SUPPLIER_DIALOG_F9748D)
-            self.balance_edit.setValidator(QDoubleValidator(0.0, 9999999.0, 2))
+            set_money_validator(self.balance_edit, 0.0, 9999999.0)
             layout.addWidget(self.balance_edit)
 
         # Notes

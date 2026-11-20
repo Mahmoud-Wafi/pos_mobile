@@ -1,12 +1,13 @@
 """Electronic Wallets management and instant operations screen."""
 from __future__ import annotations
 from app.i18n import ar
+from app.ui.components.numeric import set_int_validator, set_money_validator
 
 import datetime
 from typing import Optional
 
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QColor, QDoubleValidator
+from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
     QPushButton, QTableWidget, QTableWidgetItem, QHeaderView,
@@ -14,6 +15,7 @@ from PySide6.QtWidgets import (
 )
 
 from app.ui.components import show_error
+from app.core.permissions import PERM_WALLET_MANAGE
 from app.core.money import egp_to_piasters, format_money, piasters_to_egp
 from app.models.wallet import Wallet, WalletTransaction
 from app.services import wallet_service
@@ -55,6 +57,7 @@ class WalletsWidget(QWidget):
         btn_rules.setMinimumHeight(40)
         variant(btn_rules, "secondary")
         btn_rules.clicked.connect(self._open_rules_dialog)
+        self.btn_rules = btn_rules
         top_bar.addWidget(btn_rules)
 
         btn_audit = QPushButton(ar.WALLETS_WINDOW_A56017)
@@ -67,6 +70,10 @@ class WalletsWidget(QWidget):
         btn_new_wallet.setMinimumHeight(40)
         variant(btn_new_wallet, "primary")
         btn_new_wallet.clicked.connect(self._open_new_wallet_dialog)
+        self.btn_new_wallet = btn_new_wallet
+        can_manage = PERM_WALLET_MANAGE in self.user.permission_codes()   # the service enforces it; the UI just hides
+        btn_new_wallet.setVisible(can_manage)
+        btn_rules.setVisible(can_manage)
         top_bar.addWidget(btn_new_wallet)
 
         main_layout.addLayout(top_bar)
@@ -142,7 +149,7 @@ class WalletsWidget(QWidget):
         self.op_amount_edit = QLineEdit()
         self.op_amount_edit.setFixedHeight(40)
         self.op_amount_edit.setPlaceholderText(ar.DAILY_CLOSE_DIALOG_388B15)
-        self.op_amount_edit.setValidator(QDoubleValidator(0.01, 9999999.0, 2))
+        set_money_validator(self.op_amount_edit, 0.01, 9999999.0)
         self.op_amount_edit.textChanged.connect(self._recalc_commission_preview)
         grid.addWidget(self.op_amount_edit, 1, 2)
 

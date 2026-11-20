@@ -2,6 +2,7 @@
 from __future__ import annotations
 from app.core.permissions import PERM_COST_VIEW, PERM_INVENTORY_ADJUST
 from app.i18n import ar
+from app.ui.components.numeric import set_int_validator, set_money_validator
 
 import re
 from decimal import Decimal
@@ -18,14 +19,14 @@ try:
         QGridLayout, QGroupBox,
     )
     from PySide6.QtCore import Qt
-    from PySide6.QtGui import QColor, QFont, QDoubleValidator, QIntValidator
+    from PySide6.QtGui import QColor, QFont
     HAS_QT = True
 except ImportError:
     HAS_QT = False
 
 if HAS_QT:
     from app.services import inventory_service
-    from app.core.money import format_money, egp_to_piasters, piasters_to_egp
+    from app.core.money import normalize_number_text, format_money, egp_to_piasters, parse_int_input, piasters_to_egp
     from app.core.permissions import PermissionDenied
 
     HEADERS = ["#", ar.LOW_STOCK_WIDGET_1AB391, ar.LOW_STOCK_WIDGET_A70B01, ar.PRODUCT_LIST_95520D, ar.PRODUCT_LIST_13E684, ar.PRODUCT_LIST_BF9877, ar.DASH_MIN, ar.PRODUCT_LIST_6D7BD8, ar.USERS_STATUS]
@@ -320,11 +321,13 @@ if HAS_QT:
     class ProductDialog(QDialog):
         """Beautiful, professional dialog for adding products."""
 
-        def __init__(self, session, user, product=None, parent=None):
+        def __init__(self, session, user, product=None, parent=None, allow_opening=True):
             super().__init__(parent)
             self.session = session
             self.user = user
             self.product = product
+            self.created_product = None
+            self._allow_opening = allow_opening  # False when created from a purchase invoice (the invoice adds the stock)
             self.setWindowTitle(ar.INV_EDIT_PRODUCT if product else ar.PRODUCT_LIST_BD0915)
             self.setMinimumWidth(680)
 
@@ -440,7 +443,7 @@ if HAS_QT:
             self.sale_edit = QLineEdit()
             self.sale_edit.setFixedHeight(40)
             self.sale_edit.setPlaceholderText(ar.DAILY_CLOSE_DIALOG_388B15)
-            self.sale_edit.setValidator(QDoubleValidator(0.0, 9999999.0, 2))
+            set_money_validator(self.sale_edit, 0.0, 9999999.0)
 
             lbl_cost = QLabel(ar.PRODUCT_LIST_30B579)
             style_label(lbl_cost, tone="muted", bold=True)
@@ -448,14 +451,14 @@ if HAS_QT:
             self.cost_edit = QLineEdit()
             self.cost_edit.setFixedHeight(40)
             self.cost_edit.setPlaceholderText(ar.DAILY_CLOSE_DIALOG_388B15)
-            self.cost_edit.setValidator(QDoubleValidator(0.0, 9999999.0, 2))
+            set_money_validator(self.cost_edit, 0.0, 9999999.0)
 
             lbl_min_price = QLabel(ar.PRODUCT_LIST_B5D903)
             style_label(lbl_min_price, tone="muted", bold=True)
             self.min_price_edit = QLineEdit()
             self.min_price_edit.setFixedHeight(40)
             self.min_price_edit.setPlaceholderText(ar.DAILY_CLOSE_DIALOG_388B15)
-            self.min_price_edit.setValidator(QDoubleValidator(0.0, 9999999.0, 2))
+            set_money_validator(self.min_price_edit, 0.0, 9999999.0)
 
             grid_price.addWidget(lbl_sale, 0, 0)
             grid_price.addWidget(lbl_cost, 0, 1)
@@ -477,13 +480,13 @@ if HAS_QT:
             style_label(lbl_min_stock, bold=True)
             self.min_stock_edit = QLineEdit("3")
             self.min_stock_edit.setFixedHeight(40)
-            self.min_stock_edit.setValidator(QIntValidator(0, 9999))
+            set_int_validator(self.min_stock_edit, 0, 9999)
 
             lbl_warranty = QLabel(ar.PRODUCT_LIST_79E153)
             style_label(lbl_warranty, bold=True)
             self.warranty_edit = QLineEdit("0")
             self.warranty_edit.setFixedHeight(40)
-            self.warranty_edit.setValidator(QIntValidator(0, 3650))
+            set_int_validator(self.warranty_edit, 0, 3650)
 
             grid_stock.addWidget(lbl_min_stock, 0, 0)
             grid_stock.addWidget(lbl_warranty, 0, 1)
@@ -494,7 +497,7 @@ if HAS_QT:
             style_label(self.lbl_opening, bold=True)
             self.opening_edit = QLineEdit("0")
             self.opening_edit.setFixedHeight(40)
-            self.opening_edit.setValidator(QIntValidator(0, 999999))
+            set_int_validator(self.opening_edit, 0, 999999)
             self.opening_hint = QLabel(ar.PRODUCT_OPENING_IMEI_HINT)
             style_label(self.opening_hint, size="caption", tone="muted")
             self.opening_hint.setWordWrap(True)
@@ -570,11 +573,12 @@ if HAS_QT:
 
         def _update_opening_visibility(self):
             """Opening stock only for new, non-IMEI products and only for people who may adjust stock."""
-            can = PERM_INVENTORY_ADJUST in self.user.permission_codes() and self.product is None
+            can = (PERM_INVENTORY_ADJUST in self.user.permission_codes() and self.product is None
+                   and self._allow_opening)
             imei = self.track_imei_check.isChecked()
             for w in (self.lbl_opening, self.opening_edit):
                 w.setVisible(can and not imei)
-            self.opening_hint.setVisible(self.product is None and imei)
+            self.opening_hint.setVisible(self.product is None and imei and self._allow_opening)
 
         def _on_type_changed(self):
             is_phone = self.type_combo.currentData() == "phone"
@@ -591,7 +595,7 @@ if HAS_QT:
 
             sale_str = self.sale_edit.text().strip() or "0"
             try:
-                sale_egp = Decimal(sale_str)
+                sale_egp = Decimal(normalize_number_text(sale_str))
             except Exception:
                 show_error(self, message=ar.PRODUCT_LIST_B3DA0C)
                 self.sale_edit.setFocus()
@@ -599,18 +603,18 @@ if HAS_QT:
 
             cost_str = self.cost_edit.text().strip() or "0"
             try:
-                cost_egp = Decimal(cost_str)
+                cost_egp = Decimal(normalize_number_text(cost_str))
             except Exception:
                 cost_egp = Decimal("0")
 
             min_p_str = self.min_price_edit.text().strip() or str(sale_egp)
             try:
-                min_p_egp = Decimal(min_p_str)
+                min_p_egp = Decimal(normalize_number_text(min_p_str))
             except Exception:
                 min_p_egp = sale_egp
 
-            min_stock = int(self.min_stock_edit.text().strip() or "0")
-            warranty_days = int(self.warranty_edit.text().strip() or "0")
+            min_stock = parse_int_input(self.min_stock_edit.text().strip(), 0)
+            warranty_days = parse_int_input(self.warranty_edit.text().strip(), 0)
 
             data = {
                 "name": name,
@@ -632,7 +636,8 @@ if HAS_QT:
                     inventory_service.update_product(self.session, self.user, self.product.id, data)
                 else:
                     created = inventory_service.create_product(self.session, self.user, data)
-                    opening = int(self.opening_edit.text() or "0") if self.opening_edit.isVisible() else 0
+                    self.created_product = created
+                    opening = parse_int_input(self.opening_edit.text(), 0) if (self.opening_edit.isVisible() and self._allow_opening) else 0
                     if opening > 0 and not created.track_imei:
                         inventory_service.adjust_stock(self.session, self.user, created, opening, ar.PRODUCT_OPENING_REASON)
                 self.session.commit()

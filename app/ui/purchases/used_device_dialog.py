@@ -1,6 +1,7 @@
 """Dialog for purchasing used phones with seller verification and declaration PDF."""
 from __future__ import annotations
 from app.i18n import ar
+from app.ui.components.numeric import set_int_validator, set_money_validator
 
 import os
 import subprocess
@@ -9,7 +10,7 @@ from pathlib import Path
 from typing import Optional
 
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QDoubleValidator
+
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
     QComboBox, QPushButton, QTextEdit, QMessageBox, QFrame,
@@ -107,7 +108,7 @@ class UsedDeviceDialog(QDialog):
         self.price_edit = QLineEdit()
         self.price_edit.setMinimumHeight(40)
         self.price_edit.setPlaceholderText(ar.DAILY_CLOSE_DIALOG_388B15)
-        self.price_edit.setValidator(QDoubleValidator(0.01, 9999999.0, 2))
+        set_money_validator(self.price_edit, 0.01, 9999999.0)
         grid_device.addWidget(self.price_edit, 1, 1)
 
         grid_device.addWidget(QLabel(ar.USED_DEVICE_DIALOG_4C79B7), 2, 0)

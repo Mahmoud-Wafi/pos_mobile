@@ -1,9 +1,10 @@
 """Modern Device / IMEI list widget with search, status badges, and clean dialog."""
 from __future__ import annotations
 from app.i18n import ar
+from app.ui.components.numeric import set_int_validator, set_money_validator
 
 from app.ui.components import show_error, show_toast
-from app.core.money import piasters_to_input
+from app.core.money import normalize_number_text, piasters_to_input
 
 from decimal import Decimal
 from app.ui.design.style import style_label, variant
@@ -17,7 +18,7 @@ try:
         QComboBox, QMessageBox, QLabel, QFrame, QGridLayout, QGroupBox,
     )
     from PySide6.QtCore import Qt
-    from PySide6.QtGui import QColor, QDoubleValidator
+    from PySide6.QtGui import QColor
     HAS_QT = True
 except ImportError:
     HAS_QT = False
@@ -440,14 +441,14 @@ if HAS_QT:
             self.cost_edit = QLineEdit()
             self.cost_edit.setFixedHeight(40)
             self.cost_edit.setPlaceholderText(ar.DAILY_CLOSE_DIALOG_388B15)
-            self.cost_edit.setValidator(QDoubleValidator(0.0, 9999999.0, 2))
+            set_money_validator(self.cost_edit, 0.0, 9999999.0)
 
             lbl_extra = QLabel(ar.DEVICE_LIST_ADF72C)
             style_label(lbl_extra, bold=True)
             self.extra_cost_edit = QLineEdit("0")
             self.extra_cost_edit.setFixedHeight(40)
             self.extra_cost_edit.setPlaceholderText(ar.DAILY_CLOSE_DIALOG_388B15)
-            self.extra_cost_edit.setValidator(QDoubleValidator(0.0, 9999999.0, 2))
+            set_money_validator(self.extra_cost_edit, 0.0, 9999999.0)
 
             grid_cost.addWidget(lbl_cond, 0, 0)
             grid_cost.addWidget(lbl_cost, 0, 1)
@@ -518,13 +519,13 @@ if HAS_QT:
 
             cost_str = self.cost_edit.text().strip() or "0"
             try:
-                cost_egp = Decimal(cost_str)
+                cost_egp = Decimal(normalize_number_text(cost_str))
             except Exception:
                 cost_egp = Decimal("0")
 
             extra_str = self.extra_cost_edit.text().strip() or "0"
             try:
-                extra_egp = Decimal(extra_str)
+                extra_egp = Decimal(normalize_number_text(extra_str))
             except Exception:
                 extra_egp = Decimal("0")
 

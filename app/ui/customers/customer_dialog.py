@@ -1,10 +1,11 @@
 """Dialog to create or edit customer profiles and credit limits."""
 from __future__ import annotations
 from app.i18n import ar
+from app.ui.components.numeric import set_int_validator, set_money_validator
 
 from typing import Optional
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QDoubleValidator
+
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
     QPushButton, QMessageBox, QFrame, QTextEdit,
@@ -80,7 +81,7 @@ class CustomerDialog(QDialog):
         layout.addWidget(QLabel(ar.CUSTOMER_DIALOG_C7A4B0))
         self.credit_edit = QLineEdit("0.00")
         self.credit_edit.setFixedHeight(42)
-        self.credit_edit.setValidator(QDoubleValidator(0.0, 9999999.0, 2))
+        set_money_validator(self.credit_edit, 0.0, 9999999.0)
         layout.addWidget(self.credit_edit)
 
         # Notes
@@ -136,12 +137,12 @@ class CustomerDialog(QDialog):
             if self.customer:
                 customer_service.update_customer(
                     self.session, self.user, self.customer.id,
-                    name=name, phone=phone, credit_limit=limit_piasters, notes=notes,
+                    {"name": name, "phone": phone or None, "credit_limit": limit_piasters, "notes": notes},
                 )
             else:
                 self.customer = customer_service.create_customer(
                     self.session, self.user,
-                    name=name, phone=phone, credit_limit=limit_piasters, notes=notes,
+                    {"name": name, "phone": phone, "credit_limit": limit_piasters, "notes": notes},
                 )
             self.session.commit()
             self.accept()

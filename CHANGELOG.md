@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased (branch `fix/numeric-fields-and-new-product`)
+- Fixed: money/number fields could not be typed with a decimal point on Arabic-locale Windows (wallets, expenses, products, ... all "did nothing"). See D-019.
+- Fixed: adding a customer always failed (wrong service call); collecting a customer payment always failed (wrong argument name) and now credits the chosen cash account.
+- New: "+ منتج جديد" inside the purchase invoice; the new product is selected automatically and its stock is added by the invoice only.
+- Wallet screen hides "new wallet" and "commission rules" for roles without `wallet.manage`.
+- Tests: typed-input tests under English and Arabic (Egypt) locales for every money dialog, a static UI-to-service signature check, and MainWindow wallet flow (388 tests).
+
 ## Unreleased (branch `fix-purchases-stock-reset`)
 - New product form has "current quantity" (opening stock) so a new product no longer shows 0.
 - Purchase invoices: product search box, Enter adds the line, hint when no supplier exists; the invoices list now opens a details view (products, quantities, costs, IMEIs) and shows local time.

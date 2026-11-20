@@ -1,10 +1,11 @@
 """Dialog to create or edit an electronic wallet line."""
 from __future__ import annotations
 from app.i18n import ar
+from app.ui.components.numeric import set_int_validator, set_money_validator
 
 from typing import Optional
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QDoubleValidator
+
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
     QComboBox, QPushButton, QMessageBox, QFrame, QGridLayout,
@@ -96,7 +97,7 @@ class WalletDialog(QDialog):
             grid.addWidget(QLabel(ar.WALLET_DIALOG_0A3E06), 4, 0)
             self.bal_edit = QLineEdit("0.00")
             self.bal_edit.setFixedHeight(42)
-            self.bal_edit.setValidator(QDoubleValidator(0.0, 9999999.0, 2))
+            set_money_validator(self.bal_edit, 0.0, 9999999.0)
             grid.addWidget(self.bal_edit, 5, 0)
         else:
             self.bal_edit = None
@@ -105,14 +106,14 @@ class WalletDialog(QDialog):
         grid.addWidget(QLabel(ar.WALLET_DIALOG_B32436), 4 if not self.wallet else 4, 1 if not self.wallet else 0)
         self.daily_limit_edit = QLineEdit("30000.00")
         self.daily_limit_edit.setFixedHeight(42)
-        self.daily_limit_edit.setValidator(QDoubleValidator(0.0, 9999999.0, 2))
+        set_money_validator(self.daily_limit_edit, 0.0, 9999999.0)
         grid.addWidget(self.daily_limit_edit, 5 if not self.wallet else 5, 1 if not self.wallet else 0)
 
         # Monthly Limit
         grid.addWidget(QLabel(ar.WALLET_DIALOG_5BB528), 6, 0)
         self.monthly_limit_edit = QLineEdit("100000.00")
         self.monthly_limit_edit.setFixedHeight(42)
-        self.monthly_limit_edit.setValidator(QDoubleValidator(0.0, 9999999.0, 2))
+        set_money_validator(self.monthly_limit_edit, 0.0, 9999999.0)
         grid.addWidget(self.monthly_limit_edit, 7, 0)
 
         layout.addLayout(grid)
