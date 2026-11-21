@@ -32,3 +32,26 @@ def test_legacy_database_is_stamped_not_recreated(tmp_path, monkeypatch):
     startup.run_migrations(engine)            # must not raise "table already exists"
     from sqlalchemy import inspect
     assert "alembic_version" in inspect(engine).get_table_names()
+
+
+def test_upgrade_from_previous_revision_and_back(tmp_path, monkeypatch):
+    """The sale-change migration upgrades an existing database (defaults 0) and can be rolled back."""
+    from alembic import command
+    from alembic.config import Config
+    from sqlalchemy import inspect
+    from app.config import BASE_DIR
+    url = f"sqlite:///{tmp_path / 'step.db'}"
+    monkeypatch.setattr(startup, "DATABASE_URL", url)
+    monkeypatch.setattr("app.config.DATABASE_URL", url)
+    cfg = Config(str(BASE_DIR / "alembic.ini"))
+    cfg.set_main_option("script_location", str(BASE_DIR / "migrations"))
+    cfg.set_main_option("sqlalchemy.url", url)
+    engine = create_engine(url)
+    command.upgrade(cfg, "c4e8a2d90f33")
+    assert "change_given" not in {c["name"] for c in inspect(engine).get_columns("sales")}
+    command.upgrade(cfg, "head")
+    cols = {c["name"]: c for c in inspect(engine).get_columns("sales")}
+    assert "change_given" in cols and "cash_tendered" in cols
+    command.downgrade(cfg, "c4e8a2d90f33")
+    assert "change_given" not in {c["name"] for c in inspect(engine).get_columns("sales")}
+    command.upgrade(cfg, "head")

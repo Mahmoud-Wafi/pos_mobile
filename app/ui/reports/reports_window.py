@@ -218,7 +218,7 @@ class ReportsWidget(QWidget):
         self.table.setHorizontalHeaderLabels(headers)
 
         items = [
-            (ar.REPORTS_WINDOW_9D5DF6, format_money(data["sales_revenue"]), f"عدد {data['sales_count']} فاتورة بيع"),
+            (ar.REPORTS_WINDOW_9D5DF6, format_money(data["sales_revenue"]), ar.REPORT_NET_OF_RETURNS.format(n=data["sales_count"], ret=format_money(data["returns_revenue"]))),
             (ar.REPORTS_WINDOW_E2D567, format_money(data["sales_profit"]), ar.REPORTS_WINDOW_9E7E22),
             (ar.REPORTS_WINDOW_FBB020, format_money(data["wallet_profit"]), f"عدد {data['wallet_tx_count']} معاملة محفظة"),
             (ar.REPORTS_WINDOW_7CA15C, format_money_signed(-data['total_expenses']), f"عدد {data['expenses_count']} بند مصروف"),

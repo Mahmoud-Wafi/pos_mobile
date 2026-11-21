@@ -122,7 +122,8 @@ class SaleCompleteDialog(QDialog):
         title = QLabel(f"{ar.SALE_DONE_TITLE}\n{ar.SALE_DONE_INVOICE}: {sale.invoice_no}")
         title.setAlignment(Qt.AlignCenter)
         style_label(title, size="title", tone="success", bold=True)
-        total = QLabel(f"{ar.SALE_DONE_TOTAL}: {format_money(sale.total)}   |   {ar.SALE_DONE_CHANGE_NOTE}: {format_money(sale.paid)}")
+        change = f"   |   {ar.CHANGE_DUE}: {format_money(sale.change_given)}" if sale.change_given > 0 else ""
+        total = QLabel(f"{ar.SALE_DONE_TOTAL}: {format_money(sale.total)}   |   {ar.SALE_DONE_CHANGE_NOTE}: {format_money(sale.paid)}{change}")
         total.setAlignment(Qt.AlignCenter)
         root.addWidget(title)
         root.addWidget(total)

@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased (branch `fix/audit-sales-integrity`)
+- Fixed: duplicate product lines could oversell stock; concurrent sales are guarded by a write lock (D-022).
+- Fixed: cash change was recorded as drawer income; the drawer now gets the net cash, receipts show tendered/change.
+- Fixed: returns accepted zero/negative quantities and empty lists, and applied changes before validating; debt vs cash refund logic.
+- Fixed: profit ignored returns; one net-of-returns definition now feeds all reports.
+- Fixed: shift expected cash (drawer only, transfers, supplier payments); shift shortage/overage now reconciles the drawer.
+- Fixed: supplier payments could drive an account negative or exceed what is owed.
+- Service-level permission checks on sale lines; IMEI format checks in services.
+- New migration d5f1b3c7a901 (sales.cash_tendered, sales.change_given). 452 tests.
+
 ## Unreleased (branch `feat/machine-license`)
 - Per-computer licence: activation screen with machine code; owner issues an activation code with `tools/make_license.py` (D-021).
 

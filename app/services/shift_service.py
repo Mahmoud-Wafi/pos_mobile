@@ -28,6 +28,12 @@ def get_active_shift(session: Session, user_id: int) -> Optional[Shift]:
     return session.query(Shift).filter_by(user_id=user_id, status="open").first()
 
 
+def get_open_shift_for(session: Session, user: User) -> Optional[Shift]:
+    """The user's own open shift, else the shop's most recent open shift (e.g. a manager acting during a cashier's shift)."""
+    return get_active_shift(session, user.id) or (
+        session.query(Shift).filter_by(status="open").order_by(Shift.id.desc()).first())
+
+
 def open_shift(
     session: Session,
     user: User,
@@ -84,16 +90,14 @@ def calculate_expected_cash(session: Session, shift_id: int) -> int:
     if not shift:
         return 0
 
-    cash_in = session.query(func.coalesce(func.sum(CashTransaction.amount), 0)).filter(
-        CashTransaction.shift_id == shift_id,
-        CashTransaction.type == "in",
-        CashTransaction.category != "shift_open",
-    ).scalar() or 0
-
-    cash_out = session.query(func.coalesce(func.sum(CashTransaction.amount), 0)).filter(
-        CashTransaction.shift_id == shift_id,
-        CashTransaction.type == "out",
-    ).scalar() or 0
+    # Only DRAWER movements count (an expense paid from a bank account never touches the drawer), and a
+    # transfer from/to the drawer moves physical cash. The closing adjustment itself is not part of "expected".
+    base = (session.query(func.coalesce(func.sum(CashTransaction.amount), 0))
+            .join(CashAccount, CashAccount.id == CashTransaction.account_id)
+            .filter(CashTransaction.shift_id == shift_id, CashAccount.type == "drawer",
+                    CashTransaction.category.notin_(("shift_open", "shift_diff"))))
+    cash_in = base.filter(CashTransaction.type.in_(("in", "transfer_in"))).scalar() or 0
+    cash_out = base.filter(CashTransaction.type.in_(("out", "transfer_out"))).scalar() or 0
 
     return shift.opening_cash + cash_in - cash_out
 
@@ -124,6 +128,17 @@ def close_shift(
     shift.status = "closed"
     if notes:
         shift.notes = f"{shift.notes or ''} | {notes}".strip(" |")
+
+    # Bring the drawer's book balance to what was really counted, so the treasury shows the physical cash.
+    # The shortage/overage itself is reported through Shift.diff (P&L), never as a second profit entry.
+    if diff != 0:
+        drawer = session.query(CashAccount).filter_by(type="drawer").first()
+        if drawer is not None:
+            drawer.balance += diff
+            session.add(CashTransaction(
+                account_id=drawer.id, type="in" if diff > 0 else "out", amount=abs(diff), category="shift_diff",
+                ref_type="shift", ref_id=shift.id, shift_id=shift.id, user_id=user.id,
+                note="فرق جرد الوردية (زيادة)" if diff > 0 else "فرق جرد الوردية (عجز)"))
 
     session.flush()
     log_action(session, "close_shift", user_id=user.id,

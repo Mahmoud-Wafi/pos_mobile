@@ -33,6 +33,8 @@ class Sale(Base):
     total: Mapped[int] = mapped_column(Integer, nullable=False, default=0)       # piasters (subtotal - discount)
     paid: Mapped[int] = mapped_column(Integer, nullable=False, default=0)        # piasters
     remaining: Mapped[int] = mapped_column(Integer, nullable=False, default=0)   # piasters (total - paid)
+    cash_tendered: Mapped[int] = mapped_column(Integer, nullable=False, default=0)  # piasters handed over by the customer
+    change_given: Mapped[int] = mapped_column(Integer, nullable=False, default=0)   # piasters returned as change
     # held | posted | void
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="held", index=True)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
