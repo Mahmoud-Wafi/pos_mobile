@@ -60,6 +60,12 @@ def main() -> None:
                 backup_core.run_auto_backup(keep, force=True, offsite_dir=offsite)
         app.aboutToQuit.connect(_backup_on_close)
 
+    from app.core import license as licence
+    if not licence.is_licensed():
+        from app.ui.license_dialog import ActivationDialog
+        if ActivationDialog().exec() != ActivationDialog.DialogCode.Accepted:
+            sys.exit(0)
+
     from app.ui.session import run_with_login
 
     sys.exit(run_with_login(app))

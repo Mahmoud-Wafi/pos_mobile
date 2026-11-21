@@ -110,3 +110,10 @@ Architectural and business-rule decisions made during development.
 - **Hardware settings tab** separates the receipt printer (name, direct print, width mm), the label printer (name, direct print, label width/height mm) and a barcode-reader test field. Labels print through reportlab PDFs rendered with QtPdf onto the chosen printer, or open as a PDF when direct printing is off.
 - UI polish: reports/profit, backup screen, customer/debt action buttons (QSS rule for buttons inside table cells), cash-ledger category names in Arabic.
 - Not covered: category/brand edit and delete; Windows `.exe` build is untested.
+
+## D-021 — One licence per computer
+- The app refuses to start past the activation screen on a computer without a valid licence, so a copied exe/folder does not run elsewhere. Fully offline.
+- Machine code = SHA-256 of the OS install id (Windows `MachineGuid`, Linux `/etc/machine-id`, macOS `IOPlatformUUID`), shown as `XXXXX-XXXXX-XXXXX-XXXXX`. Activation code = Ed25519 signature of that code. The public key is in `app/core/license.py`; the private key stays with the owner (`license_private.key`, never committed or shipped). `tools/make_license.py` creates codes.
+- The licence is permanent. A new computer, or a changed OS install id, needs a new code from the owner (manual re-activation, by choice).
+- The activation code is stored in `license.key` in the data folder; copying that file to another computer does not work because the signature covers the machine code. `reset_data.py` does not delete it.
+- Limit: this stops casual copying, not a determined developer who patches the code; ship only the built exe, never the source.

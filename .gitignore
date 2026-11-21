@@ -42,3 +42,7 @@ migrations/versions/__pycache__/
 
 # keep the data folder but never its contents
 !data/.gitkeep
+
+# owner-only licence signing key
+license_private.key
+*.key
