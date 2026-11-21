@@ -335,6 +335,9 @@ if HAS_QT:
                 self.lbl_cost.setVisible(False)
             if product is not None:
                 self._prefill(product)
+            else:
+                from app.services import inventory_service as _inv
+                self.barcode_edit.setText(_inv.generate_barcode(self.session))  # auto code; can be replaced by a scan
             self._update_opening_visibility()
 
         def _prefill(self, p):
