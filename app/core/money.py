@@ -27,6 +27,15 @@ def format_money(piasters: int) -> str:
     return f"{formatted} ج.م"
 
 
+def format_money_signed(piasters: int, always_sign: bool = False) -> str:
+    """Display text with the sign kept on the LEFT of the digits even inside right-to-left text
+    ('-200.00 ج.م', '+10,590.00 ج.م'). The number is isolated left-to-right so Qt/Arabic bidi
+    cannot move the sign to the other side."""
+    egp = piasters_to_egp(abs(piasters))
+    sign = "-" if piasters < 0 else ("+" if always_sign and piasters > 0 else "")
+    return f"\u2066{sign}{egp:,.2f}\u2069 ج.م"
+
+
 def apply_percent_discount(amount_piasters: int, percent_bp: int) -> int:
     """Apply a discount given in basis points (1% = 100 bp) to an amount in piasters.
 

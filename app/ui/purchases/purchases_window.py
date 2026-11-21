@@ -23,6 +23,7 @@ from app.services import purchase_service
 from app.ui.purchases.purchase_invoice_dialog import PurchaseInvoiceDialog
 from app.ui.purchases.supplier_dialog import SupplierDialog
 from app.ui.purchases.supplier_payment_dialog import SupplierPaymentDialog
+from app.ui.purchases.supplier_ledger_dialog import SupplierLedgerDialog
 from app.ui.purchases.used_device_dialog import UsedDeviceDialog
 from app.ui.design.style import variant
 
@@ -308,6 +309,7 @@ class PurchasesWidget(QWidget):
         # Suppliers Table
         self.sup_table = QTableWidget()
         self.sup_table.setColumnCount(6)
+        self.sup_table.verticalHeader().setDefaultSectionSize(54)
         self.sup_table.setHorizontalHeaderLabels([
             "#", ar.PURCHASES_WINDOW_EF7E0B, ar.PURCHASES_WINDOW_76F2F1, ar.PURCHASES_WINDOW_8796EF, ar.CUSTOMERS_WINDOW_3C4208, ar.PURCHASES_WINDOW_3D2DF4
         ])
@@ -321,8 +323,18 @@ class PurchasesWidget(QWidget):
         h.setSectionResizeMode(2, QHeaderView.Fixed); self.sup_table.setColumnWidth(2, 130)
         h.setSectionResizeMode(3, QHeaderView.Fixed); self.sup_table.setColumnWidth(3, 140)
         h.setSectionResizeMode(4, QHeaderView.Stretch)
-        h.setSectionResizeMode(5, QHeaderView.Fixed); self.sup_table.setColumnWidth(5, 110)
+        h.setSectionResizeMode(5, QHeaderView.Fixed); self.sup_table.setColumnWidth(5, 250)
+        self.sup_table.cellDoubleClicked.connect(lambda row, _c: self._open_ledger_row(row))
         layout.addWidget(self.sup_table)
+
+    def _open_ledger_row(self, row):
+        sup = self._visible_suppliers[row] if 0 <= row < len(self._visible_suppliers) else None
+        if sup is not None:
+            self._open_ledger(sup)
+
+    def _open_ledger(self, supplier):
+        SupplierLedgerDialog(self.session, self.user, supplier, parent=self).exec()
+        self.load_suppliers()
 
     def _open_new_supplier_dialog(self):
         dlg = SupplierDialog(self.session, self.user, parent=self)
@@ -348,6 +360,7 @@ class PurchasesWidget(QWidget):
         self._render_suppliers(filtered)
 
     def _render_suppliers(self, suppliers: list[Supplier]):
+        self._visible_suppliers = list(suppliers)
         self.sup_table.setRowCount(len(suppliers))
         for idx, s in enumerate(suppliers):
             self.sup_table.setItem(idx, 0, QTableWidgetItem(str(s.id)))
@@ -364,10 +377,21 @@ class PurchasesWidget(QWidget):
 
             self.sup_table.setItem(idx, 4, QTableWidgetItem(s.notes or "—"))
 
+            box = QWidget()
+            hl = QHBoxLayout(box)
+            hl.setContentsMargins(6, 4, 6, 4)
+            hl.setSpacing(6)
+            btn_ledger = QPushButton(ar.SUPPLIER_LEDGER_BTN)
+            variant(btn_ledger, "primary")
+            btn_ledger.setFixedHeight(34)
+            btn_ledger.clicked.connect(lambda _, sup=s: self._open_ledger(sup))
+            hl.addWidget(btn_ledger)
             btn_pay = QPushButton(ar.PURCHASES_WINDOW_3D2DF4)
             variant(btn_pay, "secondary")
+            btn_pay.setFixedHeight(34)
             btn_pay.clicked.connect(lambda _, sup=s: self._pay_supplier_dialog(sup))
-            self.sup_table.setCellWidget(idx, 5, btn_pay)
+            hl.addWidget(btn_pay)
+            self.sup_table.setCellWidget(idx, 5, box)
 
     def _pay_supplier_dialog(self, supplier: Supplier):
         dlg = SupplierPaymentDialog(self.session, self.user, supplier=supplier, parent=self)

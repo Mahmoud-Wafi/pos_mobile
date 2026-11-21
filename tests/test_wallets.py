@@ -297,3 +297,50 @@ class TestWalletAudit:
                 wallet_id=test_wallet.id,
                 actual_balance=egp_to_piasters(15000),
             )
+
+
+# ── commission rules: manager edits / deletes freely, overlaps are blocked ──
+def _manager(session):
+    from app.models.user import Role, User
+    return session.query(User).join(Role).filter(Role.name == "manager").first()
+
+
+def test_commission_rule_update_delete_and_overlap(db_session):
+    import pytest
+    from app.core.permissions import PermissionDenied
+    from app.models.wallet import CommissionRule
+    from app.services import wallet_service as ws
+
+    s, mgr = db_session, _manager(db_session)
+    before = s.query(CommissionRule).count()
+    a = ws.create_commission_rule(s, mgr, network="vodafone", op_type="cash_in", min_amount=100, max_amount=500000,
+                                  fixed_fee=500)
+    with pytest.raises(ws.WalletError):                       # overlaps rule a
+        ws.create_commission_rule(s, mgr, network="vodafone", op_type="cash_in", min_amount=400000, max_amount=900000)
+    b = ws.create_commission_rule(s, mgr, network="vodafone", op_type="cash_in", min_amount=500001, max_amount=0,
+                                  fixed_fee=1000)           # open-ended is fine when it does not overlap
+    ws.create_commission_rule(s, mgr, network="orange", op_type="cash_in", min_amount=100, max_amount=500000)  # other network
+    with pytest.raises(ws.WalletError):                       # editing a into b's range is blocked
+        ws.update_commission_rule(s, mgr, a.id, network="vodafone", op_type="cash_in", min_amount=100, max_amount=600000)
+    ws.update_commission_rule(s, mgr, a.id, network="vodafone", op_type="cash_in", min_amount=100, max_amount=500000,
+                              fixed_fee=700, percent_bp=50)
+    assert ws.compute_commission(s, "vodafone", "cash_in", 100000) == (700 + 500, 0)
+    ws.delete_commission_rule(s, mgr, b.id)
+    assert ws.compute_commission(s, "vodafone", "cash_in", 900000) == (0, 0)
+    assert s.query(CommissionRule).filter_by(is_active=True).count() == before + 2
+    ws.create_commission_rule(s, mgr, network="vodafone", op_type="cash_in", min_amount=500001, max_amount=0)  # freed range
+    cashier = _user_with_role(s, "cashier")
+    with pytest.raises(PermissionDenied):
+        ws.update_commission_rule(s, cashier, a.id, network="vodafone", op_type="cash_in", min_amount=1, max_amount=2)
+    with pytest.raises(PermissionDenied):
+        ws.delete_commission_rule(s, cashier, a.id)
+
+
+def _user_with_role(session, role):
+    from app.core.security import hash_password
+    from app.models.user import Role, User
+    r = session.query(Role).filter_by(name=role).one()
+    u = User(username=f"x_{role}", password_hash=hash_password("Passw0rd!"), full_name=role, role_id=r.id)
+    session.add(u)
+    session.commit()
+    return u

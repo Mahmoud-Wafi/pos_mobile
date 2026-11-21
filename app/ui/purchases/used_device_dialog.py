@@ -18,7 +18,7 @@ from PySide6.QtWidgets import (
 )
 
 from app.ui.components.basic import attach_imei_check
-from app.ui.components import show_error
+from app.ui.components import ModelPicker, show_error
 from app.core.money import egp_to_piasters, format_money
 from app.models.accounting import CashAccount
 from app.models.product import Product
@@ -100,9 +100,8 @@ class UsedDeviceDialog(QDialog):
         grid_device.setVerticalSpacing(8)
 
         grid_device.addWidget(QLabel(ar.USED_DEVICE_DIALOG_C5C85E), 0, 0)
-        self.phone_combo = QComboBox()
-        self.phone_combo.setMinimumHeight(40)
-        grid_device.addWidget(self.phone_combo, 1, 0)
+        self.model_picker = ModelPicker(self.session)
+        grid_device.addWidget(self.model_picker, 1, 0)
 
         grid_device.addWidget(QLabel(ar.USED_DEVICE_DIALOG_9EBCBF), 0, 1)
         self.price_edit = QLineEdit()
@@ -162,15 +161,7 @@ class UsedDeviceDialog(QDialog):
         main_layout.addWidget(foot_card)
 
     def _load_phone_products(self):
-        self.phone_combo.clear()
-        phones = (
-            self.session.query(Product)
-            .filter(Product.track_imei == True, Product.is_active == True)
-            .order_by(Product.name.asc())
-            .all()
-        )
-        for p in phones:
-            self.phone_combo.addItem(f"{p.name}", p.id)
+        self.model_picker.reload()
 
     def _load_cash_accounts(self):
         self.acc_combo.clear()
@@ -197,9 +188,11 @@ class UsedDeviceDialog(QDialog):
             self.seller_phone_edit.setFocus()
             return
 
-        product_id = self.phone_combo.currentData()
-        if not product_id:
-            show_error(self, message=ar.USED_DEVICE_DIALOG_7E6A89)
+        try:
+            product_id = self.model_picker.resolve(self.user).id
+        except Exception as exc:
+            self.session.rollback()
+            show_error(self, message=str(exc))
             return
 
         price_text = self.price_edit.text().strip()

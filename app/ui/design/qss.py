@@ -154,8 +154,10 @@ QScrollBar::handle:horizontal {{ background-color: {C['border_strong']}; min-wid
 QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {{ width: 0; }}
 
 /* misc */
-QGroupBox {{ font-weight: 700; color: {C['text']}; border: 1px solid {C['border']}; border-radius: {R['md']}px; margin-top: 12px; padding: 12px; }}
-QGroupBox::title {{ subcontrol-origin: margin; right: 12px; padding: 0 6px; }}
+QGroupBox {{ font-weight: 700; color: {C['text']}; border: 1px solid {C['border']}; border-radius: {R['md']}px; margin-top: 26px; padding: 22px 12px 12px 12px; }}
+QGroupBox::title {{ subcontrol-origin: margin; subcontrol-position: top right; right: 14px; top: 2px; padding: 2px 10px; color: {C['text']}; }}
+/* buttons placed inside table cells must fit the row (they were clipped at 44px rows) */
+QTableView QPushButton {{ padding: 2px 12px; min-height: 26px; max-height: 36px; font-size: {F['caption']}px; }}
 QDialog {{ background-color: {C['surface']}; color: {C['text']}; }}
 QCheckBox {{ font-weight: 600; spacing: 8px; }}
 QCheckBox::indicator {{ width: 18px; height: 18px; border-radius: 4px; border: 1px solid {C['border_strong']}; background-color: {C['surface']}; }}

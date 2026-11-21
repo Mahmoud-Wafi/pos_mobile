@@ -186,6 +186,7 @@ def create_commission_rule(
 ) -> CommissionRule:
     """Create a new data-driven commission rule."""
     require_permission(user.permission_codes(), PERM_WALLET_MANAGE, user.username)
+    _validate_rule_range(session, network, op_type, min_amount, max_amount)
 
     rule = CommissionRule(
         network=network.strip().lower(),
@@ -217,6 +218,83 @@ def create_commission_rule(
         },
     )
     return rule
+
+
+def _validate_rule_range(session: Session, network: str, op_type: str, min_amount: int, max_amount: int,
+                         exclude_id: Optional[int] = None) -> None:
+    """A rule needs a sane range and must not overlap another active rule of the same network + operation
+    (otherwise two commissions would match one amount). max_amount == 0 means 'no upper limit'."""
+    if min_amount < 0 or max_amount < 0:
+        raise WalletError("الحدود لا يمكن أن تكون سالبة")
+    if max_amount and max_amount < min_amount:
+        raise WalletError("الحد الأقصى يجب أن يكون أكبر من أو يساوي الحد الأدنى")
+    INF = float("inf")
+    new_hi = max_amount or INF
+    q = session.query(CommissionRule).filter(
+        CommissionRule.network == network.strip().lower(),
+        CommissionRule.op_type == op_type.strip().lower(),
+        CommissionRule.is_active == True,
+    )
+    if exclude_id is not None:
+        q = q.filter(CommissionRule.id != exclude_id)
+    for other in q.all():
+        other_hi = other.max_amount or INF
+        if min_amount <= other_hi and other.min_amount <= new_hi:
+            hi_txt = format_money(other.max_amount) if other.max_amount else "بلا حد"
+            raise WalletError(
+                f"يوجد قاعدة أخرى تتداخل مع هذا النطاق (من {format_money(other.min_amount)} إلى {hi_txt}). "
+                "عدّل القاعدة الموجودة أو غيّر الحدود.")
+
+
+def update_commission_rule(
+    session: Session,
+    user: User,
+    rule_id: int,
+    *,
+    network: str,
+    op_type: str,
+    min_amount: int,
+    max_amount: int,
+    fixed_fee: int = 0,
+    percent_bp: int = 0,
+    network_fee: Optional[int] = None,
+    paid_by: Optional[str] = None,
+) -> CommissionRule:
+    """Manager edits a rule in place. Past transactions keep the commission they were charged."""
+    require_permission(user.permission_codes(), PERM_WALLET_MANAGE, user.username)
+    rule = session.get(CommissionRule, rule_id)
+    if rule is None or not rule.is_active:
+        raise WalletError("القاعدة غير موجودة")
+    _validate_rule_range(session, network, op_type, min_amount, max_amount, exclude_id=rule.id)
+    before = {"network": rule.network, "op_type": rule.op_type, "min": rule.min_amount, "max": rule.max_amount,
+              "fixed_fee": rule.fixed_fee, "percent_bp": rule.percent_bp}
+    rule.network = network.strip().lower()
+    rule.op_type = op_type.strip().lower()
+    rule.min_amount, rule.max_amount = min_amount, max_amount
+    rule.fixed_fee, rule.percent_bp = fixed_fee, percent_bp
+    if network_fee is not None:
+        rule.network_fee = network_fee
+    if paid_by is not None:
+        rule.paid_by = paid_by
+    session.flush()
+    log_action(session, "update_commission_rule", user_id=user.id, table_name="commission_rules",
+               record_id=rule.id, old_value=before,
+               new_value={"network": rule.network, "op_type": rule.op_type, "min": rule.min_amount,
+                          "max": rule.max_amount, "fixed_fee": rule.fixed_fee, "percent_bp": rule.percent_bp})
+    return rule
+
+
+def delete_commission_rule(session: Session, user: User, rule_id: int) -> None:
+    """Soft delete: the rule stops applying; transactions already recorded are untouched."""
+    require_permission(user.permission_codes(), PERM_WALLET_MANAGE, user.username)
+    rule = session.get(CommissionRule, rule_id)
+    if rule is None or not rule.is_active:
+        raise WalletError("القاعدة غير موجودة")
+    rule.is_active = False
+    session.flush()
+    log_action(session, "delete_commission_rule", user_id=user.id, table_name="commission_rules",
+               record_id=rule.id, old_value={"network": rule.network, "op_type": rule.op_type,
+                                             "min": rule.min_amount, "max": rule.max_amount})
 
 
 def list_commission_rules(

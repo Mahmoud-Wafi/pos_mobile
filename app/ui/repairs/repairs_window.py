@@ -202,8 +202,26 @@ class RepairsWidget(QWidget):
 
     def _deliver(self) -> None:
         t = self._selected()
-        if t is not None:
-            self._run(lambda: repair_service.deliver(self.session, self.user, t.id))
+        if t is None:
+            show_toast(self, ar.REPAIR_SELECT_FIRST)
+            return
+        mark_ready = False
+        if t.status != "ready":
+            if not confirm(self, ar.REPAIR_BTN_DELIVER, ar.REPAIR_DELIVER_NOT_READY.format(STATUS_AR[t.status])):
+                return
+            mark_ready = True
+        pay_balance = 0
+        if t.balance > 0:
+            if not confirm(self, ar.REPAIR_BTN_DELIVER, ar.REPAIR_DELIVER_COLLECT.format(format_money(t.balance))):
+                return
+            pay_balance = t.balance
+
+        def work():
+            if pay_balance:
+                repair_service.add_payment(self.session, self.user, t.id, pay_balance)
+            repair_service.deliver(self.session, self.user, t.id, mark_ready=mark_ready)
+
+        self._run(work)
 
     def _cancel(self) -> None:
         t = self._selected()

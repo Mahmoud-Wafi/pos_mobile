@@ -9,7 +9,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from PySide6.QtCore import QDate, Qt
+from PySide6.QtCore import QLocale, QDate, Qt
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QDateEdit,
     QPushButton, QTableWidget, QTableWidgetItem, QHeaderView,
@@ -17,7 +17,7 @@ from PySide6.QtWidgets import (
 )
 
 from app.ui.components import show_error
-from app.core.money import format_money
+from app.core.money import format_money_signed, format_money
 from app.services import import_export_service
 from app.services import report_service
 from app.ui.design.style import set_prop, style_label, variant
@@ -63,6 +63,10 @@ class ReportsWidget(QWidget):
         self.date_from = QDateEdit()
         self.date_from.setMinimumHeight(40)
         self.date_from.setCalendarPopup(True)
+        self.date_from.setDisplayFormat("dd/MM/yyyy")
+        self.date_from.setLocale(QLocale(QLocale.English))
+        self.date_from.setMinimumWidth(130)
+        self.date_from.setLayoutDirection(Qt.LeftToRight)
         self.date_from.setDate(QDate.currentDate().addDays(-30))
         bar_layout.addWidget(self.date_from)
 
@@ -71,6 +75,10 @@ class ReportsWidget(QWidget):
         self.date_to = QDateEdit()
         self.date_to.setMinimumHeight(40)
         self.date_to.setCalendarPopup(True)
+        self.date_to.setDisplayFormat("dd/MM/yyyy")
+        self.date_to.setLocale(QLocale(QLocale.English))
+        self.date_to.setMinimumWidth(130)
+        self.date_to.setLayoutDirection(Qt.LeftToRight)
         self.date_to.setDate(QDate.currentDate())
         bar_layout.addWidget(self.date_to)
 
@@ -108,8 +116,21 @@ class ReportsWidget(QWidget):
         self.table.setEditTriggers(QTableWidget.NoEditTriggers)
         self.table.setSelectionBehavior(QTableWidget.SelectRows)
         self.table.setAlternatingRowColors(True)
+        self.table.verticalHeader().setDefaultSectionSize(46)
+        self.table.horizontalHeader().setMinimumSectionSize(90)
+        self.table.horizontalHeader().setDefaultAlignment(Qt.AlignCenter)
 
         main_layout.addWidget(self.table, 1)
+
+    def _fit_columns(self):
+        """Few columns share the width evenly; many columns fit their content and the last one stretches."""
+        hh = self.table.horizontalHeader()
+        n = self.table.columnCount()
+        hh.setStretchLastSection(n > 4)
+        for c in range(n):
+            hh.setSectionResizeMode(c, QHeaderView.Stretch if n <= 4 else QHeaderView.ResizeToContents)
+        if n <= 4:
+            hh.setSectionResizeMode(0, QHeaderView.Stretch)
 
     def _on_type_changed(self):
         rep_type = self.report_type_combo.currentData()
@@ -144,6 +165,7 @@ class ReportsWidget(QWidget):
             elif rep_type == "cash":
                 data = report_service.cash_report(self.session, self.user, start_date=d_from, end_date=d_to)
                 self._render_cash(data)
+            self._fit_columns()
 
             self.current_report_data = data
         except Exception as e:
@@ -183,12 +205,12 @@ class ReportsWidget(QWidget):
 
     def _render_profit(self, data: dict):
         net = data["net_profit"]
-        net_str = f"+{format_money(net)}" if net > 0 else format_money(net)
+        net_str = format_money_signed(net, always_sign=True)
         self.lbl_summary.setText(
             f"إيرادات المبيعات: {format_money(data['sales_revenue'])} | "
             f"أرباح المبيعات: {format_money(data['sales_profit'])} | "
             f"أرباح المحافظ: {format_money(data['wallet_profit'])} | "
-            f"المصروفات: -{format_money(data['total_expenses'])} | "
+            f"المصروفات: {format_money_signed(-data['total_expenses'])} | "
             f"صافي الربح النهائي: {net_str}"
         )
         headers = [ar.REPORTS_WINDOW_6563F3, ar.REPORTS_WINDOW_3A2A8B, ar.REPORTS_WINDOW_77A8AD]
@@ -199,7 +221,7 @@ class ReportsWidget(QWidget):
             (ar.REPORTS_WINDOW_9D5DF6, format_money(data["sales_revenue"]), f"عدد {data['sales_count']} فاتورة بيع"),
             (ar.REPORTS_WINDOW_E2D567, format_money(data["sales_profit"]), ar.REPORTS_WINDOW_9E7E22),
             (ar.REPORTS_WINDOW_FBB020, format_money(data["wallet_profit"]), f"عدد {data['wallet_tx_count']} معاملة محفظة"),
-            (ar.REPORTS_WINDOW_7CA15C, f"-{format_money(data['total_expenses'])}", f"عدد {data['expenses_count']} بند مصروف"),
+            (ar.REPORTS_WINDOW_7CA15C, format_money_signed(-data['total_expenses']), f"عدد {data['expenses_count']} بند مصروف"),
             (ar.REPORTS_WINDOW_F1D231, format_money(data["shift_diff"]), ar.REPORTS_WINDOW_66541C),
             (ar.REPORTS_WINDOW_9BAB0A, net_str, ar.REPORTS_WINDOW_DB4B49),
         ]
@@ -209,7 +231,10 @@ class ReportsWidget(QWidget):
             v_item = QTableWidgetItem(val)
             v_item.setTextAlignment(Qt.AlignCenter)
             if idx == 5:
-                v_item.setForeground(Qt.blue)
+                v_item.setForeground(Qt.darkGreen if net >= 0 else Qt.red)
+                f = v_item.font()
+                f.setBold(True)
+                v_item.setFont(f)
             self.table.setItem(idx, 1, v_item)
             self.table.setItem(idx, 2, QTableWidgetItem(note))
 

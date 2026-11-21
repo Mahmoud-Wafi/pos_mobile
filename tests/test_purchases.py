@@ -394,3 +394,57 @@ class TestPermissions:
                 invoice_number="INV-NO-AUTH",
                 items_data=[{"product_id": accessory_product.id, "quantity": 1, "unit_cost": 100}],
             )
+
+
+def test_supplier_ledger_shows_every_installment_of_an_invoice(db_session):
+    """Invoice 10,000: paid 5,000 at once, then 2,000 + 1,000 + 2,000 later -> all appear, balance ends at 0."""
+    import pytest
+    from app.models.accounting import CashAccount
+    from app.models.user import Role, User
+    from app.services import inventory_service as inv, purchase_service as ps
+
+    s = db_session
+    mgr = s.query(User).join(Role).filter(Role.name == "manager").first()
+    for acc in s.query(CashAccount).all():
+        acc.balance = 100_000_000
+    p = inv.create_product(s, mgr, {"name": "Cable", "type": "accessory", "cost_price": 1000, "sale_price": 2000,
+                                    "min_price": 0, "min_stock": 0, "track_imei": False, "warranty_days": 0})
+    sup = ps.create_supplier(s, mgr, "المورد")
+    s.commit()
+    purchase = ps.create_purchase(s, mgr, supplier_id=sup.id, invoice_number="A-1",
+                                  items_data=[{"product_id": p.id, "quantity": 1000, "unit_cost": 1000}],
+                                  paid_amount=500_000)
+    s.commit()
+    assert purchase.total == 1_000_000 and purchase.balance == 500_000
+    for amount in (200_000, 100_000, 200_000):
+        ps.pay_supplier(s, mgr, sup.id, amount, purchase_id=purchase.id)
+    with pytest.raises(ps.PurchaseError):                       # nothing left on the invoice
+        ps.pay_supplier(s, mgr, sup.id, 1, purchase_id=purchase.id)
+    s.commit()
+    assert purchase.balance == 0 and purchase.paid == 1_000_000 and sup.balance == 0
+
+    led = ps.supplier_ledger(s, mgr, sup.id)
+    kinds = [e["kind"] for e in led["entries"]]
+    assert kinds == ["invoice", "paid_at_invoice", "payment", "payment", "payment"]
+    assert [e["credit"] for e in led["entries"][1:]] == [500_000, 200_000, 100_000, 200_000]
+    assert [e["balance"] for e in led["entries"]] == [1_000_000, 500_000, 300_000, 200_000, 0]
+    assert led["total_purchases"] == 1_000_000 and led["total_paid"] == 1_000_000 and led["balance"] == 0
+    assert led["invoices"][0]["remaining"] == 0
+
+
+def test_supplier_payment_on_account_and_opening_balance(db_session):
+    from app.models.accounting import CashAccount
+    from app.models.user import Role, User
+    from app.services import purchase_service as ps
+
+    s = db_session
+    mgr = s.query(User).join(Role).filter(Role.name == "manager").first()
+    for acc in s.query(CashAccount).all():
+        acc.balance = 100_000_000
+    sup = ps.create_supplier(s, mgr, "قديم", initial_balance=300_000)
+    s.commit()
+    ps.pay_supplier(s, mgr, sup.id, 100_000)
+    s.commit()
+    led = ps.supplier_ledger(s, mgr, sup.id)
+    assert [e["kind"] for e in led["entries"]] == ["opening", "on_account"]
+    assert [e["balance"] for e in led["entries"]] == [300_000, 200_000]

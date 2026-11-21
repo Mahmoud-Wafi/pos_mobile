@@ -36,14 +36,15 @@ def paint_receipt(printer: QPrinter, sale, cfg) -> None:
     """
     screen = QGuiApplication.primaryScreen()
     dpi = (screen.logicalDotsPerInchY() if screen else 0) or 96.0
-    printable_mm = RECEIPT_WIDTH_MM - 2 * MARGIN_MM
+    width_mm = int((cfg or {}).get("receipt_width_mm") or RECEIPT_WIDTH_MM)
+    printable_mm = width_mm - 2 * MARGIN_MM
 
     doc = _document(sale, cfg)
     doc.setTextWidth(printable_mm / 25.4 * dpi)
     content_mm = doc.size().height() / dpi * 25.4
     page_mm = max(60.0, content_mm + 2 * MARGIN_MM + 4)
 
-    printer.setPageSize(QPageSize(QSizeF(RECEIPT_WIDTH_MM, page_mm), QPageSize.Millimeter))
+    printer.setPageSize(QPageSize(QSizeF(width_mm, page_mm), QPageSize.Millimeter))
     printer.setPageMargins(QMarginsF(MARGIN_MM, MARGIN_MM, MARGIN_MM, MARGIN_MM), QPageLayout.Millimeter)
 
     # Draw by hand onto the single page: doc.print_() re-paginates with its own scaling.
@@ -72,7 +73,14 @@ def preview_receipt(sale, cfg, parent=None) -> None:
 
 
 def print_receipt(sale, cfg, parent=None) -> bool:
-    printer = QPrinter(QPrinter.HighResolution)
+    """Straight to the configured receipt printer when 'print directly' is on; otherwise the system dialog
+    (pre-selected on the configured printer)."""
+    from app.ui import hardware
+
+    printer = hardware.make_printer(cfg.get("receipt_printer", ""))
+    if cfg.get("receipt_direct") == "1" and cfg.get("receipt_printer"):
+        paint_receipt(printer, sale, cfg)
+        return True
     dlg = QPrintDialog(printer, parent)
     if dlg.exec() != QDialog.Accepted:
         return False

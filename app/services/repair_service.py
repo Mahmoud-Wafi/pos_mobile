@@ -136,12 +136,19 @@ def set_pricing(session: Session, user: User, ticket_id: int, final_price: int, 
     return ticket
 
 
-def deliver(session: Session, user: User, ticket_id: int) -> RepairTicket:
-    """Hand the device back. The ticket must be ready and fully paid (take the balance first)."""
+def deliver(session: Session, user: User, ticket_id: int, mark_ready: bool = False) -> RepairTicket:
+    """Hand the device back. The ticket must be ready and fully paid (take the balance first).
+
+    ``mark_ready=True`` lets the counter deliver a ticket that is still received/diagnosing/waiting in one
+    step (the shop owner confirmed the device is done); the ready time is recorded."""
     require_permission(user.permission_codes(), PERM_SALES_CREATE, user.username)
     ticket = _get(session, ticket_id)
     if ticket.status != "ready":
-        raise RepairError(ar.REPAIR_NOT_READY)
+        if mark_ready and ticket.status in _ACTIVE:
+            ticket.status = "ready"
+            ticket.ready_at = clock.utcnow()
+        else:
+            raise RepairError(ar.REPAIR_NOT_READY)
     if ticket.balance > 0:
         raise RepairError(ar.REPAIR_BALANCE_DUE)
     ticket.status = "delivered"

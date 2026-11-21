@@ -284,16 +284,13 @@ if HAS_QT:
             copies, ok = QInputDialog.getInt(self, ar.LABEL_PRINT, ar.LABEL_COPIES_PROMPT, 1, 1, 500)
             if not ok:
                 return
-            dest, _ = QFileDialog.getSaveFileName(self, ar.LABEL_SAVE_TITLE, "labels.pdf", "PDF (*.pdf)")
-            if not dest:
-                return
             try:
                 specs = label_service.product_specs(self.session, self.user, [(shown[row], copies)])
-                label_service.render(specs, dest)
             except Exception as exc:
                 show_error(self, exc)
                 return
-            show_toast(self, ar.LABEL_SAVED)
+            from app.ui import hardware
+            hardware.output_labels(self, self.session, specs)
 
         def _import_excel(self):
             from app.ui.inventory.import_wizard import ImportWizard

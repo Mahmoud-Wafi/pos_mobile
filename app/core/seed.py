@@ -25,6 +25,14 @@ DEFAULT_SETTINGS: dict[str, str] = {
     "backup_retention": "14",
     "auto_backup": "1",
     "offsite_backup_dir": "",
+    # hardware (Settings -> Printers & barcode)
+    "receipt_printer": "",        # '' = ask every time
+    "receipt_direct": "0",        # 1 = print without the system dialog
+    "receipt_width_mm": "80",     # 80 or 58 mm thermal roll
+    "label_printer": "",
+    "label_direct": "0",
+    "label_width_mm": "50",
+    "label_height_mm": "30",
 }
 
 
