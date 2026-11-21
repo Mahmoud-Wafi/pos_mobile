@@ -16,7 +16,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("machine_code", nargs="?", help="the code shown on the customer's activation screen")
-    ap.add_argument("--key", default="license_private.key", help="path of your private key file")
+    ap.add_argument("--key", default=str(Path(__file__).with_name("license_private.key")), help="path of your private key file")
     ap.add_argument("--init", action="store_true", help="create a new key pair (invalidates all old licences)")
     a = ap.parse_args()
 
