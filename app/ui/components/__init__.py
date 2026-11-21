@@ -6,3 +6,4 @@ from app.ui.components.data_table import DataTable  # noqa: F401
 from app.ui.components.dialogs import ConfirmDialog, TypedConfirmDialog, confirm, confirm_typed, show_error  # noqa: F401
 from app.ui.components.money_edit import MoneyLineEdit  # noqa: F401
 from app.ui.components.toast import Toast, show_toast  # noqa: F401
+from app.ui.components.model_picker import ModelPicker  # noqa: F401,E402

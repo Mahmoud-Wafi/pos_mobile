@@ -19,6 +19,11 @@ _INT_RANGES = {
     "idle_lock_minutes": (0, 1440),
     "backup_retention": (1, 365),
     "auto_backup": (0, 1),
+    "receipt_direct": (0, 1),
+    "label_direct": (0, 1),
+    "receipt_width_mm": (40, 120),
+    "label_width_mm": (20, 120),
+    "label_height_mm": (15, 120),
 }
 
 

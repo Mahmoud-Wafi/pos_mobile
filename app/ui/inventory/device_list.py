@@ -27,6 +27,7 @@ if HAS_QT:
     from app.services import inventory_service
     from app.models.product import Product
     from app.core.money import format_money, egp_to_piasters
+    from app.ui.components.model_picker import ModelPicker
     from app.core.permissions import PermissionDenied
 
     HEADERS = ["#", ar.DEVICE_LIST_D18270, ar.DEVICE_LIST_9F4371, ar.DEVICE_LIST_3F6549, ar.DEVICE_LIST_E887F5, ar.DEVICE_LIST_E1DCB7, ar.DEVICE_LIST_592F9D]
@@ -253,15 +254,13 @@ if HAS_QT:
             if not 0 <= row < len(shown):
                 show_error(self, message=ar.LABEL_NOTHING)
                 return
-            dest, _ = QFileDialog.getSaveFileName(self, ar.LABEL_SAVE_TITLE, "labels.pdf", "PDF (*.pdf)")
-            if not dest:
-                return
             try:
-                label_service.render(label_service.device_specs(self.session, self.user, [shown[row]]), dest)
+                specs = label_service.device_specs(self.session, self.user, [shown[row]])
             except Exception as exc:
                 show_error(self, exc)
                 return
-            show_toast(self, ar.LABEL_SAVED)
+            from app.ui import hardware
+            hardware.output_labels(self, self.session, specs)
 
         def _import_excel(self):
             from app.ui.inventory.import_wizard import ImportWizard
@@ -391,10 +390,10 @@ if HAS_QT:
 
             lbl_prod = QLabel(ar.DEVICE_LIST_E11BED)
             style_label(lbl_prod, bold=True)
-            self.product_combo = QComboBox()
-            self.product_combo.setFixedHeight(40)
+            self.model_picker = ModelPicker(self.session)
+            self.model_picker.combo.editTextChanged.connect(self._on_model_changed)
             grid_model.addWidget(lbl_prod, 0, 0)
-            grid_model.addWidget(self.product_combo, 1, 0)
+            grid_model.addWidget(self.model_picker, 1, 0)
 
             main_layout.addWidget(grp_model)
 
@@ -494,23 +493,20 @@ if HAS_QT:
             main_layout.addLayout(btn_layout)
 
         def _load_products(self):
-            self.product_combo.clear()
-            products = self.session.query(Product).filter(
-                Product.track_imei == True, Product.is_active == True
-            ).order_by(Product.name).all()
-            self._products = products
-            for p in products:
-                self.product_combo.addItem(f"{p.name}", p)
-            if products:
-                # Pre-fill cost price from product default
-                self.cost_edit.setText(piasters_to_input(p.cost_price))
+            self.model_picker.reload()
+
+        def _on_model_changed(self, *_args):
+            cost = self.model_picker.default_cost()
+            if cost:
+                self.cost_edit.setText(piasters_to_input(cost))
 
         def _save(self):
-            if not self._products:
-                show_error(self, message=ar.DEVICE_LIST_9BE0F3)
+            try:
+                product = self.model_picker.resolve(self.user)
+            except Exception as exc:
+                self.session.rollback()
+                show_error(self, message=str(exc))
                 return
-
-            product = self.product_combo.currentData()
             imei1 = self.imei1_edit.text().strip()
             if not imei1:
                 show_error(self, message=ar.DEVICE_LIST_F5623C)

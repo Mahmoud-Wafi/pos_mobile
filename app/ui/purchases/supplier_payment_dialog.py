@@ -11,7 +11,7 @@ from PySide6.QtWidgets import (
 )
 
 from app.ui.components import show_error, show_toast
-from app.core.money import egp_to_piasters, format_money, piasters_to_egp
+from app.core.money import egp_to_piasters, format_money, piasters_to_egp, piasters_to_input
 from app.models.accounting import CashAccount
 from app.models.purchase import Supplier
 from app.services import purchase_service
@@ -27,7 +27,7 @@ class SupplierPaymentDialog(QDialog):
         self.user = user
         self.supplier = supplier
         self.setWindowTitle(f"سداد دفعة للمورد: {supplier.name}")
-        self.resize(480, 440)
+        self.resize(500, 560)
         self.setModal(True)
 
         self._build_ui()
@@ -68,6 +68,18 @@ class SupplierPaymentDialog(QDialog):
         bal_layout.addWidget(self.bal_value)
         layout.addWidget(bal_card)
 
+        # Which invoice is being paid (optional)
+        layout.addWidget(QLabel(ar.SUPPLIER_PAY_INVOICE))
+        self.invoice_combo = QComboBox()
+        self.invoice_combo.setFixedHeight(42)
+        self.invoice_combo.addItem(ar.SUPPLIER_PAY_ON_ACCOUNT, None)
+        for inv in purchase_service.open_invoices(self.session, self.user, self.supplier.id):
+            self.invoice_combo.addItem(
+                f"{inv.invoice_number} — {ar.SUPPLIER_PAY_REMAINING} {format_money(inv.balance)}", inv.id)
+        self._invoice_balances = {i.id: i.balance for i in purchase_service.open_invoices(
+            self.session, self.user, self.supplier.id)}
+        layout.addWidget(self.invoice_combo)
+
         # Amount
         layout.addWidget(QLabel(ar.SUPPLIER_PAYMENT_DIALOG_ED34C2))
         self.amount_edit = QLineEdit()
@@ -75,6 +87,9 @@ class SupplierPaymentDialog(QDialog):
         self.amount_edit.setPlaceholderText(ar.DAILY_CLOSE_DIALOG_388B15)
         set_money_validator(self.amount_edit, 0.01, 9999999.0)
         layout.addWidget(self.amount_edit)
+        self.invoice_combo.currentIndexChanged.connect(self._on_invoice_changed)
+        if self.invoice_combo.count() > 1:
+            self.invoice_combo.setCurrentIndex(1)          # oldest unpaid invoice first
 
         # Account / Method
         layout.addWidget(QLabel(ar.SUPPLIER_PAYMENT_DIALOG_5FE4FB))
@@ -113,6 +128,11 @@ class SupplierPaymentDialog(QDialog):
 
         layout.addLayout(btn_box)
 
+    def _on_invoice_changed(self, *_):
+        pid = self.invoice_combo.currentData()
+        if pid is not None:
+            self.amount_edit.setText(piasters_to_input(self._invoice_balances.get(pid, 0)))
+
     def _pay(self):
         val_text = self.amount_edit.text().strip()
         if not val_text:
@@ -141,6 +161,7 @@ class SupplierPaymentDialog(QDialog):
                 account_id=account_id,
                 method="cash",
                 note=note,
+                purchase_id=self.invoice_combo.currentData(),
             )
             self.session.commit()
             show_toast(self, f"تم تسجيل سداد {val_text} ج.م للمورد {self.supplier.name} بنجاح!")

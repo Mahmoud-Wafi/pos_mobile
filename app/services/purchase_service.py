@@ -443,6 +443,16 @@ def pay_supplier(
     if not supplier:
         raise SupplierNotFound(f"المورد رقم {supplier_id} غير موجود")
 
+    purchase = None
+    if purchase_id is not None:
+        purchase = session.get(Purchase, purchase_id)
+        if purchase is None or purchase.supplier_id != supplier.id or purchase.status != "posted":
+            raise PurchaseError("الفاتورة غير موجودة لهذا المورد")
+        if amount > purchase.balance:
+            raise PurchaseError(
+                f"المبلغ أكبر من المتبقي على الفاتورة {purchase.invoice_number} "
+                f"(المتبقي {purchase.balance / 100:,.2f} ج.م)")
+
     cash_acc = _get_default_cash_account(session, account_id)
     cash_acc.balance -= amount
 
@@ -459,8 +469,11 @@ def pay_supplier(
     session.add(cash_tx)
     session.flush()
 
-    # Decrease supplier balance (we owe them less)
+    # Decrease supplier balance (we owe them less) and the invoice's remaining amount
     supplier.balance -= amount
+    if purchase is not None:
+        purchase.paid += amount
+        purchase.balance -= amount
 
     payment = SupplierPayment(
         supplier_id=supplier.id,
@@ -488,6 +501,68 @@ def pay_supplier(
         },
     )
     return payment
+
+
+def open_invoices(session: Session, user: User, supplier_id: int) -> list[Purchase]:
+    """Posted invoices of a supplier that still have an unpaid remainder (oldest first)."""
+    require_permission(user.permission_codes(), PERM_PURCHASES_VIEW, user.username)
+    return (session.query(Purchase)
+            .filter(Purchase.supplier_id == supplier_id, Purchase.status == "posted", Purchase.balance > 0)
+            .order_by(Purchase.created_at.asc(), Purchase.id.asc()).all())
+
+
+def supplier_ledger(session: Session, user: User, supplier_id: int) -> dict:
+    """Full account statement of one supplier: every invoice and every payment, with a running balance.
+
+    Example: invoice of 10,000 → entries: invoice +10,000, payment -5,000, -2,000, -1,000, -2,000, balance 0.
+    """
+    require_permission(user.permission_codes(), PERM_PURCHASES_VIEW, user.username)
+    supplier = session.get(Supplier, supplier_id)
+    if not supplier:
+        raise SupplierNotFound(f"المورد رقم {supplier_id} غير موجود")
+
+    purchases = (session.query(Purchase)
+                 .filter(Purchase.supplier_id == supplier_id, Purchase.status == "posted")
+                 .order_by(Purchase.created_at.asc(), Purchase.id.asc()).all())
+    payments = (session.query(SupplierPayment).filter(SupplierPayment.supplier_id == supplier_id)
+                .order_by(SupplierPayment.created_at.asc(), SupplierPayment.id.asc()).all())
+    inv_no = {p.id: p.invoice_number for p in purchases}
+
+    events: list[dict] = []
+    for p in purchases:
+        events.append({"at": p.created_at, "order": 0, "kind": "invoice", "ref": p.invoice_number,
+                       "purchase_id": p.id, "debit": p.total, "credit": 0, "note": p.notes or ""})
+    for pay in payments:
+        cash_tx = session.get(CashTransaction, pay.cash_transaction_id) if pay.cash_transaction_id else None
+        if pay.purchase_id and cash_tx is not None and cash_tx.category == "purchase":
+            kind = "paid_at_invoice"          # entered on the invoice itself
+        else:
+            kind = "payment" if pay.purchase_id else "on_account"
+        events.append({"at": pay.created_at, "order": 2 if kind != "paid_at_invoice" else 1, "kind": kind,
+                       "ref": inv_no.get(pay.purchase_id, ""), "purchase_id": pay.purchase_id,
+                       "debit": 0, "credit": pay.amount, "note": pay.note or ""})
+    events.sort(key=lambda e: (e["at"], e["order"]))
+
+    computed = sum(e["debit"] - e["credit"] for e in events)
+    opening = supplier.balance - computed          # balance entered when the supplier was created
+    running = opening
+    entries: list[dict] = []
+    if opening:
+        entries.append({"at": supplier.created_at if hasattr(supplier, "created_at") else None, "kind": "opening",
+                        "ref": "", "purchase_id": None, "debit": max(opening, 0), "credit": max(-opening, 0),
+                        "note": "", "balance": opening})
+    for e in events:
+        running += e["debit"] - e["credit"]
+        entries.append({**e, "balance": running})
+
+    invoices = [{"id": p.id, "invoice_number": p.invoice_number, "at": p.created_at, "total": p.total,
+                 "paid": p.paid, "remaining": p.balance} for p in purchases]
+    return {
+        "supplier": supplier, "entries": entries, "invoices": invoices,
+        "total_purchases": sum(p.total for p in purchases),
+        "total_paid": sum(e["credit"] for e in events),
+        "balance": supplier.balance,
+    }
 
 
 # ── Used Device Purchases ─────────────────────────────────────────────────────

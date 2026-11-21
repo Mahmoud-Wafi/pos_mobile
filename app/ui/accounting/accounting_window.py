@@ -22,6 +22,22 @@ from app.ui.accounting.transfer_dialog import TransferDialog
 from app.ui.design.style import set_prop, style_label, variant
 
 
+CATEGORY_AR = {
+    "sale": ar.CAT_SALE, "purchase": ar.CAT_PURCHASE, "expense": ar.CAT_EXPENSE, "supplier_payment": ar.CAT_SUPPLIER_PAYMENT,
+    "debt_collection": ar.CAT_DEBT_COLLECTION, "owner_draw": ar.CAT_OWNER_DRAW, "transfer": ar.CAT_TRANSFER,
+    "repair": ar.CAT_REPAIR, "return": ar.CAT_RETURN, "shift_open": ar.CAT_SHIFT_OPEN,
+    "initial_balance": ar.CAT_INITIAL, "used_device_purchase": ar.CAT_USED_DEVICE, "wallet_cash": ar.CAT_WALLET_CASH,
+}
+
+
+def category_label(category) -> str:
+    if not category:
+        return "—"
+    if category.startswith("wallet_"):
+        return ar.CAT_WALLET_CASH
+    return CATEGORY_AR.get(category, category)
+
+
 class AccountingWidget(QWidget):
     def __init__(self, session, user, parent=None):
         super().__init__(parent)
@@ -270,7 +286,7 @@ class AccountingWidget(QWidget):
             amt_item.setTextAlignment(Qt.AlignCenter)
             self.ledger_table.setItem(idx, 3, amt_item)
 
-            self.ledger_table.setItem(idx, 4, QTableWidgetItem(t.category or "—"))
+            self.ledger_table.setItem(idx, 4, QTableWidgetItem(category_label(t.category)))
             self.ledger_table.setItem(idx, 5, QTableWidgetItem(str(t.user_id or "—")))
             self.ledger_table.setItem(idx, 6, QTableWidgetItem(t.created_at.strftime("%Y-%m-%d %H:%M")))
             self.ledger_table.setItem(idx, 7, QTableWidgetItem(t.note or "—"))

@@ -108,7 +108,7 @@ def test_settings_tabs_follow_permissions(qtbot, db_session):
     admin = db_session.query(User).filter_by(username="admin").first()
     w = SettingsWidget(db_session, admin)
     qtbot.addWidget(w)
-    assert w.tabs.count() == 4                      # shop, users, audit, backup
+    assert w.tabs.count() == 5                      # shop, printers, users, audit, backup
 
     cashier = _make_user(db_session, "tabs_cashier", ROLE_CASHIER)
     w2 = SettingsWidget(db_session, cashier)

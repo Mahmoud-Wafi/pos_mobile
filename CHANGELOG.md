@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased (branch `feat/ui-polish-suppliers-hardware`)
+- Supplier ledger: click a supplier to see every invoice and every payment; payments can be tied to an invoice. See D-020.
+- Wallets: commission rules can be edited and deleted by the manager.
+- Fixed: phone-model field did not accept typing (add device, used device); repair delivery failing for non-"ready" tickets.
+- New: separate hardware settings (receipt printer, label printer and size, barcode-reader test).
+- UI: reports/profit, backup screen, customers/debts action buttons, Arabic cash-ledger categories.
+
 ## Unreleased (branch `fix/numeric-fields-and-new-product`)
 - Fixed: money/number fields could not be typed with a decimal point on Arabic-locale Windows (wallets, expenses, products, ... all "did nothing"). See D-019.
 - Fixed: adding a customer always failed (wrong service call); collecting a customer payment always failed (wrong argument name) and now credits the chosen cash account.

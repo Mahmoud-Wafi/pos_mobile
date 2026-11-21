@@ -384,6 +384,8 @@ def test_add_device_and_used_device_typed(qtbot, funded, mgr, locale, no_modal, 
     d = dl.AddDeviceDialog(funded, mgr)
     qtbot.addWidget(d)
     d.show()
+    type_into(qtbot, d.model_picker.combo.lineEdit(), "هاتف")           # existing model typed by hand
+    assert not d.model_picker.price_edit.isVisible()
     type_into(qtbot, d.imei1_edit, "356938035643809")
     type_into(qtbot, d.cost_edit, "٨٠٠٫٥")
     type_into(qtbot, d.extra_cost_edit, "10,5")
@@ -399,10 +401,16 @@ def test_add_device_and_used_device_typed(qtbot, funded, mgr, locale, no_modal, 
     type_into(qtbot, u.seller_nid_edit, "29001011234567")
     type_into(qtbot, u.seller_phone_edit, "01055556666")
     type_into(qtbot, u.price_edit, "٢٥٠٠٫٥")
+    type_into(qtbot, u.model_picker.combo.lineEdit(), "Galaxy A15 128GB")     # a brand-new model: typed, priced
+    assert u.model_picker.price_edit.isVisible()
+    type_into(qtbot, u.model_picker.price_edit, "٤٥٠٠")
     type_into(qtbot, u.imei1_edit, "490154203237518")
     u._save_used_device()
     assert not no_modal, no_modal
     assert funded.query(Device).filter_by(imei1="490154203237518").one().purchase_cost == 250050
+    from app.models.product import Product
+    newp = funded.query(Product).filter_by(name="Galaxy A15 128GB").one()
+    assert newp.track_imei and newp.type == "phone" and newp.sale_price == 450000
 
 
 def test_new_repair_typed(qtbot, funded, mgr, locale, no_modal, monkeypatch):

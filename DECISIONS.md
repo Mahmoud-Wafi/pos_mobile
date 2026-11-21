@@ -101,3 +101,12 @@ Architectural and business-rule decisions made during development.
 - Creating wallets and commission rules needs `wallet.manage` (manager). The wallet screen now hides those buttons for roles without it; the service still enforces the rule. Change the role grants if the wallet employee should manage wallets too.
 - A purchase invoice can create a product in place ("+ منتج جديد"). The opening-quantity field is hidden there because the invoice itself adds the stock.
 - `tests/test_ui_service_calls.py` statically checks that every `*_service.fn(...)` call in the UI matches the real signature.
+
+## D-020 — Supplier ledger, editable commissions, model picker, hardware settings
+- **Supplier ledger.** Every payment to a supplier is a `SupplierPayment`; a payment made while entering an invoice is also one (`CashTransaction.category = "purchase"`). Payments may be linked to an invoice (`purchase_id`) and then update that invoice's `paid` / `balance`. Clicking a supplier opens a ledger dialog: invoices, each invoice's payments in date order, and totals (e.g. 10000 invoice paid 5000, 2000, 1000, 2000 shows every step and the remaining balance). `pay_supplier` no longer checks drawer sufficiency, to stay consistent with `create_purchase`.
+- **Commission rules are editable** (`update_commission_rule`, `delete_commission_rule`, manager only). `max_amount == 0` means unlimited; delete is soft (`is_active = False`); overlapping ranges on the same network and operation are rejected.
+- **ModelPicker.** The phone-model field in "add device" and "used device" was a read-only combo, so typing did nothing. It is now an editable combo; typing a new model name creates a phone product (`track_imei`, sale price from the price field) when saved.
+- **Repair delivery** is one step: «تسليم» can mark the ticket ready and deliver it (`deliver(..., mark_ready=True)`) once it is fully paid, instead of failing on a ticket that was not yet "ready".
+- **Hardware settings tab** separates the receipt printer (name, direct print, width mm), the label printer (name, direct print, label width/height mm) and a barcode-reader test field. Labels print through reportlab PDFs rendered with QtPdf onto the chosen printer, or open as a PDF when direct printing is off.
+- UI polish: reports/profit, backup screen, customer/debt action buttons (QSS rule for buttons inside table cells), cash-ledger category names in Arabic.
+- Not covered: category/brand edit and delete; Windows `.exe` build is untested.

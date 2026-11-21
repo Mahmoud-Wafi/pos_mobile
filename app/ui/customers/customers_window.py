@@ -93,7 +93,8 @@ class CustomersWidget(QWidget):
         h.setSectionResizeMode(3, QHeaderView.Fixed); self.table.setColumnWidth(3, 140)
         h.setSectionResizeMode(4, QHeaderView.Fixed); self.table.setColumnWidth(4, 130)
         h.setSectionResizeMode(5, QHeaderView.Stretch)
-        h.setSectionResizeMode(6, QHeaderView.Fixed); self.table.setColumnWidth(6, 170)
+        h.setSectionResizeMode(6, QHeaderView.Fixed); self.table.setColumnWidth(6, 230)
+        self.table.verticalHeader().setDefaultSectionSize(54)
         main_layout.addWidget(self.table, 1)
 
     def _create_kpi_card(self, title: str, init_val: str, color: str) -> QFrame:
@@ -160,16 +161,18 @@ class CustomersWidget(QWidget):
             # Actions Box
             actions_box = QWidget()
             a_layout = QHBoxLayout(actions_box)
-            a_layout.setContentsMargins(4, 2, 4, 2)
+            a_layout.setContentsMargins(6, 4, 6, 4)
             a_layout.setSpacing(6)
 
             btn_collect = QPushButton(ar.CUSTOMERS_WINDOW_369D90)
             variant(btn_collect, "secondary")
+            btn_collect.setFixedHeight(34)
             btn_collect.clicked.connect(lambda _, cust=c: self._open_collect(cust))
             a_layout.addWidget(btn_collect)
 
             btn_edit = QPushButton(ar.EDIT)
             variant(btn_edit, "secondary")
+            btn_edit.setFixedHeight(34)
             btn_edit.clicked.connect(lambda _, cust=c: self._open_edit(cust))
             a_layout.addWidget(btn_edit)
 

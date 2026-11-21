@@ -50,7 +50,7 @@ class BackupSecurityTab(QWidget):
         # ── Left Column: Backup Management ───────────────────
         backup_group = QGroupBox(ar.SETTINGS_WINDOW_84BBD9)
         bg_layout = QVBoxLayout(backup_group)
-        bg_layout.setContentsMargins(12, 16, 12, 12)
+        bg_layout.setContentsMargins(8, 4, 8, 8)
         bg_layout.setSpacing(10)
 
         desc = QLabel(
@@ -64,18 +64,18 @@ class BackupSecurityTab(QWidget):
         btn_bar.setSpacing(10)
 
         btn_create = QPushButton(ar.SETTINGS_WINDOW_6E962D)
-        btn_create.setMinimumHeight(40)
+        btn_create.setFixedHeight(42)
         variant(btn_create, "primary")
         btn_create.clicked.connect(self._create_backup)
         btn_bar.addWidget(btn_create)
 
         self.btn_offsite = QPushButton(ar.OFFSITE_COPY_NOW)
-        self.btn_offsite.setMinimumHeight(40)
+        self.btn_offsite.setFixedHeight(42)
         self.btn_offsite.clicked.connect(self._copy_offsite)
         btn_bar.addWidget(self.btn_offsite)
 
         btn_refresh = QPushButton(ar.LOW_STOCK_WIDGET_8EB2F5)
-        btn_refresh.setMinimumHeight(40)
+        btn_refresh.setFixedHeight(42)
         btn_refresh.clicked.connect(self.load_backups)
         btn_bar.addWidget(btn_refresh)
 
@@ -89,6 +89,7 @@ class BackupSecurityTab(QWidget):
         self.table_backups.setEditTriggers(QTableWidget.NoEditTriggers)
         self.table_backups.setSelectionBehavior(QTableWidget.SelectRows)
         self.table_backups.setAlternatingRowColors(True)
+        self.table_backups.verticalHeader().setDefaultSectionSize(48)
         bh = self.table_backups.horizontalHeader()
         bh.setSectionResizeMode(0, QHeaderView.Stretch)
         bh.setSectionResizeMode(1, QHeaderView.Fixed); self.table_backups.setColumnWidth(1, 90)
@@ -104,23 +105,25 @@ class BackupSecurityTab(QWidget):
         # Security Box
         sec_group = QGroupBox(ar.CHANGE_PASSWORD)
         sec_layout = QVBoxLayout(sec_group)
-        sec_layout.setContentsMargins(12, 16, 12, 12)
-        sec_layout.setSpacing(8)
+        sec_layout.setContentsMargins(8, 4, 8, 8)
+        sec_layout.setSpacing(10)
 
         sec_layout.addWidget(QLabel(ar.SETTINGS_WINDOW_2D53C8))
         self.old_pass_edit = QLineEdit()
         self.old_pass_edit.setEchoMode(QLineEdit.Password)
-        self.old_pass_edit.setMinimumHeight(40)
+        self.old_pass_edit.setFixedHeight(42)
         sec_layout.addWidget(self.old_pass_edit)
+        sec_layout.addSpacing(4)
 
         sec_layout.addWidget(QLabel(ar.USERS_NEW_PASSWORD_PROMPT))
         self.new_pass_edit = QLineEdit()
         self.new_pass_edit.setEchoMode(QLineEdit.Password)
-        self.new_pass_edit.setMinimumHeight(40)
+        self.new_pass_edit.setFixedHeight(42)
         sec_layout.addWidget(self.new_pass_edit)
+        sec_layout.addSpacing(8)
 
         btn_save_pass = QPushButton(ar.SETTINGS_WINDOW_0404C0)
-        btn_save_pass.setMinimumHeight(40)
+        btn_save_pass.setFixedHeight(44)
         variant(btn_save_pass, "success")
         btn_save_pass.clicked.connect(self._change_password)
         sec_layout.addWidget(btn_save_pass)
@@ -130,8 +133,8 @@ class BackupSecurityTab(QWidget):
         # System Info Box
         info_group = QGroupBox(ar.SETTINGS_WINDOW_026F2F)
         info_layout = QVBoxLayout(info_group)
-        info_layout.setContentsMargins(12, 16, 12, 12)
-        info_layout.setSpacing(6)
+        info_layout.setContentsMargins(8, 4, 8, 8)
+        info_layout.setSpacing(8)
 
         infos = [
             (ar.SETTINGS_WINDOW_33C0CB, ar.APP_TITLE),
@@ -142,15 +145,16 @@ class BackupSecurityTab(QWidget):
             (ar.SETTINGS_WINDOW_1B43FD, ar.SETTINGS_WINDOW_72871A),
         ]
         for label, val in infos:
-            row = QHBoxLayout()
-            lbl_k = QLabel(label)
-            style_label(lbl_k, tone="muted", bold=True)
-            lbl_v = QLabel(val)
+            box = QVBoxLayout()
+            box.setSpacing(1)
+            lbl_k = QLabel(label.rstrip(":").strip())
+            style_label(lbl_k, size="caption", tone="muted", bold=True)
+            lbl_v = QLabel("\u200f" + val + "\u200f")   # RLM: keeps (parentheses) and Latin words in order
+            lbl_v.setWordWrap(True)
             style_label(lbl_v, tone="text", bold=True)
-            row.addWidget(lbl_k)
-            row.addStretch()
-            row.addWidget(lbl_v)
-            info_layout.addLayout(row)
+            box.addWidget(lbl_k)
+            box.addWidget(lbl_v)
+            info_layout.addLayout(box)
 
         right_box.addWidget(info_group)
         right_box.addStretch()
@@ -170,7 +174,7 @@ class BackupSecurityTab(QWidget):
             self.table_backups.setItem(r, 1, QTableWidgetItem(f"{size_kb:.1f} KB"))
 
             btn_res = QPushButton(ar.RESTORE_PHRASE)
-            variant(btn_res, "danger")
+            variant(btn_res, "secondary")   # destructive only after the typed confirmation
             btn_res.clicked.connect(lambda _, path=bp: self._confirm_restore(path))
             self.table_backups.setCellWidget(r, 2, btn_res)
 
@@ -261,6 +265,11 @@ class SettingsWidget(QWidget):
         if P.PERM_SETTINGS_MANAGE in perms:
             self.shop_tab = ShopSettingsTab(session, user)
             self.tabs.addTab(self.shop_tab, ar.SET_TAB_SHOP)
+        self.hardware_tab = None
+        if P.PERM_SETTINGS_MANAGE in perms:
+            from app.ui.settings.hardware_tab import HardwareTab
+            self.hardware_tab = HardwareTab(session, user)
+            self.tabs.addTab(self.hardware_tab, ar.HW_TAB)
         if P.PERM_USERS_MANAGE in perms:
             self.users_tab = UsersTab(session, user)
             self.tabs.addTab(self.users_tab, ar.SET_TAB_USERS)
@@ -273,6 +282,6 @@ class SettingsWidget(QWidget):
     def load_backups(self):
         """Called by the main window whenever the screen is opened."""
         self.backup_tab.load_backups()
-        for tab in (self.shop_tab, self.users_tab, self.audit_tab):
+        for tab in (self.shop_tab, self.hardware_tab, self.users_tab, self.audit_tab):
             if tab is not None:
                 tab.refresh()
