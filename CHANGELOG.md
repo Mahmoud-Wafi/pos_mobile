@@ -1,5 +1,8 @@
 # Changelog
 
+## Unreleased (branch `feat/machine-license`)
+- Per-computer licence: activation screen with machine code; owner issues an activation code with `tools/make_license.py` (D-021).
+
 ## Unreleased (branch `feat/auto-barcode`)
 - New product form (also from a purchase invoice) pre-fills the barcode with a random unused EAN-13 (prefix 2); it can still be replaced by scanning or typing.
 
