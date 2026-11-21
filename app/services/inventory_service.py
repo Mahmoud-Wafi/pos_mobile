@@ -307,6 +307,16 @@ def _check_imei_unique(session: Session, imei: str) -> None:
         raise DuplicateIMEI(imei)
 
 
+def _clean_imei(raw: Optional[str]) -> Optional[str]:
+    """Digits only, 14-16 long (Luhn stays advisory in the UI: some genuine devices fail it)."""
+    if raw is None or str(raw).strip() == "":
+        return None
+    imei = "".join(str(raw).split())
+    if not imei.isdigit() or not 14 <= len(imei) <= 16:
+        raise InventoryError(f"رقم IMEI غير صحيح: {raw}")
+    return imei
+
+
 def add_devices(session: Session, user: User, product: Product, devices_data: list[dict]) -> list[Device]:
     """Add one or more IMEI devices to a product.
 
@@ -318,9 +328,19 @@ def add_devices(session: Session, user: User, product: Product, devices_data: li
         raise InvalidProductType("هذا المنتج لا يُتتبع بـ IMEI")
 
     created: list[Device] = []
+    seen: set[str] = set()
     for d in devices_data:
-        imei1 = str(d["imei1"]).strip()
-        imei2 = str(d["imei2"]).strip() if d.get("imei2") else None
+        imei1 = _clean_imei(d.get("imei1"))
+        imei2 = _clean_imei(d.get("imei2"))
+        if imei1 is None:
+            raise InventoryError("رقم IMEI مطلوب")
+        if imei2 == imei1:
+            raise InventoryError("IMEI 1 و IMEI 2 متطابقان")
+        for code in (imei1, imei2):
+            if code and code in seen:
+                raise DuplicateIMEI(code)
+            if code:
+                seen.add(code)
 
         _check_imei_unique(session, imei1)
         if imei2:

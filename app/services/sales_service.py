@@ -59,6 +59,30 @@ class ShiftRequiredError(SaleError):
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
+def _requested_by_product(sale: Sale, exclude_item_id: Optional[int] = None) -> dict[int, int]:
+    """Total quantity of every non-IMEI product on the sale (several lines of one product add up)."""
+    totals: dict[int, int] = {}
+    for it in sale.items:
+        if it.id is not None and it.id == exclude_item_id:
+            continue
+        if it.product is not None and not it.product.track_imei:
+            totals[it.product_id] = totals.get(it.product_id, 0) + it.quantity
+    return totals
+
+
+def _lock_and_refresh_stock(session: Session, sale: Sale) -> None:
+    """Take SQLite's write lock first, then re-read stock, so two sales cannot both spend the same units.
+
+    A concurrent writer makes this fail ("database is locked") instead of overselling.
+    """
+    session.execute(Sale.__table__.update().where(Sale.id == sale.id).values(status=sale.status))
+    for it in sale.items:
+        if it.product is not None and it.product.stock is not None:
+            session.refresh(it.product.stock)
+        if it.device is not None:
+            session.refresh(it.device)
+
+
 def _generate_invoice_no(session: Session) -> str:
     """Generate sequential invoice number: INV-YYYYMMDD-####."""
     today_str = clock.local_now().strftime("%Y%m%d")
@@ -162,6 +186,7 @@ def add_line(
     discount: int = 0,
 ) -> SaleItem:
     """Add a product line to an unposted sale."""
+    require_permission(user.permission_codes(), PERM_SALES_CREATE, user.username)
     if sale.status != "held":
         raise SaleError("لا يمكن تعديل فاتورة بعد حفظها نهائياً")
 
@@ -178,6 +203,8 @@ def add_line(
             raise DeviceNotAvailableError(f"الجهاز ذو السيريال {device.imei1} غير متوفر بالمخزن (حالته: {device.status})")
         if device.product_id != product.id:
             raise SaleError("الجهاز لا ينتمي لهذا الصنف")
+        if any(it.device_id == device.id for it in sale.items):
+            raise DeviceNotAvailableError(f"الجهاز بالسيريال {device.imei1} مضاف بالفعل في هذه الفاتورة")
         unit_cost = device.total_cost
         quantity = 1  # Each phone line is 1 device
     else:
@@ -209,6 +236,7 @@ def add_line(
 
 def remove_line(session: Session, user: User, sale: Sale, item_id: int) -> None:
     """Remove a line from an unposted sale."""
+    require_permission(user.permission_codes(), PERM_SALES_CREATE, user.username)
     if sale.status != "held":
         raise SaleError("لا يمكن تعديل فاتورة بعد حفظها")
 
@@ -237,6 +265,7 @@ def update_line(
       discount above the cashier limit, needs a manager (the user or
       ``manager_override``).
     """
+    require_permission(user.permission_codes(), PERM_SALES_CREATE, user.username)
     if sale.status != "held":
         raise SaleError("لا يمكن تعديل فاتورة بعد حفظها")
     item = session.get(SaleItem, item_id)
@@ -252,10 +281,13 @@ def update_line(
             raise ValueError("الكمية يجب أن تكون أكبر من الصفر")
         if product.track_imei and quantity != 1:
             raise SaleError("الجهاز المسجل بسيريال كميته 1 فقط")
-        if not product.track_imei and quantity > product.current_quantity():
-            raise InsufficientStockError(
-                f"الكمية المتاحة من {product.name} هي {product.current_quantity()} فقط"
-            )
+        if not product.track_imei and not is_manager:
+            others = _requested_by_product(sale, exclude_item_id=item.id).get(product.id, 0)
+            if others + quantity > product.current_quantity():
+                raise InsufficientStockError(
+                    f"الكمية المتاحة من {product.name} هي {product.current_quantity()} فقط "
+                    f"(مطلوب في الفاتورة: {others + quantity})"
+                )
         item.quantity = quantity
 
     if unit_price is not None:
@@ -428,25 +460,33 @@ def post_sale(
         raise ShiftRequiredError("يجب فتح وردية أولاً قبل إجراء أي مبيعات")
     sale.shift_id = active_shift.id
 
-    # 2. Check each line item
+    # 2. Check each line item (quantities are totalled per product first)
+    _lock_and_refresh_stock(session, sale)
+    is_stock_manager = user.role.name == ROLE_MANAGER or (
+        manager_override is not None and manager_override.role.name == ROLE_MANAGER)
+    wanted = _requested_by_product(sale)
+    seen_devices: set[int] = set()
     for item in sale.items:
         product = item.product
+        if item.quantity <= 0:
+            raise SaleError("الكمية يجب أن تكون أكبر من الصفر")
 
         # IMEI Check
         if product.track_imei:
             if not item.device:
                 raise DeviceNotAvailableError(f"الصنف '{product.name}' يتطلب تحديد جهاز IMEI")
+            if item.device.id in seen_devices:
+                raise DeviceNotAvailableError(f"الجهاز بالسيريال '{item.device.imei1}' مكرر في الفاتورة")
+            seen_devices.add(item.device.id)
             if item.device.status != "in_stock":
                 raise DeviceNotAvailableError(f"الجهاز بالسيريال '{item.device.imei1}' مباع أو غير متاح بالمخزن")
         else:
-            # Accessory/Card Stock check
+            # Accessory/Card stock check against the TOTAL requested for this product
             current_qty = product.current_quantity()
-            if item.quantity > current_qty:
-                is_mgr = user.role.name == ROLE_MANAGER or (manager_override and manager_override.role.name == ROLE_MANAGER)
-                if not is_mgr:
-                    raise InsufficientStockError(
-                        f"الرصيد غير كافٍ للصنف '{product.name}'. المتاح بالمخزن: {current_qty}، المطلوب: {item.quantity}. مطلوب موافقة المدير."
-                    )
+            if wanted[product.id] > current_qty and not is_stock_manager:
+                raise InsufficientStockError(
+                    f"الرصيد غير كافٍ للصنف '{product.name}'. المتاح بالمخزن: {current_qty}، المطلوب: {wanted[product.id]}. مطلوب موافقة المدير."
+                )
 
         # Min Price Check
         if item.unit_price < product.min_price:
@@ -458,35 +498,46 @@ def post_sale(
                 )
 
     # 3. Check Payments & Split Payments
-    total_paid = 0
-    cash_paid = 0
+    # Only CASH can be over-tendered (the excess is change). Wallet/bank/card/credit amounts must fit the total.
+    cash_tendered = 0
+    non_cash = 0
     credit_amount = 0
-
-    # Clear any previous payment attempts
-    for p in list(sale.payments):
-        session.delete(p)
-
+    rows: list[dict] = []
     for p in payments:
         amount = int(p.get("amount", 0))
         method = p.get("method", "cash")
-        wallet_id = p.get("wallet_id")
-        if amount <= 0:
+        if amount < 0:
+            raise SaleError("مبلغ الدفع لا يمكن أن يكون سالباً")
+        if amount == 0:
             continue
-
-        if method == "credit":
+        if method == "cash":
+            cash_tendered += amount
+        elif method == "credit":
             credit_amount += amount
+            rows.append({"method": method, "amount": amount, "wallet_id": p.get("wallet_id")})
         else:
-            total_paid += amount
-            if method == "cash":
-                cash_paid += amount
+            non_cash += amount
+            rows.append({"method": method, "amount": amount, "wallet_id": p.get("wallet_id")})
+    if non_cash + credit_amount > sale.total:
+        raise SaleError("مبالغ المحفظة/البنك/الآجل تتجاوز إجمالي الفاتورة؛ الباقي النقدي يُرد فقط من النقدية")
 
-        sp = SalePayment(
-            sale_id=sale.id,
-            method=method,
-            amount=amount,
-            wallet_id=wallet_id,
-        )
-        session.add(sp)
+    cash_needed = max(0, sale.total - non_cash - credit_amount)
+    cash_paid = min(cash_tendered, cash_needed)        # what actually stays in the drawer
+    change_given = cash_tendered - cash_paid           # handed back to the customer
+    total_paid = cash_paid + non_cash
+    if cash_paid > 0:
+        rows.insert(0, {"method": "cash", "amount": cash_paid, "wallet_id": None})
+
+    # Clear any previous payment attempts
+    for old_p in list(sale.payments):
+        session.delete(old_p)
+    session.flush()
+    for r in rows:
+        session.add(SalePayment(sale_id=sale.id, method=r["method"], amount=r["amount"], wallet_id=r["wallet_id"]))
+    session.flush()
+    session.expire(sale, ["payments"])
+    sale.cash_tendered = cash_tendered
+    sale.change_given = change_given
 
     # Check Credit Eligibility
     remaining = sale.total - total_paid
@@ -606,14 +657,57 @@ def return_sale_items(
     if not reason.strip():
         raise ValueError("سبب المرتجع مطلوب")
 
-    return_no = _generate_return_no(session)
-    total_refund = 0
+    # ── 1. Validate EVERYTHING before touching any data ──────────────────────
+    if not return_items_data:
+        raise SaleError("لا توجد أصناف في المرتجع")
+    requested: dict[int, int] = {}
+    for item_data in return_items_data:
+        try:
+            qty = int(item_data.get("quantity", 1))
+            sid = int(item_data["sale_item_id"])
+        except (KeyError, TypeError, ValueError):
+            raise SaleError("بيانات المرتجع غير صحيحة")
+        if qty <= 0:
+            raise SaleError("كمية المرتجع يجب أن تكون أكبر من الصفر")
+        requested[sid] = requested.get(sid, 0) + qty          # the same line twice = one total
 
+    plan: list[tuple[SaleItem, int, int]] = []                 # (item, qty, refund)
+    for sid, qty in requested.items():
+        sale_item = session.get(SaleItem, sid)
+        if not sale_item or sale_item.sale_id != sale.id:
+            raise SaleError("بند الفاتورة غير صحيح")
+        already = session.query(func.coalesce(func.sum(SaleReturnItem.quantity), 0)).filter(
+            SaleReturnItem.sale_item_id == sale_item.id
+        ).scalar() or 0
+        if already + qty > sale_item.quantity:
+            raise SaleError(f"الكمية المرتجعة تتجاوز الكمية المباعة للصنف '{sale_item.product.name}'")
+        if restock and sale_item.product.track_imei and sale_item.device is not None \
+                and sale_item.device.status != "sold":
+            raise SaleError(f"الجهاز بالسيريال '{sale_item.device.imei1}' ليس بحالة مباع ولا يمكن إرجاعه للمخزن")
+        # Proportional refund that sums exactly to line_total once the whole line is returned
+        refund = (sale_item.line_total * (already + qty)) // sale_item.quantity \
+            - (sale_item.line_total * already) // sale_item.quantity
+        plan.append((sale_item, qty, refund))
+
+    total_refund = sum(r for _, _, r in plan)
+    # The refund leaves the drawer under the user's own open shift, else under the shop's open shift
+    # (e.g. a manager voiding a cashier's invoice), so the shift's expected cash stays right.
+    active_shift = shift_service.get_open_shift_for(session, user)
+
+    # Part of the refund cancels what the customer still owes on this sale; the rest goes back as cash.
+    returned_before = session.query(func.coalesce(func.sum(SaleReturn.refund_amount), 0)).filter(
+        SaleReturn.sale_id == sale.id).scalar() or 0
+    debt_part = max(0, min(sale.remaining, returned_before + total_refund) - min(sale.remaining, returned_before))
+    debt_reduction = min(debt_part, max(0, sale.customer.balance))
+    cash_refund_due = total_refund - debt_reduction
+
+    # ── 2. Apply ─────────────────────────────────────────────────────────────
+    return_no = _generate_return_no(session)
     return_record = SaleReturn(
         sale_id=sale.id,
         return_no=return_no,
         reason=reason,
-        refund_amount=0,
+        refund_amount=total_refund,
         refund_method=refund_method,
         restock=restock,
         user_id=user.id,
@@ -621,34 +715,8 @@ def return_sale_items(
     session.add(return_record)
     session.flush()
 
-    for item_data in return_items_data:
-        sale_item_id = item_data["sale_item_id"]
-        qty_to_return = int(item_data.get("quantity", 1))
-
-        sale_item = session.get(SaleItem, sale_item_id)
-        if not sale_item or sale_item.sale_id != sale.id:
-            raise SaleError("بند الفاتورة غير صحيح")
-
-        # Check previously returned qty
-        already_returned = session.query(func.coalesce(func.sum(SaleReturnItem.quantity), 0)).filter(
-            SaleReturnItem.sale_item_id == sale_item.id
-        ).scalar() or 0
-
-        if (already_returned + qty_to_return) > sale_item.quantity:
-            raise SaleError(f"الكمية المرتجعة تتجاوز الكمية المباعة للصنف '{sale_item.product.name}'")
-
-        # Calculate refund for this item
-        unit_effective_price = sale_item.line_total // sale_item.quantity
-        line_refund = unit_effective_price * qty_to_return
-        total_refund += line_refund
-
-        session.add(SaleReturnItem(
-            return_id=return_record.id,
-            sale_item_id=sale_item.id,
-            quantity=qty_to_return,
-        ))
-
-        # Restock logic
+    for sale_item, qty_to_return, _refund in plan:
+        session.add(SaleReturnItem(return_id=return_record.id, sale_item_id=sale_item.id, quantity=qty_to_return))
         if restock:
             product = sale_item.product
             if product.track_imei and sale_item.device:
@@ -680,23 +748,13 @@ def return_sale_items(
                     note=f"مرتجع مبيعات إشعار #{return_no}",
                 ))
 
-    return_record.refund_amount = total_refund
-
-    # Reversal of money / debt
-    if sale.customer.balance > 0 and sale.remaining > 0:
-        # If customer had debt on this sale, reverse debt first
-        debt_reduction = min(sale.customer.balance, total_refund)
+    if debt_reduction > 0:
         sale.customer.balance -= debt_reduction
-        cash_refund_due = total_refund - debt_reduction
-    else:
-        cash_refund_due = total_refund
 
-    # If cash refund leaves the drawer
     if cash_refund_due > 0 and refund_method == "cash":
         drawer = session.query(CashAccount).filter_by(type="drawer").first()
         if drawer:
             drawer.balance -= cash_refund_due
-            active_shift = shift_service.get_active_shift(session, user.id)
             session.add(CashTransaction(
                 account_id=drawer.id,
                 type="out",
@@ -727,14 +785,20 @@ def void_sale(session: Session, user: User, sale_id: int, reason: str) -> Sale:
     if not reason.strip():
         raise ValueError("سبب الإلغاء مطلوب")
 
-    # Full return of all items
-    items_to_return = [{"sale_item_id": it.id, "quantity": it.quantity} for it in sale.items]
-    return_sale_items(
-        session, user, sale.id, items_to_return,
-        reason=f"إلغاء كامل للفاتورة: {reason}",
-        restock=True,
-        refund_method="cash",
-    )
+    # Return whatever has not been returned yet (a partly returned sale can still be voided)
+    items_to_return = []
+    for it in sale.items:
+        done = session.query(func.coalesce(func.sum(SaleReturnItem.quantity), 0)).filter(
+            SaleReturnItem.sale_item_id == it.id).scalar() or 0
+        if it.quantity - done > 0:
+            items_to_return.append({"sale_item_id": it.id, "quantity": it.quantity - done})
+    if items_to_return:
+        return_sale_items(
+            session, user, sale.id, items_to_return,
+            reason=f"إلغاء كامل للفاتورة: {reason}",
+            restock=True,
+            refund_method="cash",
+        )
 
     sale.status = "void"
     session.flush()

@@ -26,7 +26,7 @@ CATEGORY_AR = {
     "sale": ar.CAT_SALE, "purchase": ar.CAT_PURCHASE, "expense": ar.CAT_EXPENSE, "supplier_payment": ar.CAT_SUPPLIER_PAYMENT,
     "debt_collection": ar.CAT_DEBT_COLLECTION, "owner_draw": ar.CAT_OWNER_DRAW, "transfer": ar.CAT_TRANSFER,
     "repair": ar.CAT_REPAIR, "return": ar.CAT_RETURN, "shift_open": ar.CAT_SHIFT_OPEN,
-    "initial_balance": ar.CAT_INITIAL, "used_device_purchase": ar.CAT_USED_DEVICE, "wallet_cash": ar.CAT_WALLET_CASH,
+    "initial_balance": ar.CAT_INITIAL, "shift_diff": ar.CAT_SHIFT_DIFF, "used_device_purchase": ar.CAT_USED_DEVICE, "wallet_cash": ar.CAT_WALLET_CASH,
 }
 
 

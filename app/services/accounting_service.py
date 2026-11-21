@@ -409,7 +409,8 @@ def daily_close(
     sales_count = len(sales_list)
     sales_total = sum(s.total for s in sales_list)
     sales_paid = sum(s.paid for s in sales_list)
-    sales_profit = sum(s.total_profit for s in sales_list)
+    from app.services.sales_profit import net_sales_profit
+    sales_profit = net_sales_profit(session, start_dt, end_dt)["net_profit"]
 
     # 2. Purchases
     pur_q = session.query(Purchase).filter(Purchase.created_at >= start_dt, Purchase.created_at <= end_dt, Purchase.status == "posted")

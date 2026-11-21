@@ -40,11 +40,11 @@ def cashier_user(db_session: Session) -> User:
 def drawer_account(db_session: Session) -> CashAccount:
     drawer = db_session.query(CashAccount).filter(CashAccount.type == "drawer").first()
     if not drawer:
-        drawer = CashAccount(name="الدرج الرئيسي", type="drawer", balance=egp_to_piasters(50000))
+        drawer = CashAccount(name="الدرج الرئيسي", type="drawer", balance=egp_to_piasters(500000))
         db_session.add(drawer)
         db_session.commit()
     else:
-        drawer.balance = egp_to_piasters(50000)
+        drawer.balance = egp_to_piasters(500000)
         db_session.commit()
     return drawer
 

@@ -55,6 +55,9 @@ def generate_thermal_receipt_text(
         f"{'الإجمالي الصافي:':<24}{format_money(sale.total):>16}",
         f"{'المدفوع:':<24}{format_money(sale.paid):>16}",
     ])
+    if getattr(sale, "change_given", 0) > 0:
+        lines.append(f"{'المستلم نقداً:':<24}{format_money(sale.cash_tendered):>16}")
+        lines.append(f"{'الباقي للعميل:':<24}{format_money(sale.change_given):>16}")
     if sale.remaining > 0:
         lines.append(f"{'المتبقي (آجل):':<24}{format_money(sale.remaining):>16}")
 
@@ -141,6 +144,8 @@ def generate_warranty_invoice_pdf(
     if sale.discount > 0:
         totals.append(("الخصم", -sale.discount))
     totals += [("الإجمالي الصافي", sale.total), ("المدفوع", sale.paid)]
+    if getattr(sale, "change_given", 0) > 0:
+        totals += [("المستلم نقداً", sale.cash_tendered), ("الباقي للعميل", sale.change_given)]
     if sale.remaining > 0:
         totals.append(("المتبقي (آجل)", sale.remaining))
     tw = [W * 0.28, W * 0.22]

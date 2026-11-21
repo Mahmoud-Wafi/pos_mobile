@@ -72,6 +72,20 @@ def _get_default_cash_account(session: Session, account_id: Optional[int] = None
     return drawer
 
 
+def _debit_account(session: Session, user: User, acc: CashAccount, amount: int) -> Optional[int]:
+    """Take *amount* out of a cash account: refuse if the balance is not enough. Returns the shift id when the
+    drawer is used (so the shift's expected cash includes the payment)."""
+    if acc.balance < amount:
+        raise PurchaseError(
+            f"الرصيد في {acc.name} غير كافٍ للدفع. المتاح: {acc.balance / 100:,.2f} ج.م، المطلوب: {amount / 100:,.2f} ج.م")
+    acc.balance -= amount
+    if acc.type == "drawer":
+        from app.services import shift_service
+        shift = shift_service.get_open_shift_for(session, user)
+        return shift.id if shift else None
+    return None
+
+
 def _ensure_stock_row(session: Session, product: Product) -> Stock:
     stock = session.query(Stock).filter(Stock.product_id == product.id).first()
     if stock is None:
@@ -290,6 +304,11 @@ def create_purchase(
 
                 if not imei1:
                     raise InvalidPurchaseItem(f"رقم IMEI فارغ للمنتج {product.name}")
+                for code in (imei1, imei2):
+                    if code and (not code.isdigit() or not 14 <= len(code) <= 16):
+                        raise InvalidPurchaseItem(f"رقم IMEI غير صحيح: {code}")
+                if imei2 and imei2 == imei1:
+                    raise InvalidPurchaseItem("IMEI 1 و IMEI 2 متطابقان")
 
                 if imei1 in seen_imeis:
                     raise DuplicateIMEIError(f"تكرار رقم IMEI في نفس الفاتورة: {imei1}")
@@ -376,7 +395,7 @@ def create_purchase(
     # Record Payment if paid_amount > 0
     if paid_amount > 0:
         cash_acc = _get_default_cash_account(session, account_id)
-        cash_acc.balance -= paid_amount
+        shift_id = _debit_account(session, user, cash_acc, paid_amount)
 
         cash_tx = CashTransaction(
             account_id=cash_acc.id,
@@ -385,6 +404,7 @@ def create_purchase(
             category="purchase",
             ref_type="purchase",
             ref_id=purchase.id,
+            shift_id=shift_id,
             user_id=user.id,
             note=f"دفعة نقدية لفاتورة الشراء {purchase.invoice_number}",
         )
@@ -454,7 +474,9 @@ def pay_supplier(
                 f"(المتبقي {purchase.balance / 100:,.2f} ج.م)")
 
     cash_acc = _get_default_cash_account(session, account_id)
-    cash_acc.balance -= amount
+    if amount > max(0, supplier.balance) and purchase is None:
+        raise PurchaseError(f"المبلغ أكبر من المستحق للمورد ({max(0, supplier.balance) / 100:,.2f} ج.م)")
+    shift_id = _debit_account(session, user, cash_acc, amount)
 
     cash_tx = CashTransaction(
         account_id=cash_acc.id,
@@ -463,6 +485,7 @@ def pay_supplier(
         category="supplier_payment",
         ref_type="supplier_payment",
         ref_id=supplier.id,
+        shift_id=shift_id,
         user_id=user.id,
         note=f"سداد للمورد: {supplier.name} - {note or ''}".strip(),
     )

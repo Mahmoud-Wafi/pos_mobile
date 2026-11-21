@@ -35,6 +35,7 @@ from app.models.shift import Shift
 from app.models.stock import Device, Stock
 from app.models.user import User
 from app.models.wallet import Wallet, WalletTransaction
+from app.services.sales_profit import net_sales_profit
 
 
 def _date_bounds(
@@ -72,7 +73,8 @@ def sales_report(
     total_net = sum(s.total for s in sales)
     total_paid = sum(s.paid for s in sales)
     total_remaining = sum(s.remaining for s in sales)
-    total_profit = sum(s.total_profit for s in sales) if PERM_PROFIT_VIEW in user.permission_codes() else 0
+    sp = net_sales_profit(session, start_dt, end_dt)
+    total_profit = sp["net_profit"] if PERM_PROFIT_VIEW in user.permission_codes() else 0
 
     rows = []
     for s in sales:
@@ -102,6 +104,7 @@ def sales_report(
         "total_paid": total_paid,
         "total_remaining": total_remaining,
         "total_profit": total_profit,
+        "returns_total": sp["returns_revenue"],
         "rows": rows,
     }
 
@@ -118,14 +121,11 @@ def profit_report(
     require_permission(user.permission_codes(), PERM_REPORTS_PROFIT, user.username)
     start_dt, end_dt = _date_bounds(start_date, end_date)
 
-    # 1. Sales profit
-    sales = (
-        session.query(Sale)
-        .filter(Sale.created_at >= start_dt, Sale.created_at <= end_dt, Sale.status == "posted")
-        .all()
-    )
-    sales_profit = sum(s.total_profit for s in sales)
-    sales_revenue = sum(s.total for s in sales)
+    # 1. Sales profit, net of returns (D-022)
+    sp = net_sales_profit(session, start_dt, end_dt)
+    sales = sp["sales"]
+    sales_profit = sp["net_profit"]
+    sales_revenue = sp["net_revenue"]
 
     # 2. Wallet profit
     wallet_txs = (
@@ -161,6 +161,11 @@ def profit_report(
         "end_date": clock.to_local(end_dt).strftime("%Y-%m-%d"),
         "sales_revenue": sales_revenue,
         "sales_profit": sales_profit,
+        "gross_sales_revenue": sp["gross_revenue"],
+        "gross_sales_profit": sp["gross_profit"],
+        "returns_revenue": sp["returns_revenue"],
+        "returns_cost_recovered": sp["returns_cost_recovered"],
+        "returns_count": sp["returns_count"],
         "wallet_commission": wallet_comm,
         "wallet_profit": wallet_profit,
         "total_expenses": total_expenses,
@@ -390,7 +395,7 @@ def dashboard_metrics(session: Session, user: User) -> dict[str, Any]:
     )
     sales_count = len(sales_today)
     sales_total = sum(s.total for s in sales_today)
-    sales_profit = sum(s.total_profit for s in sales_today) if PERM_PROFIT_VIEW in perm_codes else None
+    sales_profit = net_sales_profit(session, start_dt, end_dt)["net_profit"] if PERM_PROFIT_VIEW in perm_codes else None
 
     # Wallets today
     wallet_txs = (
@@ -525,7 +530,7 @@ def dashboard_overview(session: Session, user: User) -> dict[str, Any]:
         sales = session.query(Sale).filter(Sale.created_at >= start, Sale.created_at <= end,
                                            Sale.status == "posted").all()
         return {"date": day, "count": len(sales), "total": sum(s.total for s in sales),
-                "profit": sum(s.total_profit for s in sales) if can_profit else None}
+                "profit": net_sales_profit(session, start, end)["net_profit"] if can_profit else None}
 
     out: dict[str, Any] = {"today": today, "sales": None, "series": None, "top_products": None,
                            "wallets": None, "cash": None, "receivables": None}
