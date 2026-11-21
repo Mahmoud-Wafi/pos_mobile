@@ -1,5 +1,8 @@
 # Changelog
 
+## Unreleased (branch `feat/auto-barcode`)
+- New product form (also from a purchase invoice) pre-fills the barcode with a random unused EAN-13 (prefix 2); it can still be replaced by scanning or typing.
+
 ## Unreleased (branch `feat/ui-polish-suppliers-hardware`)
 - Supplier ledger: click a supplier to see every invoice and every payment; payments can be tied to an invoice. See D-020.
 - Wallets: commission rules can be edited and deleted by the manager.

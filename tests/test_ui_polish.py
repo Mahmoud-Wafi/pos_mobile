@@ -155,3 +155,22 @@ def test_repair_delivery_from_received_collects_balance_in_one_step(qtbot, db_se
     w._deliver()
     s.refresh(t)
     assert t.status == "delivered" and t.balance == 0 and t.ready_at is not None
+
+
+def test_new_product_gets_auto_barcode(db_session):
+    from app.services import inventory_service as inv
+    code = inv.generate_barcode(db_session)
+    assert len(code) == 13 and code.isdigit() and code.startswith("2")
+    digits = [int(d) for d in code]
+    assert (sum(d * (3 if i % 2 else 1) for i, d in enumerate(digits[:12])) + digits[12]) % 10 == 0
+    assert inv.find_product_by_barcode(db_session, code) is None
+
+
+def test_product_dialog_prefills_barcode_only_for_new(qtbot, db_session, mgr):
+    from app.ui.inventory.product_list import ProductDialog
+    dlg = ProductDialog(db_session, mgr)
+    qtbot.addWidget(dlg)
+    assert len(dlg.barcode_edit.text()) == 13
+    dlg2 = ProductDialog(db_session, mgr, allow_opening=False)   # as opened from a purchase invoice
+    qtbot.addWidget(dlg2)
+    assert len(dlg2.barcode_edit.text()) == 13

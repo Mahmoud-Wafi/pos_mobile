@@ -120,6 +120,17 @@ def find_product_by_barcode(session: Session, code: str) -> Optional[Product]:
     return product
 
 
+def generate_barcode(session: Session) -> str:
+    """A random, unused in-store EAN-13 code (prefix 2 = reserved for store use), e.g. for new products."""
+    import random
+    while True:
+        body = "2" + "".join(random.choice("0123456789") for _ in range(11))
+        check = (10 - sum(int(d) * (3 if i % 2 else 1) for i, d in enumerate(body)) % 10) % 10
+        code = body + str(check)
+        if find_product_by_barcode(session, code) is None:
+            return code
+
+
 def _check_barcode_free(session: Session, code: str, product_id: Optional[int]) -> None:
     owner = find_product_by_barcode(session, code)
     if owner is not None and owner.id != product_id and not _INTERNAL_CODE.match(code):
