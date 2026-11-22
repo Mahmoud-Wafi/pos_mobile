@@ -1,5 +1,8 @@
 # Changelog
 
+## Unreleased (branch `fix/dialogs-fit-screen`)
+- Fixed: dialogs taller than the screen hid their save/cancel buttons; all dialogs now fit the screen with scrolling content and a pinned button bar (D-024).
+
 ## Unreleased (branch `fix/audit-round2`)
 - Fixed: used-device purchase could overdraw the drawer and caused a false shift shortage.
 - Fixed: one IMEI validation rule for add / edit / purchase invoice / used purchase.

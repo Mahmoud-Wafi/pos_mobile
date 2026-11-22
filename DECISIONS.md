@@ -136,3 +136,8 @@ Architectural and business-rule decisions made during development.
 - **Refunds go back the way the money came:** the drawer returns at most the CASH actually received on that sale (minus cash already returned); the rest is a non-cash refund that is recorded on the return but makes no drawer entry. Fixes a void of a wallet-paid invoice paying cash out of the drawer.
 - **`sales.remaining`** is now what the customer still owes on the invoice after returns (unpaid at posting minus the returned value, never below zero); `paid` and `total` stay as posted.
 - **Windows build:** a real PyInstaller build and start-up test exposed a crash in the frozen app (`logging.config` was not bundled, needed by Alembic's env.py). Fixed in the spec; the build script now creates a clean venv, builds, checks the exe exists and makes a ZIP. A Windows run on a clean PC is still required.
+
+## D-024 — Dialogs always fit the screen
+- **Problem:** tall dialogs (e.g. add product, ~900 px) were taller than small laptop screens, so the save/cancel buttons were off-screen.
+- **Rule:** one application-wide event filter (`app/ui/design/dialog_fit.py`, installed in `setup_theme`) runs on the first show of every dialog. If the dialog needs more than 92% of the available screen height, its content is moved into a scroll area and the trailing button row is pinned under it, so the buttons never scroll away. Width is kept large enough for the content (horizontal scroll only if the screen is narrower). Every dialog is also clamped to the screen and moved on-screen.
+- Dialogs that already fit are left untouched. No per-dialog code is needed; new dialogs get this automatically.
