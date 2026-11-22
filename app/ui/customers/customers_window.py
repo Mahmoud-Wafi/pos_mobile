@@ -66,11 +66,11 @@ class CustomersWidget(QWidget):
         kpi_bar.setSpacing(12)
 
         # Card 1: Total Receivables
-        self.card_receivables = self._create_kpi_card(ar.CUSTOMERS_WINDOW_0A188B, ar.DAILY_CLOSE_DIALOG_388B15, "#DC2626")
+        self.card_receivables = self._create_kpi_card(ar.CUSTOMERS_WINDOW_0A188B, ar.DAILY_CLOSE_DIALOG_388B15, "#C62828")
         kpi_bar.addWidget(self.card_receivables)
 
         # Card 2: Customers Count
-        self.card_count = self._create_kpi_card(ar.CUSTOMERS_WINDOW_04D3CC, ar.CUSTOMERS_WINDOW_A9562B, "#2563EB")
+        self.card_count = self._create_kpi_card(ar.CUSTOMERS_WINDOW_04D3CC, ar.CUSTOMERS_WINDOW_A9562B, "#3558F0")
         kpi_bar.addWidget(self.card_count)
 
         kpi_bar.addStretch()

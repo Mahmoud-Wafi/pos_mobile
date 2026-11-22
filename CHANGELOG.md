@@ -1,5 +1,8 @@
 # Changelog
 
+## Unreleased (branch `feat/redesign`)
+- New visual design across the system (dark shell, new palette, rounded cards, segmented tabs); icon-only sidebar on narrow windows; inventory toolbars no longer clipped (D-025).
+
 ## Unreleased (branch `fix/dialogs-fit-screen`)
 - Fixed: dialogs taller than the screen hid their save/cancel buttons; all dialogs now fit the screen with scrolling content and a pinned button bar (D-024).
 

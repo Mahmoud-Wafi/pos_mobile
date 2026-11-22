@@ -141,3 +141,10 @@ Architectural and business-rule decisions made during development.
 - **Problem:** tall dialogs (e.g. add product, ~900 px) were taller than small laptop screens, so the save/cancel buttons were off-screen.
 - **Rule:** one application-wide event filter (`app/ui/design/dialog_fit.py`, installed in `setup_theme`) runs on the first show of every dialog. If the dialog needs more than 92% of the available screen height, its content is moved into a scroll area and the trailing button row is pinned under it, so the buttons never scroll away. Width is kept large enough for the content (horizontal scroll only if the screen is narrower). Every dialog is also clamped to the screen and moved on-screen.
 - Dialogs that already fit are left untouched. No per-dialog code is needed; new dialogs get this automatically.
+
+## D-025 — Visual redesign (tokens first)
+- The whole look comes from `app/ui/design/tokens.py` + `qss.py`; screens were not rewritten. New palette (ink navy shell `#0E1630`, primary `#3558F0`, cool greys), 16 px card radius (`RADII["xl"]`), 44 px controls, pill badges, segmented tabs.
+- The header and sidebar are one dark shell; the active page is a solid primary button. Below 1280 px window width the sidebar becomes an icon-only rail (tooltips keep the names) so pages keep their width on 1366/1024 screens.
+- Old hard-coded slate/tailwind colours in the table widgets were mapped to the new tokens. Wallet brand colours are unchanged on purpose.
+- Inventory (products and devices) toolbars: the main actions (search, filter, add) stay on the first row and the secondary buttons go on their own row, because one row was wider than a 1366 px screen.
+- Known remaining: the Wallets page needs ~1017 px of content width; at a 1024 px window it still scrolls/clips slightly.
