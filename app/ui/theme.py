@@ -63,3 +63,6 @@ def setup_theme(app: QApplication) -> None:
     from app.ui.design.table_defaults import TableDefaults
     app._table_defaults = TableDefaults(app)
     app.installEventFilter(app._table_defaults)
+    from app.ui.design.dialog_fit import DialogFit
+    app._dialog_fit = DialogFit(app)          # every dialog fits the screen; buttons stay visible
+    app.installEventFilter(app._dialog_fit)
