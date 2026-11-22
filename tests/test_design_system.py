@@ -28,7 +28,7 @@ def contrast(a: str, b: str) -> float:
 
 def test_token_scales():
     assert sorted(SPACING.values()) == [4, 8, 12, 16, 24]
-    assert sorted(RADII.values()) == [8, 12]
+    assert sorted(RADII.values()) == [8, 12, 16]
     assert sorted(FONT_SIZES.values()) == [12, 13, 14, 16, 20, 28]
 
 

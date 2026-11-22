@@ -69,37 +69,40 @@ if HAS_QT:
 
             bar.addStretch()
 
-            # Action Buttons
+            # Action buttons live on their own row so nothing is clipped on 1366px screens
+            bar2 = QHBoxLayout()
+            bar2.setSpacing(10)
             self.btn_refresh = QPushButton(ar.REFRESH)
             self.btn_refresh.setFixedHeight(40)
             self.btn_refresh.clicked.connect(self.load_data)
-            bar.addWidget(self.btn_refresh)
+            bar2.addWidget(self.btn_refresh)
 
             self.btn_import = QPushButton(ar.IMPORT_BUTTON)
             self.btn_import.setMinimumHeight(40)
             self.btn_import.clicked.connect(self._import_excel)
-            bar.addWidget(self.btn_import)
+            bar2.addWidget(self.btn_import)
             self.btn_export = QPushButton(ar.EXPORT_BUTTON)
             self.btn_export.setMinimumHeight(40)
             self.btn_export.clicked.connect(self._export_excel)
-            bar.addWidget(self.btn_export)
+            bar2.addWidget(self.btn_export)
             self.btn_edit = QPushButton(ar.INV_BTN_EDIT)
             self.btn_edit.setMinimumHeight(40)
             self.btn_edit.clicked.connect(self._edit_product)
-            bar.addWidget(self.btn_edit)
+            bar2.addWidget(self.btn_edit)
             self.btn_toggle = QPushButton(f"{ar.INV_BTN_DEACTIVATE} / {ar.INV_BTN_ACTIVATE}")
             self.btn_toggle.setMinimumHeight(40)
             self.btn_toggle.clicked.connect(self._toggle_active)
-            bar.addWidget(self.btn_toggle)
+            bar2.addWidget(self.btn_toggle)
             self.btn_delete = QPushButton(ar.INV_BTN_DELETE)
             self.btn_delete.setMinimumHeight(40)
             variant(self.btn_delete, "danger")
             self.btn_delete.clicked.connect(self._delete_product)
-            bar.addWidget(self.btn_delete)
+            bar2.addWidget(self.btn_delete)
             self.btn_labels = QPushButton(ar.LABEL_PRINT)
             self.btn_labels.setMinimumHeight(40)
             self.btn_labels.clicked.connect(self._print_labels)
-            bar.addWidget(self.btn_labels)
+            bar2.addWidget(self.btn_labels)
+            bar2.addStretch()
 
             self.btn_add = QPushButton(ar.PRODUCT_LIST_B56A2A)
             self.btn_add.setObjectName("PrimaryBtn")
@@ -108,6 +111,7 @@ if HAS_QT:
             bar.addWidget(self.btn_add)
 
             layout.addLayout(bar)
+            layout.addLayout(bar2)
 
             # Table Card
             self.table = QTableWidget()
@@ -179,18 +183,18 @@ if HAS_QT:
                     (str(p.id), Qt.AlignCenter, None, None),
                     (p.name, Qt.AlignRight | Qt.AlignVCenter, None, True),
                     (type_ar, Qt.AlignCenter, None, None),
-                    (p.barcode or "—", Qt.AlignCenter, "#64748B", None),
+                    (p.barcode or "—", Qt.AlignCenter, "#5B6683", None),
                     (format_money(p.sale_price), Qt.AlignCenter, "#0369A1", True),
                     (str(qty), Qt.AlignCenter, None, True),
-                    (str(p.min_stock), Qt.AlignCenter, "#64748B", None),
+                    (str(p.min_stock), Qt.AlignCenter, "#5B6683", None),
                     (ar.YES if p.track_imei else ar.NO, Qt.AlignCenter, None, None),
-                    (ar.PRODUCT_LIST_8CAAF9 if p.is_active else ar.PRODUCT_LIST_2E7AFF, Qt.AlignCenter, "#059669" if p.is_active else "#94A3B8", True),
+                    (ar.PRODUCT_LIST_8CAAF9 if p.is_active else ar.PRODUCT_LIST_2E7AFF, Qt.AlignCenter, "#0B7A4B" if p.is_active else "#94A3B8", True),
                 ]
 
                 for col, (text, align, fg_color, is_bold) in enumerate(cols):
                     item = QTableWidgetItem(text)
                     item.setTextAlignment(align)
-                    item.setForeground(QColor(fg_color or "#0F172A"))
+                    item.setForeground(QColor(fg_color or "#0E1630"))
                     if is_bold:
                         font = item.font()
                         font.setBold(True)
@@ -199,14 +203,14 @@ if HAS_QT:
                     # Highlight Stock cell
                     if col == 5:
                         if is_out_of_stock:
-                            item.setBackground(QColor("#FEE2E2"))
-                            item.setForeground(QColor("#991B1B"))
+                            item.setBackground(QColor("#FDECEC"))
+                            item.setForeground(QColor("#A91F1F"))
                         elif is_low_stock:
-                            item.setBackground(QColor("#FEF3C7"))
-                            item.setForeground(QColor("#92400E"))
+                            item.setBackground(QColor("#FFF4E5"))
+                            item.setForeground(QColor("#9A5B00"))
                         else:
-                            item.setBackground(QColor("#ECFDF5"))
-                            item.setForeground(QColor("#065F46"))
+                            item.setBackground(QColor("#E3F6EE"))
+                            item.setForeground(QColor("#0B7A4B"))
 
                     self.table.setItem(row, col, item)
 

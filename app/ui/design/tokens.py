@@ -6,27 +6,28 @@ semantic names, never raw hex codes.
 from __future__ import annotations
 
 COLORS: dict[str, str] = {
-    # surfaces
-    "bg": "#F8FAFC", "surface": "#FFFFFF", "surface_alt": "#F1F5F9",
-    "border": "#E2E8F0", "border_strong": "#CBD5E1",
-    # text (secondary text >= #64748B on white keeps WCAG AA)
-    "text": "#0F172A", "text_body": "#1E293B", "text_muted": "#64748B", "text_disabled": "#94A3B8",
+    # surfaces (cool, slightly blue-tinted greys)
+    "bg": "#F4F6FB", "surface": "#FFFFFF", "surface_alt": "#EEF1F8",
+    "border": "#E6E9F2", "border_strong": "#CBD2E3",
+    # text (secondary text >= #5B6683 on white keeps WCAG AA)
+    "text": "#0E1630", "text_body": "#1E2744", "text_muted": "#5B6683", "text_disabled": "#8F99B5",
     "text_inverse": "#FFFFFF",
     # brand / semantic
-    "primary": "#2563EB", "primary_hover": "#1D4ED8", "primary_pressed": "#1E40AF", "primary_soft": "#EFF6FF",
-    "success": "#047857", "success_hover": "#065F46", "success_soft": "#ECFDF5",
-    "warning": "#B45309", "warning_soft": "#FFFBEB",
-    "danger": "#DC2626", "danger_hover": "#B91C1C", "danger_soft": "#FEF2F2",
-    "info": "#0369A1", "info_soft": "#F0F9FF",
-    # shell
-    "header_bg": "#0F172A", "header_text": "#E2E8F0", "header_muted": "#94A3B8", "header_chip": "#1E293B",
-    "focus": "#2563EB",
+    "primary": "#3558F0", "primary_hover": "#2A47D0", "primary_pressed": "#2139B0", "primary_soft": "#E7EEFF",
+    "success": "#0B7A4B", "success_hover": "#096039", "success_soft": "#E3F6EE",
+    "warning": "#9A5B00", "warning_soft": "#FFF4E5",
+    "danger": "#C62828", "danger_hover": "#A91F1F", "danger_soft": "#FDECEC",
+    "info": "#0369A1", "info_soft": "#E8F4FB",
+    # dark shell (header + sidebar)
+    "header_bg": "#0E1630", "header_text": "#E6EAF8", "header_muted": "#A9B4D0", "header_chip": "#18224A",
+    "sidebar_hover": "#18224A", "sidebar_category": "#8F9BC0",
+    "focus": "#3558F0",
 }
 
 SPACING = {"xs": 4, "sm": 8, "md": 12, "lg": 16, "xl": 24}
-RADII = {"md": 8, "lg": 12}
+RADII = {"md": 8, "lg": 12, "xl": 16}
 FONT_SIZES = {"caption": 12, "body": 13, "label": 14, "title": 16, "h2": 20, "h1": 28}
-CONTROL_HEIGHT = 40
+CONTROL_HEIGHT = 44
 FONT_FAMILY = '"Cairo", "Segoe UI", "Tajawal", "Tahoma", sans-serif'
 
 

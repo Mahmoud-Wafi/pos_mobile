@@ -151,6 +151,9 @@ if HAS_QT:
 
             sidebar = QFrame()
             sidebar.setObjectName("Sidebar")
+            self.sidebar = sidebar
+            self._sidebar_labels: list[QLabel] = []
+            self._compact = False
             sidebar_layout = QVBoxLayout(sidebar)
             sidebar_layout.setContentsMargins(8, 16, 8, 16)
             sidebar_layout.setSpacing(4)
@@ -158,6 +161,7 @@ if HAS_QT:
             lbl_cat_ops = QLabel(ar.MAIN_WINDOW_3C30D2)
             lbl_cat_ops.setObjectName("SidebarCategory")
             sidebar_layout.addWidget(lbl_cat_ops)
+            self._sidebar_labels.append(lbl_cat_ops)
 
             self.nav_buttons: list[QPushButton] = []
 
@@ -186,18 +190,21 @@ if HAS_QT:
                     lbl.setObjectName("SidebarCategory")
                     lbl.setVisible(can_open(self.perms, "reports") or can_open(self.perms, "settings"))
                     sidebar_layout.addWidget(lbl)
+                    self._sidebar_labels.append(lbl)
                 for key, label, slot in items:
                     visible = can_open(self.perms, key)
                     btn = QPushButton(label)
+                    btn.setProperty("nav_text", label)
                     btn.setProperty("nav", True)
                     btn.setProperty("active", False)
-                    btn.setIcon(icons.icon(NAV_ICONS[key], C["text_muted"], C["primary"]))
+                    btn.setIcon(icons.icon(NAV_ICONS[key], C["header_muted"]))
                     btn.setIconSize(QSize(20, 20))
                     btn.setCursor(Qt.PointingHandCursor)
                     btn.clicked.connect(slot)
                     btn.setVisible(visible)
                     if visible and shortcut_no <= 9:
                         btn.setToolTip(f"Ctrl+{shortcut_no}")
+                        btn.setProperty("nav_tip", f"Ctrl+{shortcut_no}")
                         QShortcut(QKeySequence(f"Ctrl+{shortcut_no}"), self, slot)
                         shortcut_no += 1
                     sidebar_layout.addWidget(btn)
@@ -358,6 +365,7 @@ if HAS_QT:
         def _set_active_nav(self, key: str):
             for k, btn in self._nav_by_key.items():
                 set_prop(btn, "active", k == key)
+                btn.setIcon(icons.icon(NAV_ICONS[k], C["text_inverse"] if k == key else C["header_muted"]))
             self.refresh_shift_status()
 
         def _show_dashboard(self):
@@ -469,6 +477,26 @@ if HAS_QT:
 
         def _settings(self) -> QSettings:
             return QSettings(str(DATA_DIR / "window.ini"), QSettings.IniFormat)
+
+        COMPACT_BELOW = 1280      # narrower windows get an icon-only sidebar so pages keep their width
+
+        def resizeEvent(self, event):
+            super().resizeEvent(event)
+            self._apply_compact(self.width() < self.COMPACT_BELOW)
+
+        def _apply_compact(self, compact: bool) -> None:
+            if not hasattr(self, "sidebar") or compact == self._compact:
+                return
+            self._compact = compact
+            set_prop(self.sidebar, "compact", compact)
+            for lbl in self._sidebar_labels:
+                lbl.setVisible(False if compact else lbl is self._sidebar_labels[0] or can_open(self.perms, "reports") or can_open(self.perms, "settings"))
+            for btn in self.nav_buttons:
+                text = btn.property("nav_text") or ""
+                btn.setText("" if compact else text)
+                key_tip = btn.property("nav_tip") or ""
+                btn.setToolTip((f"{text}  ({key_tip})" if key_tip else text) if compact else key_tip)
+                btn.setIconSize(QSize(22, 22))
 
         def _restore_geometry(self) -> None:
             """Restore the last size/position; fall back to a size that fits 1366x768."""

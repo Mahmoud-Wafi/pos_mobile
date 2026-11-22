@@ -33,10 +33,10 @@ if HAS_QT:
     HEADERS = ["#", ar.DEVICE_LIST_D18270, ar.DEVICE_LIST_9F4371, ar.DEVICE_LIST_3F6549, ar.DEVICE_LIST_E887F5, ar.DEVICE_LIST_E1DCB7, ar.DEVICE_LIST_592F9D]
 
     STATUS_CONFIG = {
-        "in_stock": (ar.DEVICE_LIST_99F6F9, "#ECFDF5", "#065F46"),
-        "sold": (ar.DEVICE_LIST_3655DA, "#EFF6FF", "#1E40AF"),
-        "returned": (ar.HISTORY_RETURN, "#FEF3C7", "#92400E"),
-        "damaged": (ar.DEVICE_LIST_250573, "#FEE2E2", "#991B1B"),
+        "in_stock": (ar.DEVICE_LIST_99F6F9, "#E3F6EE", "#0B7A4B"),
+        "sold": (ar.DEVICE_LIST_3655DA, "#E7EEFF", "#2139B0"),
+        "returned": (ar.HISTORY_RETURN, "#FFF4E5", "#9A5B00"),
+        "damaged": (ar.DEVICE_LIST_250573, "#FDECEC", "#A91F1F"),
     }
 
     class DeviceListWidget(QWidget):
@@ -73,37 +73,40 @@ if HAS_QT:
             bar.addWidget(self.filter_status)
 
             bar.addStretch()
+            bar2 = QHBoxLayout()           # secondary actions on their own row (no clipping at 1366px)
+            bar2.setSpacing(10)
 
             self.btn_import = QPushButton(ar.IMPORT_BUTTON)
             self.btn_import.setMinimumHeight(40)
             self.btn_import.clicked.connect(self._import_excel)
-            bar.addWidget(self.btn_import)
+            bar2.addWidget(self.btn_import)
             self.btn_export = QPushButton(ar.EXPORT_BUTTON)
             self.btn_export.setMinimumHeight(40)
             self.btn_export.clicked.connect(self._export_excel)
-            bar.addWidget(self.btn_export)
+            bar2.addWidget(self.btn_export)
             self.btn_edit = QPushButton(ar.INV_BTN_EDIT)
             self.btn_edit.setMinimumHeight(40)
             self.btn_edit.clicked.connect(self._edit_device)
-            bar.addWidget(self.btn_edit)
+            bar2.addWidget(self.btn_edit)
             self.btn_writeoff = QPushButton(ar.INV_BTN_WRITE_OFF)
             self.btn_writeoff.setMinimumHeight(40)
             self.btn_writeoff.clicked.connect(self._write_off)
-            bar.addWidget(self.btn_writeoff)
+            bar2.addWidget(self.btn_writeoff)
             self.btn_delete = QPushButton(ar.INV_BTN_DELETE)
             self.btn_delete.setMinimumHeight(40)
             variant(self.btn_delete, "danger")
             self.btn_delete.clicked.connect(self._delete_device)
-            bar.addWidget(self.btn_delete)
+            bar2.addWidget(self.btn_delete)
             self.btn_labels = QPushButton(ar.LABEL_PRINT)
             self.btn_labels.setMinimumHeight(40)
             self.btn_labels.clicked.connect(self._print_labels)
-            bar.addWidget(self.btn_labels)
+            bar2.addWidget(self.btn_labels)
 
             self.btn_refresh = QPushButton(ar.REFRESH)
             self.btn_refresh.setFixedHeight(40)
             self.btn_refresh.clicked.connect(self.load_data)
-            bar.addWidget(self.btn_refresh)
+            bar2.addWidget(self.btn_refresh)
+            bar2.addStretch()
 
             self.btn_add = QPushButton(ar.DEVICE_LIST_CC7227)
             self.btn_add.setObjectName("PrimaryBtn")
@@ -112,6 +115,7 @@ if HAS_QT:
             bar.addWidget(self.btn_add)
 
             layout.addLayout(bar)
+            layout.addLayout(bar2)
 
             # Table
             self.table = QTableWidget()
@@ -170,23 +174,23 @@ if HAS_QT:
             self._shown = list(devices)
             self.table.setRowCount(len(devices))
             for row, d in enumerate(devices):
-                status_ar, bg_col, fg_col = STATUS_CONFIG.get(d.status, (d.status, "#F1F5F9", "#0F172A"))
+                status_ar, bg_col, fg_col = STATUS_CONFIG.get(d.status, (d.status, "#EEF1F8", "#0E1630"))
                 cond_ar = ar.DEVICE_CONDITION_NEW if d.condition == "new" else ar.DEVICE_CONDITION_USED
 
                 cols = [
                     (str(d.id), Qt.AlignCenter, None, None, None),
                     (d.product.name if d.product else "", Qt.AlignRight | Qt.AlignVCenter, None, True, None),
-                    (d.imei1, Qt.AlignCenter, "#0284C7", True, None),
-                    (d.imei2 or "—", Qt.AlignCenter, "#64748B", False, None),
+                    (d.imei1, Qt.AlignCenter, "#0369A1", True, None),
+                    (d.imei2 or "—", Qt.AlignCenter, "#5B6683", False, None),
                     (status_ar, Qt.AlignCenter, fg_col, True, bg_col),
-                    (cond_ar, Qt.AlignCenter, "#334155", False, None),
-                    (format_money(d.total_cost), Qt.AlignCenter, "#0F172A", True, None),
+                    (cond_ar, Qt.AlignCenter, "#1E2744", False, None),
+                    (format_money(d.total_cost), Qt.AlignCenter, "#0E1630", True, None),
                 ]
 
                 for col, (val, align, fg, is_bold, bg) in enumerate(cols):
                     item = QTableWidgetItem(val)
                     item.setTextAlignment(align)
-                    item.setForeground(QColor(fg or "#0F172A"))
+                    item.setForeground(QColor(fg or "#0E1630"))
                     if is_bold:
                         f = item.font(); f.setBold(True); item.setFont(f)
                     if bg:

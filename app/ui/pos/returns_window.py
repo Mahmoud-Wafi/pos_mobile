@@ -110,8 +110,8 @@ if HAS_QT:
 
             for row, r in enumerate(results):
                 status_text = ar.RETURNS_WINDOW_AD12C7 if r["is_valid"] else ar.RETURNS_WINDOW_2E7E5D
-                bg_color = "#ECFDF5" if r["is_valid"] else "#FEE2E2"
-                fg_color = "#065F46" if r["is_valid"] else "#991B1B"
+                bg_color = "#E3F6EE" if r["is_valid"] else "#FDECEC"
+                fg_color = "#0B7A4B" if r["is_valid"] else "#A91F1F"
                 end_str = r["warranty_end_date"].strftime("%Y-%m-%d") if r["warranty_end_date"] else ar.RETURNS_WINDOW_B7E4F8
 
                 cols = [

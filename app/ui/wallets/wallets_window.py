@@ -105,11 +105,11 @@ class WalletsWidget(QWidget):
 
         self.op_buttons = {}
         ops = [
-            ("cash_in", ar.WALLETS_WINDOW_224F5C, "#2563EB"),
+            ("cash_in", ar.WALLETS_WINDOW_224F5C, "#3558F0"),
             ("cash_out", ar.WALLETS_WINDOW_B416BB, "#16A34A"),
             ("bill", ar.WALLETS_WINDOW_64C034, "#7C3AED"),
             ("recharge", ar.WALLETS_WINDOW_AF377F, "#EA580C"),
-            ("fund", ar.WALLETS_WINDOW_61B0E2, "#0284C7"),
+            ("fund", ar.WALLETS_WINDOW_61B0E2, "#0369A1"),
             ("withdraw", ar.WALLETS_WINDOW_2EE3FC, "#0D9488"),
         ]
 
@@ -320,7 +320,7 @@ class WalletsWidget(QWidget):
         color_map = {
             "vodafone": ("#EF4444", "#FEF2F2", ""),
             "orange": ("#F97316", "#FFF7ED", ""),
-            "etisalat": ("#10B981", "#ECFDF5", ""),
+            "etisalat": ("#10B981", "#E3F6EE", ""),
             "we": ("#8B5CF6", "#F5F3FF", ""),
             "instapay": ("#6366F1", "#EEF2FF", ""),
         }
@@ -328,7 +328,7 @@ class WalletsWidget(QWidget):
         for w in wallets:
             self.op_wallet_combo.addItem(f"{w.label} ({format_money(w.balance)})", w)
 
-            primary, bg, icon = color_map.get(w.network.lower(), ("#2563EB", "#EFF6FF", "💳"))
+            primary, bg, icon = color_map.get(w.network.lower(), ("#3558F0", "#E7EEFF", "💳"))
             used_today, _ = wallet_service.get_wallet_usage(self.session, w.id)
 
             card = QFrame()

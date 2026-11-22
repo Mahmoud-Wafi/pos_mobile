@@ -78,16 +78,16 @@ if HAS_QT:
                 cols = [
                     (str(p.id), Qt.AlignCenter, None, None, None),
                     (p.name, Qt.AlignRight | Qt.AlignVCenter, None, True, None),
-                    (type_ar, Qt.AlignCenter, "#64748B", False, None),
-                    (f"{qty} قطعة" if qty > 0 else ar.LOW_STOCK_WIDGET_01F4FA, Qt.AlignCenter, "#991B1B" if is_zero else "#92400E", True, "#FEE2E2" if is_zero else "#FEF3C7"),
-                    (f"{p.min_stock} قطعة", Qt.AlignCenter, "#334155", False, None),
-                    (f"-{deficit} قطعة", Qt.AlignCenter, "#DC2626", True, None),
+                    (type_ar, Qt.AlignCenter, "#5B6683", False, None),
+                    (f"{qty} قطعة" if qty > 0 else ar.LOW_STOCK_WIDGET_01F4FA, Qt.AlignCenter, "#A91F1F" if is_zero else "#9A5B00", True, "#FDECEC" if is_zero else "#FFF4E5"),
+                    (f"{p.min_stock} قطعة", Qt.AlignCenter, "#1E2744", False, None),
+                    (f"-{deficit} قطعة", Qt.AlignCenter, "#C62828", True, None),
                 ]
 
                 for col, (text, align, fg, is_bold, bg) in enumerate(cols):
                     item = QTableWidgetItem(text)
                     item.setTextAlignment(align)
-                    item.setForeground(QColor(fg or "#0F172A"))
+                    item.setForeground(QColor(fg or "#0E1630"))
                     if is_bold:
                         f = item.font(); f.setBold(True); item.setFont(f)
                     if bg:

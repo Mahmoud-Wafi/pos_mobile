@@ -26,7 +26,7 @@ QTabBar::tab:focus {{ border: 2px solid {C['focus']}; }}
 QCheckBox:focus {{ color: {C['primary']}; }}
 
 /* shell */
-QFrame#Header {{ background-color: {C['header_bg']}; border-bottom: 2px solid {C['primary']}; min-height: 60px; max-height: 60px; }}
+QFrame#Header {{ background-color: {C['header_bg']}; border-bottom: 1px solid {C['header_chip']}; min-height: 64px; max-height: 64px; }}
 QFrame#Header QLabel {{ color: {C['header_text']}; }}
 QLabel#AppTitle {{ color: {C['text_inverse']}; font-size: {F['h2']}px; font-weight: 700; }}
 QLabel#AppSubtitle {{ color: {C['header_muted']}; font-size: {F['caption']}px; }}
@@ -36,23 +36,26 @@ QLabel#RolePill {{ background-color: {C['primary']}; color: {C['text_inverse']};
 QLabel#ShiftPill {{ background-color: {C['header_chip']}; border-radius: {R['md']}px; padding: 6px 12px; font-weight: 700; }}
 QLabel#ShiftPill[state="open"] {{ color: #6EE7B7; }}
 QLabel#ShiftPill[state="closed"] {{ color: #FCA5A5; }}
-QFrame#Sidebar {{ background-color: {C['surface']}; border-left: 1px solid {C['border']}; min-width: 230px; max-width: 230px; }}
-QLabel#SidebarCategory {{ color: {C['text_muted']}; font-size: {F['caption']}px; font-weight: 700; padding: 8px 16px 2px 16px; }}
-QFrame#ShiftCard {{ background-color: {C['bg']}; border: 1px solid {C['border']}; border-radius: {R['md']}px; margin: 6px; }}
-QPushButton[nav="true"] {{ text-align: right; padding: 10px 16px; border: none; border-radius: {R['md']}px; margin: 2px 8px;
-    font-weight: 600; background-color: transparent; color: {C['text_muted']}; }}
-QPushButton[nav="true"]:hover {{ background-color: {C['surface_alt']}; color: {C['text']}; }}
-QPushButton[nav="true"][active="true"] {{ background-color: {C['primary_soft']}; color: {C['primary']}; font-weight: 700; border-right: 4px solid {C['primary']}; }}
-QPushButton[nav="true"]:focus {{ border: 2px solid {C['focus']}; }}
+QFrame#Sidebar {{ background-color: {C['header_bg']}; border: none; min-width: 244px; max-width: 244px; }}
+QFrame#Sidebar[compact="true"] {{ min-width: 84px; max-width: 84px; }}
+QFrame#Sidebar[compact="true"] QPushButton[nav="true"] {{ padding: 10px 0; margin: 2px 12px; }}
+QLabel#SidebarCategory {{ color: {C['sidebar_category']}; font-size: {F['caption']}px; font-weight: 700; padding: 8px 16px 2px 16px; background: transparent; }}
+QFrame#ShiftCard {{ background-color: {C['header_chip']}; border: none; border-radius: {R['lg']}px; margin: 6px; }}
+QFrame#ShiftCard QLabel {{ color: {C['header_text']}; background: transparent; }}
+QPushButton[nav="true"] {{ text-align: right; padding: 10px 16px; border: none; border-radius: {R['lg']}px; margin: 2px 8px;
+    font-weight: 600; background-color: transparent; color: {C['header_muted']}; min-height: 24px; }}
+QPushButton[nav="true"]:hover {{ background-color: {C['sidebar_hover']}; color: {C['text_inverse']}; }}
+QPushButton[nav="true"][active="true"] {{ background-color: {C['primary']}; color: {C['text_inverse']}; font-weight: 700; }}
+QPushButton[nav="true"]:focus {{ border: 2px solid {C['text_inverse']}; }}
 
 /* surfaces */
-QFrame[card="true"] {{ background-color: {C['surface']}; border: 1px solid {C['border']}; border-radius: {R['lg']}px; }}
-QFrame[kpi="true"] {{ background-color: {C['surface']}; border: 1px solid {C['border']}; border-radius: {R['lg']}px; }}
-QFrame[banner="warning"] {{ background-color: {C['warning_soft']}; border: 1px solid #FCD34D; border-radius: {R['md']}px; }}
-QFrame[banner="info"] {{ background-color: {C['info_soft']}; border: 1px solid #BAE6FD; border-radius: {R['md']}px; }}
-QFrame[banner="success"] {{ background-color: {C['success_soft']}; border: 1px solid #A7F3D0; border-radius: {R['md']}px; }}
-QFrame[banner="danger"] {{ background-color: {C['danger_soft']}; border: 1px solid #FECACA; border-radius: {R['md']}px; }}
-QFrame[total_box="true"] {{ background-color: {C['header_bg']}; border-radius: {R['lg']}px; }}
+QFrame[card="true"] {{ background-color: {C['surface']}; border: 1px solid {C['border']}; border-radius: {R['xl']}px; }}
+QFrame[kpi="true"] {{ background-color: {C['surface']}; border: 1px solid {C['border']}; border-radius: {R['xl']}px; }}
+QFrame[banner="warning"] {{ background-color: {C['warning_soft']}; border: 1px solid #F2D08A; border-radius: {R['md']}px; }}
+QFrame[banner="info"] {{ background-color: {C['info_soft']}; border: 1px solid #BFDDF0; border-radius: {R['md']}px; }}
+QFrame[banner="success"] {{ background-color: {C['success_soft']}; border: 1px solid #A8DEC5; border-radius: {R['md']}px; }}
+QFrame[banner="danger"] {{ background-color: {C['danger_soft']}; border: 1px solid #F3C7C3; border-radius: {R['md']}px; }}
+QFrame[total_box="true"] {{ background-color: {C['header_bg']}; border-radius: {R['xl']}px; }}
 QFrame[toast="true"] {{ background-color: {C['header_bg']}; border-radius: {R['md']}px; }}
 QFrame[toast="true"] QLabel {{ color: {C['text_inverse']}; font-weight: 600; }}
 
@@ -64,9 +67,9 @@ QLabel[text_role="title"] {{ color: {C['text']}; font-size: {F['title']}px; font
 QLabel[text_role="h2"] {{ color: {C['text']}; font-size: {F['h2']}px; font-weight: 700; }}
 QLabel[text_role="h1"] {{ color: {C['text']}; font-size: {F['h1']}px; font-weight: 800; }}
 QLabel[text_role="money"] {{ color: {C['text']}; font-size: {F['h2']}px; font-weight: 800; }}
-QLabel[text_role="total"] {{ color: #38BDF8; font-size: {F['h1']}px; font-weight: 800; }}
+QLabel[text_role="total"] {{ color: #8CA6FF; font-size: {F['h1']}px; font-weight: 800; }}
 QLabel[text_role="total_caption"] {{ color: {C['header_muted']}; font-weight: 700; }}
-QLabel[pill] {{ border-radius: {R['md']}px; padding: 3px 10px; font-size: {F['caption']}px; font-weight: 700; }}
+QLabel[pill] {{ border-radius: 999px; padding: 3px 10px; font-size: {F['caption']}px; font-weight: 700; }}
 QLabel[pill="success"] {{ background: {C['success_soft']}; color: {C['success']}; }}
 QLabel[pill="warning"] {{ background: {C['warning_soft']}; color: {C['warning']}; }}
 QLabel[pill="danger"]  {{ background: {C['danger_soft']};  color: {C['danger']}; }}
@@ -79,7 +82,7 @@ QLabel[tone="danger"] {{ color: {C['danger']}; }}
 QLabel[tone="warning"] {{ color: {C['warning']}; }}
 QLabel[tone="info"] {{ color: {C['info']}; }}
 QLabel[tone="primary"] {{ color: {C['primary']}; }}
-QLabel[tone="total"] {{ color: #38BDF8; }}
+QLabel[tone="total"] {{ color: #8CA6FF; }}
 QLabel[tone="inverse_muted"] {{ color: {C['header_muted']}; }}
 QLabel[size="caption"] {{ font-size: {F['caption']}px; }}
 QLabel[size="body"] {{ font-size: {F['body']}px; }}
@@ -96,8 +99,8 @@ QScrollArea[transparent="true"], QWidget[transparent="true"] {{ background: tran
 
 /* buttons */
 QPushButton {{ background-color: {C['surface']}; color: {C['text_body']}; border: 1px solid {C['border_strong']};
-    border-radius: {R['md']}px; padding: 8px 16px; font-weight: 600; min-height: {CONTROL_HEIGHT - 18}px; }}
-QPushButton:hover {{ background-color: {C['bg']}; border-color: {C['text_disabled']}; }}
+    border-radius: {R['lg']}px; padding: 8px 18px; font-weight: 600; min-height: {CONTROL_HEIGHT - 18}px; }}
+QPushButton:hover {{ background-color: {C['primary_soft']}; border-color: {C['primary']}; }}
 QPushButton:pressed {{ background-color: {C['surface_alt']}; }}
 QPushButton:disabled {{ background-color: {C['surface_alt']}; color: {C['text_disabled']}; border-color: {C['border']}; }}
 QPushButton[variant="primary"], QPushButton#PrimaryBtn {{ background-color: {C['primary']}; color: {C['text_inverse']}; border: 1px solid {C['primary_hover']}; font-weight: 700; }}
@@ -116,7 +119,7 @@ QPushButton[variant="big"] {{ font-size: {F['title']}px; min-height: 36px; }}
 
 /* inputs */
 QLineEdit, QSpinBox, QDoubleSpinBox, QComboBox, QTextEdit, QDateEdit {{ background-color: {C['surface']}; color: {C['text']};
-    border: 1px solid {C['border_strong']}; border-radius: {R['md']}px; padding: 6px 12px; min-height: {CONTROL_HEIGHT - 14}px;
+    border: 1px solid {C['border_strong']}; border-radius: {R['lg']}px; padding: 6px 12px; min-height: {CONTROL_HEIGHT - 14}px;
     selection-background-color: {C['primary']}; selection-color: {C['text_inverse']}; }}
 QLineEdit:focus, QSpinBox:focus, QDoubleSpinBox:focus, QComboBox:focus, QTextEdit:focus, QDateEdit:focus {{ border: 2px solid {C['focus']}; }}
 QLineEdit:disabled, QSpinBox:disabled, QComboBox:disabled {{ background-color: {C['surface_alt']}; color: {C['text_disabled']}; }}
@@ -128,11 +131,11 @@ QComboBox QAbstractItemView {{ background-color: {C['surface']}; color: {C['text
     selection-background-color: {C['primary_soft']}; selection-color: {C['primary']}; padding: 4px; }}
 
 /* tabs */
-QTabWidget::pane {{ border: 1px solid {C['border']}; background-color: {C['surface']}; border-radius: {R['lg']}px; top: -1px; }}
-QTabBar::tab {{ background-color: {C['surface_alt']}; color: {C['text_muted']}; padding: 10px 24px; margin-left: 4px;
-    border-top-left-radius: {R['md']}px; border-top-right-radius: {R['md']}px; font-weight: 700; border: 1px solid transparent; }}
-QTabBar::tab:hover {{ background-color: {C['border']}; color: {C['text']}; }}
-QTabBar::tab:selected {{ background-color: {C['surface']}; color: {C['primary']}; border: 1px solid {C['border']}; }}
+QTabWidget::pane {{ border: 1px solid {C['border']}; background-color: {C['surface']}; border-radius: {R['xl']}px; top: -1px; }}
+QTabBar::tab {{ background-color: transparent; color: {C['text_muted']}; padding: 10px 22px; margin: 4px 3px;
+    border-radius: {R['lg']}px; font-weight: 700; border: 1px solid transparent; }}
+QTabBar::tab:hover {{ background-color: {C['surface_alt']}; color: {C['text']}; }}
+QTabBar::tab:selected {{ background-color: {C['primary']}; color: {C['text_inverse']}; }}
 
 /* tables */
 QTableWidget, QTableView {{ background-color: {C['surface']}; alternate-background-color: {C['bg']}; color: {C['text']};
@@ -140,7 +143,7 @@ QTableWidget, QTableView {{ background-color: {C['surface']}; alternate-backgrou
     selection-background-color: {C['primary_soft']}; selection-color: {C['primary_pressed']}; }}
 QTableWidget::item {{ padding: 8px 12px; border-bottom: 1px solid {C['surface_alt']}; }}
 QTableWidget::item:selected {{ background-color: {C['primary_soft']}; color: {C['primary_pressed']}; font-weight: 600; }}
-QHeaderView::section {{ background-color: {C['bg']}; color: #475569; font-size: {F['caption']}px; font-weight: 700; padding: 10px 12px;
+QHeaderView::section {{ background-color: {C['bg']}; color: {C['text_muted']}; font-size: {F['caption']}px; font-weight: 700; padding: 10px 12px;
     border: none; border-bottom: 2px solid {C['border']}; border-left: 1px solid {C['surface_alt']}; }}
 QTableCornerButton::section {{ background-color: {C['bg']}; border: none; border-bottom: 2px solid {C['border']}; }}
 

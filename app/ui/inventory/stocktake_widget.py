@@ -146,19 +146,19 @@ if HAS_QT:
             self.history_table.setRowCount(len(movements))
             for row, mv in enumerate(movements):
                 diff_text = f"{mv.quantity:+d} قطعة"
-                diff_color = "#059669" if mv.quantity > 0 else "#DC2626"
+                diff_color = "#0B7A4B" if mv.quantity > 0 else "#C62828"
 
                 items = [
                     (mv.product.name if mv.product else str(mv.product_id), Qt.AlignRight | Qt.AlignVCenter, None, True),
                     (diff_text, Qt.AlignCenter, diff_color, True),
-                    (mv.note or "—", Qt.AlignRight | Qt.AlignVCenter, "#64748B", False),
-                    (mv.created_at.strftime("%Y-%m-%d  %I:%M %p") if mv.created_at else "", Qt.AlignCenter, "#334155", False),
+                    (mv.note or "—", Qt.AlignRight | Qt.AlignVCenter, "#5B6683", False),
+                    (mv.created_at.strftime("%Y-%m-%d  %I:%M %p") if mv.created_at else "", Qt.AlignCenter, "#1E2744", False),
                 ]
 
                 for col, (text, align, fg, is_bold) in enumerate(items):
                     item = QTableWidgetItem(text)
                     item.setTextAlignment(align)
-                    item.setForeground(QColor(fg or "#0F172A"))
+                    item.setForeground(QColor(fg or "#0E1630"))
                     if is_bold:
                         f = item.font(); f.setBold(True); item.setFont(f)
                     self.history_table.setItem(row, col, item)

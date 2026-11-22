@@ -83,11 +83,11 @@ class CloseShiftDialog(QDialog):
             w.setEnabled(False)
         diff = sh.diff
         if diff == 0:
-            verdict, color = ar.SHIFT_BALANCED, "#059669"
+            verdict, color = ar.SHIFT_BALANCED, "#0B7A4B"
         elif diff > 0:
-            verdict, color = f"{ar.SHIFT_SURPLUS}: {format_money(diff)}", "#0284C7"
+            verdict, color = f"{ar.SHIFT_SURPLUS}: {format_money(diff)}", "#0369A1"
         else:
-            verdict, color = f"{ar.SHIFT_SHORTAGE}: {format_money(-diff)}", "#DC2626"
+            verdict, color = f"{ar.SHIFT_SHORTAGE}: {format_money(-diff)}", "#C62828"
         self.result_lbl = QLabel(
             f"{ar.SHIFT_EXPECTED}: {format_money(sh.expected_cash)}\n"
             f"{ar.SHIFT_ACTUAL}: {format_money(sh.actual_cash)}\n{verdict}")
