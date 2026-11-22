@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 
 from app.config import DECLARATIONS_DIR
 from app.core.audit import log_action
+from app.core.imei import IMEIError, clean_imei_pair
 from app.core.money import weighted_average_cost
 from app.core.permissions import (
     PERM_PURCHASES_CREATE,
@@ -304,11 +305,10 @@ def create_purchase(
 
                 if not imei1:
                     raise InvalidPurchaseItem(f"رقم IMEI فارغ للمنتج {product.name}")
-                for code in (imei1, imei2):
-                    if code and (not code.isdigit() or not 14 <= len(code) <= 16):
-                        raise InvalidPurchaseItem(f"رقم IMEI غير صحيح: {code}")
-                if imei2 and imei2 == imei1:
-                    raise InvalidPurchaseItem("IMEI 1 و IMEI 2 متطابقان")
+                try:
+                    imei1, imei2 = clean_imei_pair(imei1, imei2)
+                except IMEIError as e:
+                    raise InvalidPurchaseItem(str(e))
 
                 if imei1 in seen_imeis:
                     raise DuplicateIMEIError(f"تكرار رقم IMEI في نفس الفاتورة: {imei1}")
@@ -631,16 +631,16 @@ def record_used_device_purchase(
     if not product.track_imei:
         raise PurchaseError("الأجهزة المستعملة تتطلب منتج هاتف يتبع بـ IMEI")
 
-    clean_imei1 = imei1.strip()
-    if not clean_imei1:
-        raise PurchaseError("رقم IMEI الأول مطلوب")
+    try:
+        clean_imei1, clean_imei2 = clean_imei_pair(imei1, imei2)
+    except IMEIError as e:
+        raise PurchaseError(str(e))
 
     # Check uniqueness
     dup1 = session.query(Device).filter(or_(Device.imei1 == clean_imei1, Device.imei2 == clean_imei1)).first()
     if dup1:
         raise DuplicateIMEIError(f"رقم IMEI '{clean_imei1}' مسجل بالفعل بالنظام")
 
-    clean_imei2 = imei2.strip() if imei2 else None
     if clean_imei2:
         dup2 = session.query(Device).filter(or_(Device.imei1 == clean_imei2, Device.imei2 == clean_imei2)).first()
         if dup2:
@@ -677,7 +677,7 @@ def record_used_device_purchase(
 
     # Drawer Cash Out
     cash_acc = _get_default_cash_account(session, account_id)
-    cash_acc.balance -= price
+    shift_id = _debit_account(session, user, cash_acc, price)
 
     cash_tx = CashTransaction(
         account_id=cash_acc.id,
@@ -686,6 +686,7 @@ def record_used_device_purchase(
         category="used_device_purchase",
         ref_type="used_device_purchase",
         ref_id=device.id,
+        shift_id=shift_id,
         user_id=user.id,
         note=f"شراء هاتف مستعمل {product.name} (IMEI: {clean_imei1}) من {clean_seller_name}",
     )

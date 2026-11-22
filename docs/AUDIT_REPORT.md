@@ -38,3 +38,19 @@ Not run here: real printers, Windows `.exe`, a UI session on a real Windows desk
 
 ## E. Release readiness
 Financial rules and data integrity: improved and covered by tests. Not declared production-ready: hardware, Windows build and a manual UI pass are still open.
+
+
+---
+# Round 2 (2026-11-22)
+| # | Issue | Fix | Tests |
+|---|---|---|---|
+| 12 | Used-device purchase: no balance check, not tied to the shift (Critical) | `_debit_account` + shift attribution | `TestUsedDevicePurchase` |
+| 13 | IMEI rules differed between add / edit / invoice / used purchase (Critical) | `app.core.imei.clean_imei_pair` everywhere | `TestOneImeiRule` |
+| 14 | Frozen Windows/PyInstaller app crashed at start (`logging.config` missing) (Critical) | hidden imports in spec; complete build script | verified by a real build + start in this environment (Linux) |
+| 15 | Any text accepted as payment method (High) | closed list | `TestPaymentAndRefundMethods` |
+| 16 | Any text accepted as refund method; non-cash refunds unrecorded; void of wallet sale paid cash (High) | closed list; cash back only up to cash received | `TestRefundGoesBackTheWayItCame` |
+| 17 | `sale.remaining` stale after returns (High) | derived from unpaid-at-sale minus returned value | `TestRemainingAfterReturns` |
+| 18 | No whole-cycle reconciliation test (High) | `tests/test_full_cycle.py` | passes |
+| 19 | Old-database backup/restore/upgrade untested (High) | `test_old_database_with_real_data_survives...` | passes |
+
+Windows: the build was run here on Linux (same spec); it exposed the crash above and the fixed build starts, migrates and seeds. A run of `packaging\build_windows.bat` on a clean Windows PC is still required.

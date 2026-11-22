@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased (branch `fix/audit-round2`)
+- Fixed: used-device purchase could overdraw the drawer and caused a false shift shortage.
+- Fixed: one IMEI validation rule for add / edit / purchase invoice / used purchase.
+- Fixed: unknown payment or refund methods are refused; void/return of a wallet-paid sale no longer pays cash from the drawer.
+- Fixed: `sale.remaining` is updated when returns cancel debt.
+- Fixed: Windows/PyInstaller build crashed at start-up (missing `logging.config`); build script completed.
+- Tests: whole-cycle reconciliation, old-database backup/restore/upgrade (474 tests).
+
 ## Unreleased (branch `fix/audit-sales-integrity`)
 - Fixed: duplicate product lines could oversell stock; concurrent sales are guarded by a write lock (D-022).
 - Fixed: cash change was recorded as drawer income; the drawer now gets the net cash, receipts show tendered/change.

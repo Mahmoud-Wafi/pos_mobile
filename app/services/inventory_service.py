@@ -307,14 +307,12 @@ def _check_imei_unique(session: Session, imei: str) -> None:
         raise DuplicateIMEI(imei)
 
 
-def _clean_imei(raw: Optional[str]) -> Optional[str]:
-    """Digits only, 14-16 long (Luhn stays advisory in the UI: some genuine devices fail it)."""
-    if raw is None or str(raw).strip() == "":
-        return None
-    imei = "".join(str(raw).split())
-    if not imei.isdigit() or not 14 <= len(imei) <= 16:
-        raise InventoryError(f"رقم IMEI غير صحيح: {raw}")
-    return imei
+def _imei_pair(imei1, imei2):
+    from app.core.imei import IMEIError, clean_imei_pair
+    try:
+        return clean_imei_pair(imei1, imei2)
+    except IMEIError as e:
+        raise InventoryError(str(e))
 
 
 def add_devices(session: Session, user: User, product: Product, devices_data: list[dict]) -> list[Device]:
@@ -330,12 +328,7 @@ def add_devices(session: Session, user: User, product: Product, devices_data: li
     created: list[Device] = []
     seen: set[str] = set()
     for d in devices_data:
-        imei1 = _clean_imei(d.get("imei1"))
-        imei2 = _clean_imei(d.get("imei2"))
-        if imei1 is None:
-            raise InventoryError("رقم IMEI مطلوب")
-        if imei2 == imei1:
-            raise InventoryError("IMEI 1 و IMEI 2 متطابقان")
+        imei1, imei2 = _imei_pair(d.get("imei1"), d.get("imei2"))
         for code in (imei1, imei2):
             if code and code in seen:
                 raise DuplicateIMEI(code)
@@ -405,11 +398,13 @@ def update_device(session: Session, user: User, device_id: int, data: dict) -> D
         if int(data.get("purchase_cost", 0)) < 0 or int(data.get("extra_cost", 0)) < 0:
             raise InventoryError(ar.INV_NEGATIVE_VALUE)
     old = {"imei1": device.imei1, "imei2": device.imei2, "condition": device.condition}
-    for field in ("imei1", "imei2"):
-        if field in data:
-            value = (str(data[field]).strip() if data[field] else None)
-            if field == "imei1" and not value:
-                raise InventoryError(ar.DEVICE_IMEI_REQUIRED)
+    if "imei1" in data or "imei2" in data:
+        raw1 = data["imei1"] if "imei1" in data else device.imei1
+        raw2 = data["imei2"] if "imei2" in data else device.imei2
+        if "imei1" in data and not (str(raw1 or "").strip()):
+            raise InventoryError(ar.DEVICE_IMEI_REQUIRED)
+        new1, new2 = _imei_pair(raw1, raw2)
+        for field, value in (("imei1", new1), ("imei2", new2)):
             if value and value != getattr(device, field):
                 _check_imei_unique(session, value)
             setattr(device, field, value)
