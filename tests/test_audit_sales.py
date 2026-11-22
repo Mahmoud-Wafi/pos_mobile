@@ -621,3 +621,186 @@ class TestImeiIntegrity:
         net = sum(m.quantity for m in db_session.query(StockMovement).filter_by(device_id=d.id)
                   if m.type in ("sale", "return_in"))
         assert net == -1                                              # sold, returned, sold again
+
+
+# ═══ Round 2 ═════════════════════════════════════════════════════════════════
+class TestUsedDevicePurchase:
+    def _buy(self, db_session, user, product, price="3000", imei="352001111222333"):
+        return purchase_service.record_used_device_purchase(
+            db_session, user, "أحمد محمد علي حسن", "29001011234567", "01012345678", product.id, imei, egp(price))
+
+    def test_insufficient_balance_is_rejected_and_nothing_is_created(self, db_session, manager, phone_product):
+        _drawer(db_session).balance = egp("1000")
+        db_session.commit()
+        with pytest.raises(purchase_service.PurchaseError):
+            self._buy(db_session, manager, phone_product)
+        db_session.rollback()
+        assert _drawer(db_session).balance == egp("1000")
+        assert phone_product.current_quantity() == 0
+
+    def test_payment_reduces_drawer_and_is_counted_in_the_open_shift(self, db_session, manager, cashier,
+                                                                      active_shift, phone_product):
+        _drawer(db_session).balance = active_shift.opening_cash + egp("5000")
+        db_session.commit()
+        before = shift_service.calculate_expected_cash(db_session, active_shift.id)
+        self._buy(db_session, manager, phone_product)
+        assert _drawer(db_session).balance == active_shift.opening_cash + egp("2000")
+        assert shift_service.calculate_expected_cash(db_session, active_shift.id) == before - egp("3000")
+        tx = db_session.query(CashTransaction).filter_by(category="used_device_purchase").one()
+        assert tx.shift_id == active_shift.id
+
+    def test_closing_the_shift_after_a_used_purchase_shows_no_false_shortage(self, db_session, manager, cashier,
+                                                                              active_shift, phone_product):
+        self._buy(db_session, manager, phone_product, price="400")           # opening cash is 1000
+        counted = active_shift.opening_cash - egp("400")                       # what is physically left
+        closed = shift_service.close_shift(db_session, cashier, active_shift.id, actual_cash=counted)
+        assert closed.diff == 0
+
+
+class TestOneImeiRule:
+    """Add, edit, purchase invoice and used purchase all use app.core.imei.clean_imei_pair."""
+    BAD = ["123", "35200111122233X", "3520011112223331234", ""]
+
+    def test_helper(self):
+        from app.core.imei import IMEIError, clean_imei_pair
+        assert clean_imei_pair("٣٥٢٠٠١١١١٢٢٢٣٣٣", " 352001111222341 ") == ("352001111222333", "352001111222341")
+        for bad in self.BAD:
+            with pytest.raises(IMEIError):
+                clean_imei_pair(bad)
+        with pytest.raises(IMEIError):
+            clean_imei_pair("352001111222333", "352001111222333")
+
+    def test_add_device(self, db_session, manager, phone_product):
+        from app.services.inventory_service import InventoryError
+        for bad in self.BAD:
+            with pytest.raises(InventoryError):
+                inventory_service.add_devices(db_session, manager, phone_product,
+                                              [{"imei1": bad, "condition": "new", "purchase_cost": 1}])
+        d = inventory_service.add_devices(db_session, manager, phone_product, [
+            {"imei1": "٣٥٢٠٠١١١١٢٢٢٣٣٣", "condition": "new", "purchase_cost": 1}])[0]
+        assert d.imei1 == "352001111222333"                          # stored normalised
+
+    def test_edit_device(self, db_session, manager, phone_product):
+        from app.services.inventory_service import InventoryError
+        d = inventory_service.add_devices(db_session, manager, phone_product, [
+            {"imei1": "352001111222333", "condition": "new", "purchase_cost": 1}])[0]
+        db_session.commit()
+        for bad in ({"imei1": "12"}, {"imei2": "abc1234567890123"}, {"imei2": "352001111222333"}):
+            with pytest.raises(InventoryError):
+                inventory_service.update_device(db_session, manager, d.id, bad)
+        inventory_service.update_device(db_session, manager, d.id, {"imei2": "352001111222341"})
+        assert d.imei2 == "352001111222341"
+
+    def test_purchase_invoice_and_used_purchase(self, db_session, manager, phone_product):
+        sup = purchase_service.create_supplier(db_session, manager, name="S", phone="1")
+        db_session.commit()
+        _drawer(db_session).balance = egp("100000")
+        db_session.commit()
+        for bad in ({"imei1": "12"}, {"imei1": "352001111222333", "imei2": "352001111222333"}):
+            with pytest.raises(purchase_service.PurchaseError):
+                purchase_service.create_purchase(
+                    db_session, manager, supplier_id=sup.id, invoice_number="X",
+                    items_data=[{"product_id": phone_product.id, "quantity": 1, "unit_cost": egp("10"),
+                                 "imeis": [bad]}])
+            db_session.rollback()
+        with pytest.raises(purchase_service.PurchaseError):
+            purchase_service.record_used_device_purchase(
+                db_session, manager, "أحمد محمد علي حسن", "29001011234567", "010", phone_product.id,
+                "12", egp("10"))
+        db_session.rollback()
+
+
+class TestPaymentAndRefundMethods:
+    def _sale(self, db_session, cashier, product):
+        sale = sales_service.start_sale(db_session, cashier)
+        item = sales_service.add_line(db_session, cashier, sale, product, quantity=1)
+        return sale, item
+
+    def test_unknown_payment_method_rejected(self, db_session, manager, cashier, active_shift, accessory_product):
+        sale, _ = self._sale(db_session, cashier, accessory_product)
+        with pytest.raises(sales_service.SaleError):
+            sales_service.post_sale(db_session, cashier, sale, [{"method": "bitcoin", "amount": sale.total}])
+        db_session.rollback()
+
+    @pytest.mark.parametrize("method", ["vodafone", "orange", "etisalat", "instapay", "card", "bank"])
+    def test_known_non_cash_methods_are_accepted_and_do_not_touch_the_drawer(self, db_session, manager, cashier,
+                                                                              active_shift, accessory_product,
+                                                                              method):
+        before = _drawer(db_session).balance
+        sale, _ = self._sale(db_session, cashier, accessory_product)
+        sales_service.post_sale(db_session, cashier, sale, [{"method": method, "amount": sale.total}])
+        assert _drawer(db_session).balance == before and sale.paid == sale.total
+
+    def test_unknown_or_credit_refund_method_rejected(self, db_session, manager, cashier, active_shift,
+                                                      accessory_product):
+        sale, item = self._sale(db_session, cashier, accessory_product)
+        sales_service.post_sale(db_session, cashier, sale, [{"method": "cash", "amount": sale.total}])
+        for bad in ("bitcoin", "credit", ""):
+            with pytest.raises(sales_service.SaleError):
+                sales_service.return_sale_items(db_session, cashier, sale.id,
+                                                [{"sale_item_id": item.id, "quantity": 1}], reason="r",
+                                                refund_method=bad)
+        db_session.rollback()
+
+    def test_non_cash_refund_is_recorded_without_moving_the_drawer(self, db_session, manager, cashier,
+                                                                   active_shift, accessory_product):
+        sale, item = self._sale(db_session, cashier, accessory_product)
+        sales_service.post_sale(db_session, cashier, sale, [{"method": "vodafone", "amount": sale.total}])
+        before = _drawer(db_session).balance
+        r = sales_service.return_sale_items(db_session, cashier, sale.id,
+                                            [{"sale_item_id": item.id, "quantity": 1}], reason="r",
+                                            refund_method="vodafone")
+        assert r.refund_method == "vodafone" and r.refund_amount == sale.total
+        assert _drawer(db_session).balance == before
+
+
+class TestRemainingAfterReturns:
+    def test_remaining_follows_cancelled_debt(self, db_session, manager, cashier, active_shift, accessory_product,
+                                              real_customer):
+        sale = sales_service.start_sale(db_session, cashier, customer_id=real_customer.id)
+        item = sales_service.add_line(db_session, cashier, sale, accessory_product, quantity=3)      # 1050
+        sales_service.post_sale(db_session, cashier, sale, [{"method": "cash", "amount": egp("350")}])
+        assert sale.remaining == egp("700") and real_customer.balance == egp("700")
+        ret = lambda q: sales_service.return_sale_items(db_session, cashier, sale.id,                # noqa: E731
+                                                        [{"sale_item_id": item.id, "quantity": q}], reason="r")
+        ret(1)
+        assert sale.remaining == egp("350") and real_customer.balance == egp("350")
+        ret(1)
+        assert sale.remaining == 0 and real_customer.balance == 0
+        ret(1)                                       # third unit was fully paid: cash back, debt stays 0
+        assert sale.remaining == 0 and real_customer.balance == 0
+
+    def test_reports_do_not_show_debt_that_was_cancelled(self, db_session, manager, cashier, active_shift,
+                                                         accessory_product, real_customer):
+        sale = sales_service.start_sale(db_session, cashier, customer_id=real_customer.id)
+        item = sales_service.add_line(db_session, cashier, sale, accessory_product, quantity=2)      # 700, all credit
+        sales_service.post_sale(db_session, cashier, sale, [{"method": "credit", "amount": sale.total}])
+        sales_service.return_sale_items(db_session, cashier, sale.id,
+                                        [{"sale_item_id": item.id, "quantity": 2}], reason="r")
+        rep = report_service.sales_report(db_session, manager)
+        assert rep["total_remaining"] == 0
+
+
+class TestRefundGoesBackTheWayItCame:
+    def test_void_of_a_wallet_sale_does_not_pay_cash_from_the_drawer(self, db_session, manager, cashier,
+                                                                      active_shift, accessory_product):
+        sale = sales_service.start_sale(db_session, cashier)
+        sales_service.add_line(db_session, cashier, sale, accessory_product, quantity=1)
+        sales_service.post_sale(db_session, cashier, sale, [{"method": "vodafone", "amount": sale.total}])
+        before = _drawer(db_session).balance
+        sales_service.void_sale(db_session, manager, sale.id, "x")
+        assert sale.status == "void" and _drawer(db_session).balance == before
+
+    def test_mixed_payment_returns_cash_only_up_to_the_cash_received(self, db_session, manager, cashier,
+                                                                      active_shift, accessory_product):
+        sale = sales_service.start_sale(db_session, cashier)
+        item = sales_service.add_line(db_session, cashier, sale, accessory_product, quantity=2)    # 700
+        sales_service.post_sale(db_session, cashier, sale, [{"method": "vodafone", "amount": egp("500")},
+                                                            {"method": "cash", "amount": egp("200")}])
+        before = _drawer(db_session).balance
+        sales_service.return_sale_items(db_session, cashier, sale.id,
+                                        [{"sale_item_id": item.id, "quantity": 1}], reason="r")   # 350
+        assert before - _drawer(db_session).balance == egp("200")          # only the 200 cash received
+        sales_service.return_sale_items(db_session, cashier, sale.id,
+                                        [{"sale_item_id": item.id, "quantity": 1}], reason="r")
+        assert before - _drawer(db_session).balance == egp("200")          # nothing more: rest went to the wallet

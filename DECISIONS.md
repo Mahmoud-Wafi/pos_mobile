@@ -128,3 +128,11 @@ Architectural and business-rule decisions made during development.
 - **Permissions:** `add_line`, `remove_line`, `update_line` now require `sales.create` inside the service.
 - **IMEI:** the services require 14-16 digits and reject IMEI1 = IMEI2 and duplicates inside one batch (Luhn stays advisory in the UI because some genuine devices fail it).
 - **Not changed / owner to confirm:** vodafone/instapay sale payments are recorded as payment methods only; they do not change a wallet's balance (the payment dialog has no wallet picker). A returned device that is not restocked keeps status `sold`.
+
+## D-023 — Audit round 2
+- **Used-device purchase** now follows the same rules as every other payment out of an account: the balance must cover the price, and a drawer payment is attributed to the open shift (so the shift no longer shows a false shortage).
+- **One IMEI rule** (`app.core.imei.clean_imei_pair`): Arabic digits normalised, digits only, 14-16 long, IMEI 1 required and different from IMEI 2. Used by adding a device, editing a device, purchase invoices and used purchases. Luhn remains advisory in the UI.
+- **Payment methods** are a closed list (`cash, vodafone, orange, etisalat, instapay, card, bank, credit`); anything else is refused. **Refund methods** are the same list without `credit`.
+- **Refunds go back the way the money came:** the drawer returns at most the CASH actually received on that sale (minus cash already returned); the rest is a non-cash refund that is recorded on the return but makes no drawer entry. Fixes a void of a wallet-paid invoice paying cash out of the drawer.
+- **`sales.remaining`** is now what the customer still owes on the invoice after returns (unpaid at posting minus the returned value, never below zero); `paid` and `total` stay as posted.
+- **Windows build:** a real PyInstaller build and start-up test exposed a crash in the frozen app (`logging.config` was not bundled, needed by Alembic's env.py). Fixed in the spec; the build script now creates a clean venv, builds, checks the exe exists and makes a ZIP. A Windows run on a clean PC is still required.

@@ -57,6 +57,12 @@ class ShiftRequiredError(SaleError):
     pass
 
 
+# Payment methods a sale may use; "credit" is the customer's account (debt). Anything else is refused.
+PAYMENT_METHODS = frozenset({"cash", "vodafone", "orange", "etisalat", "instapay", "card", "bank", "credit"})
+# A refund goes back by cash from the drawer, or by the non-cash method the customer paid with (recorded only).
+REFUND_METHODS = PAYMENT_METHODS - {"credit"}
+
+
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _requested_by_product(sale: Sale, exclude_item_id: Optional[int] = None) -> dict[int, int]:
@@ -506,6 +512,8 @@ def post_sale(
     for p in payments:
         amount = int(p.get("amount", 0))
         method = p.get("method", "cash")
+        if method not in PAYMENT_METHODS:
+            raise SaleError(f"طريقة الدفع غير معروفة: {method}")
         if amount < 0:
             raise SaleError("مبلغ الدفع لا يمكن أن يكون سالباً")
         if amount == 0:
@@ -656,6 +664,8 @@ def return_sale_items(
 
     if not reason.strip():
         raise ValueError("سبب المرتجع مطلوب")
+    if refund_method not in REFUND_METHODS:
+        raise SaleError(f"طريقة رد المبلغ غير مقبولة: {refund_method}")
 
     # ── 1. Validate EVERYTHING before touching any data ──────────────────────
     if not return_items_data:
@@ -697,9 +707,22 @@ def return_sale_items(
     # Part of the refund cancels what the customer still owes on this sale; the rest goes back as cash.
     returned_before = session.query(func.coalesce(func.sum(SaleReturn.refund_amount), 0)).filter(
         SaleReturn.sale_id == sale.id).scalar() or 0
-    debt_part = max(0, min(sale.remaining, returned_before + total_refund) - min(sale.remaining, returned_before))
+    unpaid_at_sale = max(0, sale.total - sale.paid)          # fixed at posting; sale.remaining is derived from it
+    debt_part = max(0, min(unpaid_at_sale, returned_before + total_refund) - min(unpaid_at_sale, returned_before))
     debt_reduction = min(debt_part, max(0, sale.customer.balance))
-    cash_refund_due = total_refund - debt_reduction
+    refund_due = total_refund - debt_reduction
+    # Money goes back the way it came: the drawer can only return the CASH that was really received on this
+    # sale (and not yet returned); the rest was paid by wallet/bank/card and is refunded there (recorded, no drawer entry).
+    cash_refund_due = 0
+    if refund_method == "cash" and refund_due > 0:
+        cash_received = sum(p.amount for p in sale.payments if p.method == "cash")
+        prior_return_ids = [rid for (rid,) in session.query(SaleReturn.id).filter(SaleReturn.sale_id == sale.id)]
+        cash_returned = 0
+        if prior_return_ids:
+            cash_returned = session.query(func.coalesce(func.sum(CashTransaction.amount), 0)).filter(
+                CashTransaction.ref_type == "sale_return", CashTransaction.ref_id.in_(prior_return_ids),
+                CashTransaction.type == "out").scalar() or 0
+        cash_refund_due = min(refund_due, max(0, cash_received - cash_returned))
 
     # ── 2. Apply ─────────────────────────────────────────────────────────────
     return_no = _generate_return_no(session)
@@ -748,8 +771,11 @@ def return_sale_items(
                     note=f"مرتجع مبيعات إشعار #{return_no}",
                 ))
 
+    session.expire(sale, ["returns"])        # the collection is reloaded on next access (new return added by id)
     if debt_reduction > 0:
         sale.customer.balance -= debt_reduction
+    # what the customer still owes on this invoice after the returns (never below zero)
+    sale.remaining = max(0, unpaid_at_sale - min(unpaid_at_sale, returned_before + total_refund))
 
     if cash_refund_due > 0 and refund_method == "cash":
         drawer = session.query(CashAccount).filter_by(type="drawer").first()
@@ -770,7 +796,8 @@ def return_sale_items(
     session.flush()
     log_action(session, "return_sale_items", user_id=user.id,
                table_name="sale_returns", record_id=return_record.id,
-               new_value={"return_no": return_no, "refund_amount": total_refund, "reason": reason})
+               new_value={"return_no": return_no, "refund_amount": total_refund, "cash_refunded": cash_refund_due,
+                          "debt_cancelled": debt_reduction, "reason": reason})
     return return_record
 
 

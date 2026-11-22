@@ -87,7 +87,8 @@ def test_invoice_pdf_arabic(db_session, people, phone, tmp_path):
 
 def test_declaration_pdf_arabic_and_settings(db_session, people, phone, tmp_path):
     mgr, _ = people
-    db_session.add(CashAccount(name="درج", type="drawer", balance=egp_to_piasters("100000")))
+    drawer = db_session.query(CashAccount).filter_by(type="drawer").first()   # the seeded drawer is the one used
+    drawer.balance = egp_to_piasters("100000")
     db_session.commit()
     settings_service.update(db_session, mgr, {"shop_name": "محل الأمل", "shop_phone": "0223456789"})
     used = purchase_service.record_used_device_purchase(

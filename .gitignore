@@ -44,3 +44,7 @@ migrations/versions/__pycache__/
 !data/.gitkeep
 
 # owner-only licence signing key (deliberately committed at tools/license_private.key by the owner)
+
+.venv-build/
+build/
+dist/
