@@ -24,7 +24,6 @@ from app.models.stock import Device
 from app.models.customer import Customer
 from app.services import settings_service, sales_service, shift_service, customer_service, inventory_service
 from app.ui.pos.payment_dialog import PaymentDialog
-from app.ui.pos.product_grid import ProductGrid
 from app.ui.approval_dialog import request_manager_approval
 from app.ui.components import confirm, icon_button, show_error, show_toast
 from app.ui.pos.choosers import (
@@ -57,8 +56,8 @@ if HAS_QT:
 
         def _build_ui(self):
             root_layout = QVBoxLayout(self)
-            root_layout.setContentsMargins(14, 14, 14, 14)
-            root_layout.setSpacing(12)
+            root_layout.setContentsMargins(20, 16, 20, 16)
+            root_layout.setSpacing(14)
 
             # Shift alert banner (if shift is closed)
             self.shift_banner = QFrame()
@@ -75,121 +74,130 @@ if HAS_QT:
             sb_layout.addWidget(btn_open_shift)
             root_layout.addWidget(self.shift_banner)
 
-            # Open-shift status row with the close-shift action
+            # ── Header: title + invoice number on one side, shift status + close on the other ──
+            head = QHBoxLayout()
+            head.setSpacing(12)
+            title_col = QVBoxLayout()
+            title_col.setSpacing(0)
+            lbl_title = QLabel(ar.POS_PAGE_TITLE)
+            style_label(lbl_title, size="h2", tone="text", bold=True)
+            self.lbl_inv_no = QLabel(ar.POS_WINDOW_08BC18)
+            style_label(self.lbl_inv_no, size="body", tone="muted")
+            title_col.addWidget(lbl_title)
+            title_col.addWidget(self.lbl_inv_no)
+            head.addLayout(title_col)
+            head.addStretch()
             self.shift_bar = QFrame()
             bar_l = QHBoxLayout(self.shift_bar)
-            bar_l.setContentsMargins(4, 0, 4, 0)
+            bar_l.setContentsMargins(0, 0, 0, 0)
+            bar_l.setSpacing(10)
             self.lbl_shift_status = QLabel("")
-            style_label(self.lbl_shift_status, tone="success", bold=True)
+            self.lbl_shift_status.setProperty("pill", "success")
             self.btn_close_shift = QPushButton("" + ar.SHIFT_CLOSE)
             self.btn_close_shift.clicked.connect(self._close_shift_dialog)
             bar_l.addWidget(self.lbl_shift_status)
-            bar_l.addStretch()
             bar_l.addWidget(self.btn_close_shift)
-            root_layout.addWidget(self.shift_bar)
+            head.addWidget(self.shift_bar)
+            root_layout.addLayout(head)
 
-            # Main Body: Splitter (Cart Table on right/main + Totals sidebar on left)
-            splitter = QSplitter(Qt.Horizontal)
+            body = QHBoxLayout()
+            body.setSpacing(16)
 
-            # ── Main (right in RTL): scanner bar + product catalogue ──
-            catalog_widget = QWidget()
-            catalog_layout = QVBoxLayout(catalog_widget)
-            catalog_layout.setContentsMargins(0, 0, 8, 0)
-            catalog_layout.setSpacing(12)
-            catalog_widget.setMinimumWidth(340)
-            self.catalog_widget = catalog_widget
+            # ── Main column: scan card + cart card ──
+            main_col = QVBoxLayout()
+            main_col.setSpacing(14)
 
-            # ── Side (left): the invoice - customer, cart, totals, pay ──
-            cart_widget = QFrame()
-            set_prop(cart_widget, "card", True)
-            cart_widget.setMinimumWidth(540)
-            cart_layout = QVBoxLayout(cart_widget)
-            cart_layout.setContentsMargins(14, 14, 14, 14)
-            cart_layout.setSpacing(10)
-            cust_row = QHBoxLayout()
-            cust_row.setSpacing(8)
-
-            # Scanner & Customer toolbar
-            top_bar = QHBoxLayout()
-            top_bar.setSpacing(10)
-
-            # Barcode / IMEI scanner input
+            scan_card = QFrame()
+            set_prop(scan_card, "card", True)
+            sc = QHBoxLayout(scan_card)
+            sc.setContentsMargins(14, 14, 14, 14)
+            sc.setSpacing(10)
+            # Barcode / IMEI scanner input: the one input the cashier lives in
             self.scan_edit = QLineEdit()
             self.scan_edit.setPlaceholderText(ar.POS_WINDOW_5E5F21)
-            self.scan_edit.setFixedHeight(44)
-            style_label(self.scan_edit, size="label", bold=True)
+            self.scan_edit.setProperty("size", "big")
+            self.scan_edit.setFixedHeight(52)
             self.scan_edit.returnPressed.connect(self._on_scan_or_search)
-            top_bar.addWidget(self.scan_edit, 3)
-
-            # Customer Selector
+            sc.addWidget(self.scan_edit, 3)
             self.customer_combo = QComboBox()
-            self.customer_combo.setFixedHeight(44)
-            self.customer_combo.setMinimumWidth(180)
+            self.customer_combo.setFixedHeight(52)
+            self.customer_combo.setMinimumWidth(170)
             self._load_customers()
             self.customer_combo.currentIndexChanged.connect(self._on_customer_changed)
-            cust_row.addWidget(self.customer_combo, 1)
-
+            sc.addWidget(self.customer_combo, 1)
             btn_new_cust = QPushButton(ar.POS_WINDOW_EE2182)
-            btn_new_cust.setFixedHeight(44)
+            btn_new_cust.setFixedHeight(52)
             btn_new_cust.clicked.connect(self._add_quick_customer)
-            cust_row.addWidget(btn_new_cust)
-            cart_layout.addLayout(cust_row)
+            sc.addWidget(btn_new_cust)
+            main_col.addWidget(scan_card)
 
-            self.btn_catalog = QPushButton(ar.POS_PRODUCTS_TITLE)      # narrow windows: switch between catalogue and cart
-            self.btn_catalog.setCheckable(True)
-            self.btn_catalog.setFixedHeight(44)
-            self.btn_catalog.setVisible(False)
-            self.btn_catalog.toggled.connect(lambda _: self._apply_layout_mode())
-            top_bar.addWidget(self.btn_catalog)
-            root_layout.addLayout(top_bar)
-            self.product_grid = ProductGrid(self.session)
-            self.product_grid.product_picked.connect(self._on_product_picked)
-            self.cart_card = cart_widget
-            self.scan_edit.textChanged.connect(self.product_grid.set_filter_text)
-            catalog_layout.addWidget(self.product_grid, 1)
+            cart_card = QFrame()
+            set_prop(cart_card, "card", True)
+            cl = QVBoxLayout(cart_card)
+            cl.setContentsMargins(0, 0, 0, 0)
+            cl.setSpacing(0)
+            ch = QHBoxLayout()
+            ch.setContentsMargins(18, 14, 18, 10)
+            lbl_cart = QLabel(ar.POS_CART_TITLE)
+            style_label(lbl_cart, size="title", tone="text", bold=True)
+            self.lbl_cart_count = QLabel("")
+            style_label(self.lbl_cart_count, tone="muted")
+            lbl_hint = QLabel(ar.POS_EDIT_HINT)
+            style_label(lbl_hint, size="caption", tone="muted")
+            ch.addWidget(lbl_cart)
+            ch.addWidget(self.lbl_cart_count)
+            ch.addStretch()
+            ch.addWidget(lbl_hint)
+            cl.addLayout(ch)
 
             # Cart Table
             self.cart_table = QTableWidget()
+            self.cart_table.setObjectName("pos_cart_v2")      # new key: older saved column widths belong to the old layout
             self.cart_table.setColumnCount(len(HEADERS))
             self.cart_table.setHorizontalHeaderLabels(HEADERS)
             self.cart_table.verticalHeader().setVisible(False)
-            self.cart_table.verticalHeader().setDefaultSectionSize(46)
+            self.cart_table.verticalHeader().setDefaultSectionSize(58)
             self.cart_table.setEditTriggers(QTableWidget.NoEditTriggers)
             self.cart_table.setSelectionBehavior(QTableWidget.SelectRows)
-            self.cart_table.setAlternatingRowColors(True)
+            self.cart_table.setAlternatingRowColors(False)
+            self.cart_table.setShowGrid(False)
+            self.cart_table.setFrameShape(QFrame.NoFrame)
 
             header = self.cart_table.horizontalHeader()
-            header.setSectionResizeMode(0, QHeaderView.Fixed); self.cart_table.setColumnWidth(0, 40)   # #
-            header.setSectionResizeMode(1, QHeaderView.Stretch)                                         # Name
-            header.setSectionResizeMode(2, QHeaderView.Fixed); self.cart_table.setColumnWidth(2, 110) # IMEI
-            header.setSectionResizeMode(3, QHeaderView.Fixed); self.cart_table.setColumnWidth(3, 50)  # Qty
-            header.setSectionResizeMode(4, QHeaderView.Fixed); self.cart_table.setColumnWidth(4, 90)  # Price
-            header.setSectionResizeMode(5, QHeaderView.Fixed); self.cart_table.setColumnWidth(5, 70)  # Discount
-            header.setSectionResizeMode(6, QHeaderView.Fixed); self.cart_table.setColumnWidth(6, 100) # Total
-            header.setSectionResizeMode(7, QHeaderView.Fixed); self.cart_table.setColumnWidth(7, 48)  # Delete
-            self.cart_table.setColumnHidden(0, True)   # row numbers add nothing in a narrow cart
+            header.setSectionResizeMode(0, QHeaderView.Fixed); self.cart_table.setColumnWidth(0, 44)   # #
+            header.setSectionResizeMode(1, QHeaderView.Stretch)                                         # Name (+ IMEI on a 2nd line)
+            header.setSectionResizeMode(2, QHeaderView.Fixed); self.cart_table.setColumnWidth(2, 140) # IMEI (hidden: shown under the name)
+            header.setSectionResizeMode(3, QHeaderView.Fixed); self.cart_table.setColumnWidth(3, 130) # Qty stepper
+            header.setSectionResizeMode(4, QHeaderView.Fixed); self.cart_table.setColumnWidth(4, 110) # Price
+            header.setSectionResizeMode(5, QHeaderView.Fixed); self.cart_table.setColumnWidth(5, 90)  # Discount
+            header.setSectionResizeMode(6, QHeaderView.Fixed); self.cart_table.setColumnWidth(6, 140) # Total
+            header.setSectionResizeMode(7, QHeaderView.Fixed); self.cart_table.setColumnWidth(7, 56)  # Delete
+            self.cart_table.setColumnHidden(2, True)
 
             self.cart_table.doubleClicked.connect(self._edit_selected_line)
             self.cart_table.itemActivated.connect(self._edit_selected_line)
-            cart_layout.addWidget(self.cart_table)
+            cl.addWidget(self.cart_table, 1)
 
             self.undo_bar = QFrame()
             self.undo_bar.setVisible(False)
             ub = QHBoxLayout(self.undo_bar)
-            ub.setContentsMargins(8, 4, 8, 4)
+            ub.setContentsMargins(18, 4, 18, 4)
             ub.addWidget(QLabel(ar.CART_REMOVED))
             btn_undo = QPushButton(ar.CART_UNDO)
             btn_undo.clicked.connect(self._undo_remove)
             ub.addWidget(btn_undo)
             ub.addStretch()
-            cart_layout.addWidget(self.undo_bar)
+            cl.addWidget(self.undo_bar)
             self._undo_line = None
             self._undo_timer = QTimer(self)
             self._undo_timer.setSingleShot(True)
             self._undo_timer.timeout.connect(lambda: self.undo_bar.setVisible(False))
 
-            # Quick POS shortcuts toolbar at bottom of cart
-            bot_bar = QHBoxLayout()
+            # Quick POS shortcuts toolbar at the bottom of the cart card
+            foot = QFrame()
+            set_prop(foot, "cartfoot", True)
+            bot_bar = QHBoxLayout(foot)
+            bot_bar.setContentsMargins(18, 12, 18, 12)
             bot_bar.setSpacing(10)
 
             btn_new_inv = QPushButton(ar.POS_WINDOW_222FA2)
@@ -210,27 +218,34 @@ if HAS_QT:
             bot_bar.addStretch()
 
             btn_clear = QPushButton(ar.POS_WINDOW_83DD1E)
+            variant(btn_clear, "danger-soft")
             btn_clear.setProperty('compact', True)
             btn_clear.clicked.connect(self._clear_cart)
             bot_bar.addWidget(btn_clear)
+            cl.addWidget(foot)
+            main_col.addWidget(cart_card, 1)
+            body.addLayout(main_col, 1)
 
-            cart_layout.addLayout(bot_bar)
-            splitter.addWidget(catalog_widget)
-            splitter.addWidget(cart_widget)
-            splitter.setStretchFactor(0, 3)
-            splitter.setStretchFactor(1, 2)
+            # ── Summary column: totals and the big pay button ──
+            summary_card = QFrame()
+            set_prop(summary_card, "card", True)
+            summary_card.setFixedWidth(360)
+            self.summary_card = summary_card
+            s_layout = QVBoxLayout(summary_card)
+            s_layout.setContentsMargins(20, 20, 20, 20)
+            s_layout.setSpacing(14)
 
-            # Invoice summary and the big checkout button live at the bottom of the same card
-            s_layout = cart_layout
+            lbl_sum = QLabel(ar.POS_SUMMARY_TITLE)
+            style_label(lbl_sum, size="title", tone="text", bold=True)
+            s_layout.addWidget(lbl_sum)
 
-            # Invoice info
-            self.lbl_inv_no = QLabel(ar.POS_WINDOW_08BC18)
-            style_label(self.lbl_inv_no, size="label", tone="text", bold=True)
-            cart_layout.insertWidget(0, self.lbl_inv_no)
+            row_cnt = QHBoxLayout()
+            row_cnt.addWidget(QLabel(ar.POS_ITEMS_LABEL))
+            self.lbl_items = QLabel("0")
+            style_label(self.lbl_items, bold=True)
+            row_cnt.addStretch(); row_cnt.addWidget(self.lbl_items)
+            s_layout.addLayout(row_cnt)
 
-            line = QFrame(); line.setFrameShape(QFrame.HLine); set_prop(line, "hline", True); s_layout.addWidget(line)
-
-            # Totals rows
             row_sub = QHBoxLayout()
             row_sub.addWidget(QLabel(ar.POS_WINDOW_E2F201))
             self.lbl_subtotal = QLabel(ar.DAILY_CLOSE_DIALOG_388B15)
@@ -242,20 +257,23 @@ if HAS_QT:
             row_disc = QHBoxLayout()
             row_disc.addWidget(QLabel(ar.POS_WINDOW_CECBBB))
             self.disc_edit = QLineEdit("0")
-            self.disc_edit.setFixedWidth(100)
+            self.disc_edit.setFixedWidth(110)
             self.disc_edit.setAlignment(Qt.AlignCenter)
             self.disc_edit.textChanged.connect(self._on_discount_changed)
             self.disc_edit.editingFinished.connect(self._on_discount_committed)
             row_disc.addStretch(); row_disc.addWidget(self.disc_edit)
             s_layout.addLayout(row_disc)
 
+            line = QFrame(); line.setFrameShape(QFrame.HLine); set_prop(line, "hline", True); s_layout.addWidget(line)
+
             # Big Total Card
             total_box = QFrame()
             set_prop(total_box, "total_box", True)
             tb_layout = QVBoxLayout(total_box)
+            tb_layout.setContentsMargins(18, 16, 18, 16)
             tb_layout.setAlignment(Qt.AlignCenter)
             tb_title = QLabel(ar.POS_WINDOW_9FB38A)
-            style_label(tb_title, size="body", tone="muted", bold=True)
+            style_label(tb_title, size="body", tone="inverse_muted", bold=True)
             tb_title.setAlignment(Qt.AlignCenter)
             self.lbl_big_total = QLabel(ar.DAILY_CLOSE_DIALOG_388B15)
             style_label(self.lbl_big_total, size="h1", tone="total", bold=True)
@@ -264,33 +282,36 @@ if HAS_QT:
             tb_layout.addWidget(self.lbl_big_total)
             s_layout.addWidget(total_box)
 
+            s_layout.addStretch()
+
             # Checkout Button
             self.btn_pay = QPushButton(ar.POS_WINDOW_905F06)
-            self.btn_pay.setFixedHeight(54)
+            self.btn_pay.setFixedHeight(64)
             variant(self.btn_pay, "success")
+            self.btn_pay.setProperty("variant_size", "pay")
             self.btn_pay.clicked.connect(self._on_checkout)
             s_layout.addWidget(self.btn_pay)
+            lbl_pay_hint = QLabel(ar.POS_PAY_HINT)
+            style_label(lbl_pay_hint, size="caption", tone="muted")
+            lbl_pay_hint.setAlignment(Qt.AlignCenter)
+            lbl_pay_hint.setWordWrap(True)
+            s_layout.addWidget(lbl_pay_hint)
 
-            root_layout.addWidget(splitter, 1)
+            body.addWidget(summary_card)
+            root_layout.addLayout(body, 1)
 
-        NARROW_BELOW = 1060
+            self._apply_columns()
 
-        def _narrow(self) -> bool:
-            return self.width() < self.NARROW_BELOW
-
-        def _apply_layout_mode(self) -> None:
-            """Wide: catalogue + cart side by side. Narrow: one at a time, switched by the Products button."""
-            if not hasattr(self, "catalog_widget"):
-                return
-            narrow = self._narrow()
-            self.btn_catalog.setVisible(narrow)
-            show_catalog = self.btn_catalog.isChecked()
-            self.catalog_widget.setVisible(not narrow or show_catalog)
-            self.cart_card.setVisible(not narrow or not show_catalog)
+        def _apply_columns(self) -> None:
+            """On narrow windows drop the '#' and discount columns so the item name keeps its room."""
+            narrow = self.width() < 1100
+            for col in (0, 4, 5):                       # #, unit price, discount (still editable via the line dialog)
+                self.cart_table.setColumnHidden(col, narrow)
+            self.summary_card.setFixedWidth(310 if narrow else 360)
 
         def resizeEvent(self, ev):
             super().resizeEvent(ev)
-            self._apply_layout_mode()
+            self._apply_columns()
 
         def _setup_shortcuts(self):
             QShortcut(QKeySequence("F2"), self, self._focus_search)
@@ -344,7 +365,6 @@ if HAS_QT:
                 self.disc_edit.setText("0")
                 self._discount_manager = None
                 self._refresh_cart()
-                self.product_grid.reload()      # stock shown on the cards changes after a sale
                 self._focus_search()
             except Exception as e:
                 show_error(self, e)
@@ -395,18 +415,6 @@ if HAS_QT:
             else:
                 self._add_to_cart(found)
 
-        def _on_product_picked(self, product) -> None:
-            """A card in the catalogue was clicked."""
-            if not self.current_sale:
-                return
-            try:
-                self._add_found(product)
-                self._refresh_cart()
-                if self._narrow():
-                    self.btn_catalog.setChecked(False)      # back to the cart to see what was added
-            except Exception as e:
-                show_error(self, e)
-
         def _add_to_cart(self, product, device=None):
             """Add one unit; an accessory already in the cart gets its quantity bumped."""
             if device is None:
@@ -431,10 +439,11 @@ if HAS_QT:
 
             for row, it in enumerate(items):
                 imei_str = it.device.imei1 if it.device else "—"
+                name = it.product.name + (f"\nIMEI {it.device.imei1}" if it.device else "")
 
                 cols = [
                     str(row + 1),
-                    it.product.name,
+                    name,
                     imei_str,
                     str(it.quantity),
                     format_money(it.unit_price),
@@ -449,6 +458,8 @@ if HAS_QT:
                         f = item.font(); f.setBold(True); item.setFont(f)
                     self.cart_table.setItem(row, col, item)
 
+                self.cart_table.setCellWidget(row, 3, self._qty_stepper(it))
+
                 # Delete Button
                 btn_del = icon_button("trash-2", ar.POS_WINDOW_58A803, "danger-soft")
                 item_id = it.id
@@ -456,9 +467,51 @@ if HAS_QT:
                 btn_del.setToolTip(ar.POS_WINDOW_58A803)
                 self.cart_table.setCellWidget(row, 7, btn_del)
 
+            pieces = sum(it.quantity for it in items)
+            self.lbl_items.setText(str(pieces))
+            self.lbl_cart_count.setText(ar.POS_ITEMS_COUNT.format(n=pieces) if pieces else "")
             self.lbl_subtotal.setText(format_money(self.current_sale.subtotal))
             self.lbl_big_total.setText(format_money(self.current_sale.total))
             self._refresh_held_badge()
+
+        def _qty_stepper(self, it) -> QWidget:
+            """[-] qty [+] for accessories; a phone is always one unit (its IMEI), so it only shows the number."""
+            w = QWidget()
+            lay = QHBoxLayout(w)
+            lay.setContentsMargins(0, 0, 0, 0)
+            lay.setSpacing(6)
+            lay.setAlignment(Qt.AlignCenter)
+            qty = QLabel(str(it.quantity))
+            style_label(qty, bold=True)
+            qty.setMinimumWidth(22)
+            qty.setAlignment(Qt.AlignCenter)
+            if it.device_id:
+                lay.addWidget(qty)
+                return w
+            item_id = it.id
+            minus = icon_button("minus", ar.POS_LINE_DECREASE, "secondary")
+            plus = icon_button("plus", ar.POS_LINE_INCREASE, "secondary")
+            for b in (minus, plus):
+                b.setFixedSize(34, 34)
+                b.setStyleSheet("padding: 0; min-height: 0;")
+            minus.setEnabled(it.quantity > 1)
+            minus.clicked.connect(lambda _=False, i=item_id: self._change_qty(i, -1))
+            plus.clicked.connect(lambda _=False, i=item_id: self._change_qty(i, +1))
+            lay.addWidget(minus)
+            lay.addWidget(qty)
+            lay.addWidget(plus)
+            return w
+
+        def _change_qty(self, item_id: int, delta: int) -> None:
+            it = next((x for x in self.current_sale.items if x.id == item_id), None)
+            if it is None or it.quantity + delta < 1:
+                return
+            try:
+                sales_service.update_line(self.session, self.user, self.current_sale, item_id, quantity=it.quantity + delta)
+                self._refresh_cart()
+            except Exception as e:
+                self.session.rollback()
+                show_error(self, e)
 
         def _refresh_held_badge(self):
             n = len(sales_service.list_held_sales(self.session))

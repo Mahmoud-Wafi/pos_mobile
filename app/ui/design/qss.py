@@ -88,7 +88,7 @@ QLabel[tone="danger"] {{ color: {C['danger']}; }}
 QLabel[tone="warning"] {{ color: {C['warning']}; }}
 QLabel[tone="info"] {{ color: {C['info']}; }}
 QLabel[tone="primary"] {{ color: {C['primary']}; }}
-QLabel[tone="total"] {{ color: #8CA6FF; }}
+QLabel[tone="total"] {{ color: #8CA6FF; font-size: 34px; font-weight: 800; }}
 QLabel[tone="inverse_muted"] {{ color: {C['header_muted']}; }}
 QLabel[size="caption"] {{ font-size: {F['caption']}px; }}
 QLabel[size="body"] {{ font-size: {F['body']}px; }}
@@ -123,17 +123,9 @@ QPushButton[variant="primary"]:disabled, QPushButton[variant="success"]:disabled
     background-color: {C['border_strong']}; color: {C['text_disabled']}; border-color: {C['border_strong']}; }}
 QPushButton[variant="big"] {{ font-size: {F['title']}px; min-height: 36px; }}
 
-/* POS product cards + category chips */
-QFrame[prodcard="true"] {{ background-color: {C['surface']}; border: 1px solid {C['border']}; border-radius: {R['xl']}px; }}
-QFrame[prodcard="true"]:hover, QFrame[prodcard="true"]:focus {{ border: 2px solid {C['primary']}; }}
-QFrame[prodcard="true"][soldout="true"] {{ background-color: {C['surface_alt']}; }}
-QFrame[prodcard="true"] QLabel {{ background: transparent; border: none; }}
-QPushButton[compact="true"] {{ padding: 6px 10px; }}
-QLabel[tile="true"] {{ background: {C['primary_soft']}; border-radius: {R['lg']}px; min-height: 56px; }}
-QLabel[prod_name="true"] {{ font-size: {F['label']}px; font-weight: 700; color: {C['text']}; }}
-QLabel[prod_price="true"] {{ font-size: {F['title']}px; font-weight: 800; color: {C['text']}; }}
-QPushButton[chip="true"] {{ border-radius: 999px; padding: 6px 18px; min-height: 22px; background: {C['surface']}; border: 1px solid {C['border_strong']}; }}
-QPushButton[chip="true"]:checked {{ background: {C['header_bg']}; color: {C['text_inverse']}; border-color: {C['header_bg']}; }}
+/* POS: cart footer + big pay button */
+QFrame[cartfoot="true"] {{ background-color: {C['bg']}; border: none; border-top: 1px solid {C['border']}; border-bottom-left-radius: {R['xl']}px; border-bottom-right-radius: {R['xl']}px; }}
+QPushButton[variant_size="pay"] {{ font-size: {F['h2']}px; font-weight: 800; border-radius: {R['xl']}px; }}
 
 /* inputs */
 QLineEdit, QSpinBox, QDoubleSpinBox, QComboBox, QTextEdit, QDateEdit {{ background-color: {C['surface']}; color: {C['text']};
