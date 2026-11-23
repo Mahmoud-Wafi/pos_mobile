@@ -21,6 +21,7 @@ COLORS: dict[str, str] = {
     # dark shell (header + sidebar)
     "header_bg": "#0E1630", "header_text": "#E6EAF8", "header_muted": "#A9B4D0", "header_chip": "#18224A",
     "sidebar_hover": "#18224A", "sidebar_category": "#8F9BC0",
+    "violet": "#6D3FD6", "violet_soft": "#F1EAFE",
     "focus": "#3558F0",
 }
 

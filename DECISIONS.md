@@ -148,3 +148,9 @@ Architectural and business-rule decisions made during development.
 - Old hard-coded slate/tailwind colours in the table widgets were mapped to the new tokens. Wallet brand colours are unchanged on purpose.
 - Inventory (products and devices) toolbars: the main actions (search, filter, add) stay on the first row and the secondary buttons go on their own row, because one row was wider than a 1366 px screen.
 - Known remaining: the Wallets page needs ~1017 px of content width; at a 1024 px window it still scrolls/clips slightly.
+
+## D-026 — Dashboard and POS rebuilt to the new layouts
+- **Dashboard:** greeting + date + "new invoice" button, KPI cards with a tinted icon chip and a green/red trend line, 7-day chart with today highlighted (stacked bar series; earlier days soft blue). Data and permissions logic unchanged.
+- **POS:** the cashier now sees a catalogue (category chips + responsive grid of product cards, live-filtered by the scan box) next to one invoice card (customer, cart, quick actions, totals, pay). Clicking a card does exactly what scanning does (`_add_found`: phones still ask which unit). Out-of-stock accessories are disabled; cards are keyboard-focusable.
+- Under 1060 px of page width the catalogue and the cart are shown one at a time (a "Products" toggle), because both do not fit; adding a product returns to the cart. The "#" column of the cart is hidden.
+- New Lucide icon `trending-up` (ISC) added to `assets/icons`.

@@ -1,5 +1,8 @@
 # Changelog
 
+## Unreleased (branch `feat/redesign-screens`)
+- Dashboard and POS rebuilt to the new design: greeting, icon KPI cards, highlighted chart, product catalogue with category chips next to the invoice card (D-026).
+
 ## Unreleased (branch `feat/redesign`)
 - New visual design across the system (dark shell, new palette, rounded cards, segmented tabs); icon-only sidebar on narrow windows; inventory toolbars no longer clipped (D-025).
 
