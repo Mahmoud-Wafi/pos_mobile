@@ -75,6 +75,12 @@ QLabel[pill="warning"] {{ background: {C['warning_soft']}; color: {C['warning']}
 QLabel[pill="danger"]  {{ background: {C['danger_soft']};  color: {C['danger']}; }}
 QLabel[pill="info"]    {{ background: {C['info_soft']};    color: {C['info']}; }}
 QLabel[pill="neutral"] {{ background: {C['surface_alt']};  color: {C['text_muted']}; }}
+QLabel[chip] {{ border-radius: {R['lg']}px; min-width: 40px; max-width: 40px; min-height: 40px; max-height: 40px; }}
+QLabel[chip="primary"] {{ background: {C['primary_soft']}; }}
+QLabel[chip="success"] {{ background: {C['success_soft']}; }}
+QLabel[chip="warning"] {{ background: {C['warning_soft']}; }}
+QLabel[chip="violet"]  {{ background: {C['violet_soft']}; }}
+QLabel[chip="info"]    {{ background: {C['info_soft']}; }}
 QLabel[tone="text"] {{ color: {C['text']}; }}
 QLabel[tone="muted"] {{ color: {C['text_muted']}; }}
 QLabel[tone="success"] {{ color: {C['success']}; }}
@@ -116,6 +122,18 @@ QPushButton[variant="ghost"]:hover {{ background-color: {C['surface_alt']}; colo
 QPushButton[variant="primary"]:disabled, QPushButton[variant="success"]:disabled, QPushButton[variant="danger"]:disabled {{
     background-color: {C['border_strong']}; color: {C['text_disabled']}; border-color: {C['border_strong']}; }}
 QPushButton[variant="big"] {{ font-size: {F['title']}px; min-height: 36px; }}
+
+/* POS product cards + category chips */
+QFrame[prodcard="true"] {{ background-color: {C['surface']}; border: 1px solid {C['border']}; border-radius: {R['xl']}px; }}
+QFrame[prodcard="true"]:hover, QFrame[prodcard="true"]:focus {{ border: 2px solid {C['primary']}; }}
+QFrame[prodcard="true"][soldout="true"] {{ background-color: {C['surface_alt']}; }}
+QFrame[prodcard="true"] QLabel {{ background: transparent; border: none; }}
+QPushButton[compact="true"] {{ padding: 6px 10px; }}
+QLabel[tile="true"] {{ background: {C['primary_soft']}; border-radius: {R['lg']}px; min-height: 56px; }}
+QLabel[prod_name="true"] {{ font-size: {F['label']}px; font-weight: 700; color: {C['text']}; }}
+QLabel[prod_price="true"] {{ font-size: {F['title']}px; font-weight: 800; color: {C['text']}; }}
+QPushButton[chip="true"] {{ border-radius: 999px; padding: 6px 18px; min-height: 22px; background: {C['surface']}; border: 1px solid {C['border_strong']}; }}
+QPushButton[chip="true"]:checked {{ background: {C['header_bg']}; color: {C['text_inverse']}; border-color: {C['header_bg']}; }}
 
 /* inputs */
 QLineEdit, QSpinBox, QDoubleSpinBox, QComboBox, QTextEdit, QDateEdit {{ background-color: {C['surface']}; color: {C['text']};

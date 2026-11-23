@@ -1171,3 +1171,17 @@ LIC_BAD = "كود التفعيل غير صحيح أو مخصص لجهاز آخر
 LIC_OK = "تم تفعيل البرنامج على هذا الجهاز"
 REPORT_NET_OF_RETURNS = "{n} فاتورة بيع | صافي بعد مرتجعات {ret}"
 CAT_SHIFT_DIFF = "فرق جرد الوردية"
+
+# Redesign (dashboard / POS)
+DASH_GOOD_MORNING = "صباح الخير"
+DASH_GOOD_EVENING = "مساء الخير"
+DASH_SUBTITLE = "ملخص اليوم حتى الآن"
+DASH_NEW_INVOICE = "فاتورة بيع جديدة"
+POS_CATEGORY_ALL = "الكل"
+POS_IN_STOCK = "{n} متاح"
+POS_LOW_STOCK = "{n} متبقي"
+POS_OUT_OF_STOCK = "نفد"
+POS_PRODUCTS_TITLE = "المنتجات"
+POS_CAT_PHONES = "هواتف"
+POS_CAT_ACCESSORIES = "إكسسوارات"
+POS_CAT_CARDS = "كروت وشحن"

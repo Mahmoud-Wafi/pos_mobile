@@ -1,7 +1,7 @@
 """Dashboard: KPI cards with yesterday comparison, 7-day sales chart, top products, wallets, low stock."""
 from __future__ import annotations
 
-from PySide6.QtCharts import QBarCategoryAxis, QBarSeries, QBarSet, QChart, QChartView, QValueAxis
+from PySide6.QtCharts import QBarCategoryAxis, QBarSet, QChart, QChartView, QStackedBarSeries, QValueAxis
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QColor, QPainter
 from PySide6.QtWidgets import (
@@ -34,18 +34,25 @@ class SalesChart(QChartView):
         chart.legend().hide()
         chart.setBackgroundVisible(False)
         chart.setMargins(chart.margins())
-        bars = QBarSet(ar.DASH_SALES)
-        bars.setColor(QColor(C["primary"]))
-        bars.setBorderColor(QColor(C["primary"]))
-        cats, top = [], 0.0
-        for d in series:
-            v = float(piasters_to_input(d["total"]))
-            bars.append(v)
-            top = max(top, v)
-            cats.append(f"{_DAYS[d['date'].weekday()]}\n{d['date'].day}")
-        s = QBarSeries()
-        s.append(bars)
+        values = [float(piasters_to_input(d["total"])) for d in series]
+        top = max(values, default=0.0)
+        cats = [f"{_DAYS[d['date'].weekday()]}\n{d['date'].day}" for d in series]
+        # earlier days in a soft tint, today (the last bar) in the brand colour
+        earlier, today = QBarSet(ar.DASH_SALES), QBarSet(ar.DASH_SALES)
+        soft = QColor("#C9D3F7")
+        earlier.setColor(soft)
+        earlier.setBorderColor(soft)
+        today.setColor(QColor(C["primary"]))
+        today.setBorderColor(QColor(C["primary"]))
+        for i, v in enumerate(values):
+            last = i == len(values) - 1
+            earlier.append(0.0 if last else v)
+            today.append(v if last else 0.0)
+        s = QStackedBarSeries()
+        s.append(earlier)
+        s.append(today)
         s.setLabelsVisible(False)
+        s.setBarWidth(0.55)
         chart.addSeries(s)
         ax = QBarCategoryAxis()
         ax.append(cats)
@@ -58,7 +65,7 @@ class SalesChart(QChartView):
         chart.addAxis(ay, Qt.AlignLeft)
         s.attachAxis(ay)
         self.setChart(chart)
-        self.bar_values = [bars.at(i) for i in range(bars.count())]
+        self.bar_values = [earlier.at(i) + today.at(i) for i in range(len(values))]
 
 
 class DashboardWidget(QWidget):
@@ -98,21 +105,27 @@ class DashboardWidget(QWidget):
         lay.setContentsMargins(18, 18, 18, 18)
         lay.setSpacing(16)
 
-        self.header = PageHeader(ar.NAV_DASHBOARD)
+        import datetime
+        greeting = ar.DASH_GOOD_MORNING if datetime.datetime.now().hour < 12 else ar.DASH_GOOD_EVENING
+        name = (getattr(self.user, "full_name", "") or "").strip()
+        self.header = PageHeader(f"{greeting}، {name}" if name else greeting, ar.DASH_SUBTITLE)
         self.lbl_date = QLabel()
         text_role(self.lbl_date, "muted")
         self.header.actions.addWidget(self.lbl_date)
         self.header.add_action(button(ar.REFRESH, "secondary", "rotate-cw")).clicked.connect(self.refresh_data)
+        self.btn_new_invoice = button(ar.DASH_NEW_INVOICE, "primary", "plus")
+        self.btn_new_invoice.clicked.connect(self.open_pos_requested.emit)
+        self.header.add_action(self.btn_new_invoice)
         lay.addWidget(self.header)
 
         # KPI row
         self.kpi_row = QHBoxLayout()
         self.kpi_row.setSpacing(12)
-        self.kpi_sales = KpiCard(ar.DASH_SALES_TODAY)
-        self.kpi_count = KpiCard(ar.DASH_INVOICES_TODAY)
-        self.kpi_profit = KpiCard(ar.DASH_PROFIT_TODAY)
-        self.kpi_cash = KpiCard(ar.DASH_DRAWER)
-        self.kpi_debt = KpiCard(ar.DASH_RECEIVABLES)
+        self.kpi_sales = KpiCard(ar.DASH_SALES_TODAY, icon="chart-column", tone="primary")
+        self.kpi_count = KpiCard(ar.DASH_INVOICES_TODAY, icon="receipt", tone="violet")
+        self.kpi_profit = KpiCard(ar.DASH_PROFIT_TODAY, icon="trending-up", tone="success")
+        self.kpi_cash = KpiCard(ar.DASH_DRAWER, icon="wallet", tone="warning")
+        self.kpi_debt = KpiCard(ar.DASH_RECEIVABLES, icon="users", tone="info")
         for k in (self.kpi_sales, self.kpi_count, self.kpi_profit, self.kpi_cash, self.kpi_debt):
             self.kpi_row.addWidget(k)
         lay.addLayout(self.kpi_row)
@@ -189,7 +202,8 @@ class DashboardWidget(QWidget):
         if sales is not None:
             t, y = sales["today"], sales["yesterday"]
             pct = report_service.change_percent(t["total"], y["total"])
-            self.kpi_sales.set_value(format_money(t["total"]), self._compare(pct, y["total"]))
+            self.kpi_sales.set_value(format_money(t["total"]), self._compare(pct, y["total"]),
+                                     None if not pct else ("up" if pct > 0 else "down"))
             self.kpi_count.set_value(str(t["count"]), ar.DASH_YESTERDAY.format(n=y["count"]))
             self.kpi_profit.setVisible(t["profit"] is not None)       # hidden without profit permission
             if t["profit"] is not None:

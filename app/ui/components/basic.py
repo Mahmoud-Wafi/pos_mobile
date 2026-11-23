@@ -43,29 +43,53 @@ class Card(QFrame):
 
 
 class KpiCard(QFrame):
-    """Label + big value (+ optional hint). Update with set_value()."""
+    """Label + big value (+ optional hint). Update with set_value().
 
-    def __init__(self, title: str, value: str = "—", hint: str = "", parent=None):
+    ``icon`` (a Lucide name) adds a tinted chip; ``tone`` colours it: primary|success|warning|violet|info.
+    """
+
+    _TONE_COLOR = {"primary": "primary", "success": "success", "warning": "warning", "violet": "violet", "info": "info"}
+
+    def __init__(self, title: str, value: str = "—", hint: str = "", parent=None, icon: str | None = None, tone: str = "primary"):
         super().__init__(parent)
         set_prop(self, "kpi", True)
         lay = QVBoxLayout(self)
-        lay.setContentsMargins(S["lg"], S["md"], S["lg"], S["md"])
-        lay.setSpacing(S["xs"])
+        lay.setContentsMargins(S["lg"], S["lg"], S["lg"], S["lg"])
+        lay.setSpacing(S["sm"])
         self.title_lbl = QLabel(title)
-        text_role(self.title_lbl, "caption")
+        text_role(self.title_lbl, "muted")
         self.value_lbl = QLabel(value)
         text_role(self.value_lbl, "money")
         self.hint_lbl = QLabel(hint)
         text_role(self.hint_lbl, "caption")
         self.hint_lbl.setVisible(bool(hint))
-        for w in (self.title_lbl, self.value_lbl, self.hint_lbl):
-            lay.addWidget(w)
+        top = QHBoxLayout()
+        top.addWidget(self.title_lbl, 1)
+        if icon:
+            from app.ui.design import icons
+            chip = QLabel()
+            chip.setAlignment(Qt.AlignCenter)
+            chip.setProperty("chip", tone)
+            chip.setPixmap(icons.pixmap(icon, C[self._TONE_COLOR.get(tone, "primary")], 20))
+            top.addWidget(chip)
+        lay.addLayout(top)
+        lay.addWidget(self.value_lbl)
+        lay.addWidget(self.hint_lbl)
 
-    def set_value(self, value: str, hint: str | None = None) -> None:
+    def set_value(self, value: str, hint: str | None = None, trend: str | None = None) -> None:
+        """``trend``: "up" (green), "down" (red) or None (muted) colours the hint line."""
         self.value_lbl.setText(value)
         if hint is not None:
             self.hint_lbl.setText(hint)
             self.hint_lbl.setVisible(bool(hint))
+        tone = {"up": "success", "down": "danger"}.get(trend or "", "muted")
+        self.hint_lbl.setProperty("text_role", None)
+        self.hint_lbl.setProperty("tone", tone)
+        self.hint_lbl.setProperty("size", "caption")
+        self.hint_lbl.setProperty("bold", True)
+        st = self.hint_lbl.style()
+        st.unpolish(self.hint_lbl)
+        st.polish(self.hint_lbl)
 
 
 class PageHeader(QWidget):

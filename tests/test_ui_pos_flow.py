@@ -180,3 +180,39 @@ def test_switching_screens_keeps_the_draft_invoice(qtbot, db_session):
     assert sale in win.session            # still attached
     assert sale.status == "held"
     assert sales_service.list_held_sales(win.session) is not None
+
+
+def test_catalogue_card_click_adds_to_cart_and_filters(qtbot, shop):
+    s, mgr, cash, cable, phone = shop
+    w = _pos(qtbot, s, cash)
+    w.resize(1200, 800)
+    w.show()
+    qtbot.wait(30)
+    grid = w.product_grid
+    assert {p.name for p in grid.visible_products()} == {"Cable USB", "Phone X"}
+    # category chip and the scan box both narrow the grid
+    grid._set_type("phone")
+    assert [p.name for p in grid.visible_products()] == ["Phone X"]
+    grid._set_type("all")
+    w.scan_edit.setText("cable")
+    assert [p.name for p in grid.visible_products()] == ["Cable USB"]
+    # clicking an accessory card = scanning it
+    card = next(c for c in grid._cards if c.product_id == cable.id)
+    card.clicked.emit()
+    assert len(w.current_sale.items) == 1 and w.current_sale.items[0].product_id == cable.id
+
+
+def test_catalogue_disables_sold_out_accessory(qtbot, shop):
+    s, mgr, cash, cable, phone = shop
+    inventory_service.adjust_stock(s, mgr, cable, 0, "empty")
+    s.commit()
+    w = _pos(qtbot, s, cash)
+    w.show()
+    qtbot.wait(30)
+    card = next(c for c in w.product_grid._cards if c.product_id == cable.id)
+    got = []
+    card.clicked.connect(lambda: got.append(1))
+    from PySide6.QtTest import QTest
+    from PySide6.QtCore import Qt
+    QTest.mouseClick(card, Qt.LeftButton)
+    assert not got
