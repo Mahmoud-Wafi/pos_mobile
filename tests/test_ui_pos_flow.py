@@ -182,37 +182,27 @@ def test_switching_screens_keeps_the_draft_invoice(qtbot, db_session):
     assert sales_service.list_held_sales(win.session) is not None
 
 
-def test_catalogue_card_click_adds_to_cart_and_filters(qtbot, shop):
+
+def test_cart_qty_stepper_changes_accessory_quantity(qtbot, shop):
     s, mgr, cash, cable, phone = shop
     w = _pos(qtbot, s, cash)
-    w.resize(1200, 800)
-    w.show()
-    qtbot.wait(30)
-    grid = w.product_grid
-    assert {p.name for p in grid.visible_products()} == {"Cable USB", "Phone X"}
-    # category chip and the scan box both narrow the grid
-    grid._set_type("phone")
-    assert [p.name for p in grid.visible_products()] == ["Phone X"]
-    grid._set_type("all")
-    w.scan_edit.setText("cable")
-    assert [p.name for p in grid.visible_products()] == ["Cable USB"]
-    # clicking an accessory card = scanning it
-    card = next(c for c in grid._cards if c.product_id == cable.id)
-    card.clicked.emit()
-    assert len(w.current_sale.items) == 1 and w.current_sale.items[0].product_id == cable.id
+    w._add_to_cart(cable)
+    w._refresh_cart()
+    item_id = w.current_sale.items[0].id
+    w._change_qty(item_id, +1)
+    w._change_qty(item_id, +1)
+    assert w.current_sale.items[0].quantity == 3 and w.lbl_items.text() == "3"
+    w._change_qty(item_id, -1)
+    w._change_qty(item_id, -5)                     # never below 1: removing is the delete button's job
+    assert w.current_sale.items[0].quantity == 2
 
 
-def test_catalogue_disables_sold_out_accessory(qtbot, shop):
+def test_phone_line_has_no_stepper_and_shows_imei(qtbot, shop):
     s, mgr, cash, cable, phone = shop
-    inventory_service.adjust_stock(s, mgr, cable, 0, "empty")
-    s.commit()
     w = _pos(qtbot, s, cash)
-    w.show()
-    qtbot.wait(30)
-    card = next(c for c in w.product_grid._cards if c.product_id == cable.id)
-    got = []
-    card.clicked.connect(lambda: got.append(1))
-    from PySide6.QtTest import QTest
-    from PySide6.QtCore import Qt
-    QTest.mouseClick(card, Qt.LeftButton)
-    assert not got
+    dev = inventory_service.find_by_barcode_or_imei(s, "111111111111111")
+    w._add_to_cart(dev.product, device=dev)
+    w._refresh_cart()
+    assert "111111111111111" in w.cart_table.item(0, 1).text()
+    from PySide6.QtWidgets import QPushButton
+    assert not w.cart_table.cellWidget(0, 3).findChildren(QPushButton)

@@ -1,5 +1,8 @@
 # Changelog
 
+## Unreleased (branch `feat/pos-redesign-v2`)
+- POS redesigned without the product catalogue: large scan box, wide cart with quantity buttons, summary + big pay button (D-027).
+
 ## Unreleased (branch `feat/redesign-screens`)
 - Dashboard and POS rebuilt to the new design: greeting, icon KPI cards, highlighted chart, product catalogue with category chips next to the invoice card (D-026).
 

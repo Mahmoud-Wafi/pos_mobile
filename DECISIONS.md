@@ -154,3 +154,10 @@ Architectural and business-rule decisions made during development.
 - **POS:** the cashier now sees a catalogue (category chips + responsive grid of product cards, live-filtered by the scan box) next to one invoice card (customer, cart, quick actions, totals, pay). Clicking a card does exactly what scanning does (`_add_found`: phones still ask which unit). Out-of-stock accessories are disabled; cards are keyboard-focusable.
 - Under 1060 px of page width the catalogue and the cart are shown one at a time (a "Products" toggle), because both do not fit; adding a product returns to the cart. The "#" column of the cart is hidden.
 - New Lucide icon `trending-up` (ISC) added to `assets/icons`.
+
+## D-027 — POS without a catalogue
+- The product catalogue/cards added in D-026 were removed at the owner's request; the cashier works from one big scan box (barcode / IMEI / name + Enter). Everything else on the screen is the invoice.
+- Layout: header (title, invoice no., shift status + close), scan card (scan box, customer, new customer), cart card (table with +/- quantity for accessories, trash, footer actions), fixed-width summary card (items, subtotal, extra discount, big total, big pay button).
+- A phone line shows its IMEI under the name and has no quantity buttons (one unit = one IMEI). On windows narrower than 1100 px the "#", unit-price and discount columns are hidden (still editable by double-click) and the summary narrows to 310 px.
+- The cart table has its own object name (`pos_cart_v2`) so column widths saved by the old layout are not reused.
+- New Lucide icon `minus`.
